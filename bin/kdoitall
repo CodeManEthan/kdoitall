@@ -1,0 +1,119 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Determine paths (resolve symlinks)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# Resolve symlink if necessary
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    # If readlink returned relative path, make it absolute
+    [[ "$SCRIPT_PATH" != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+export KDOITALL_ROOT="${SCRIPT_DIR}/.."
+
+# ============================================================================
+# LAYER 1 - Foundation (no dependencies)
+# ============================================================================
+# shellcheck source=../lib/core/error_codes.sh
+source "${LIB_DIR}/core/error_codes.sh"
+# shellcheck source=../lib/utils/debug.sh
+source "${LIB_DIR}/utils/debug.sh"
+
+# ============================================================================
+# Command Parsing
+# ============================================================================
+COMMAND=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --debug|--verbose)
+            # Already handled by debug.sh, just skip
+            shift
+            ;;
+        *)
+            # This is the actual command
+            COMMAND="$1"
+            shift
+            break
+            ;;
+    esac
+done
+
+# ============================================================================
+# AUTO-DETACH FROM TERMINAL (unless debug/verbose mode or info commands)
+# ============================================================================
+# Skip auto-detach for informational commands
+SKIP_DETACH=false
+case "$COMMAND" in
+    --help|-h|--version|-v)
+        SKIP_DETACH=true
+        ;;
+esac
+
+# If running interactively and not in debug/verbose mode, detach to background
+if [ -t 0 ] && [ "$DEBUG_MODE" != "true" ] && [ "$VERBOSE_MODE" != "true" ] && [ "$SKIP_DETACH" != "true" ]; then
+    # Re-run in background, discarding output
+    nohup "$0" "$@" > /dev/null 2>&1 &
+    exit 0
+fi
+
+# ============================================================================
+# LAYER 2 - Core Utilities (depend only on foundation)
+# ============================================================================
+# shellcheck source=../lib/core/common.sh
+source "${LIB_DIR}/core/common.sh"
+# shellcheck source=../lib/utils/checks.sh
+source "${LIB_DIR}/utils/checks.sh"
+# shellcheck source=../lib/utils/validators.sh
+source "${LIB_DIR}/utils/validators.sh"
+
+# ============================================================================
+# LAYER 3 - Core Services (depend on foundation + core utilities)
+# ============================================================================
+# shellcheck source=../lib/core/database.sh
+source "${LIB_DIR}/core/database.sh"
+# shellcheck source=../lib/core/ydotool.sh
+source "${LIB_DIR}/core/ydotool.sh"
+# shellcheck source=../lib/utils/parsers.sh
+source "${LIB_DIR}/utils/parsers.sh"
+
+# ============================================================================
+# Dependency Check
+# ============================================================================
+check_dependencies
+
+# ============================================================================
+# Command Dispatch
+# ============================================================================
+case "$COMMAND" in
+    --help|-h)
+        # shellcheck source=../lib/commands/help.sh
+        source "${LIB_DIR}/commands/help.sh"
+        show_help
+        ;;
+    
+    --version|-v)
+        echo "kdoitall v0.1.0"
+        ;;
+
+    --test-open)
+        # Run test script
+        TEST_SCRIPT="${KDOITALL_ROOT}/tests/test-workspace-open.sh"
+        if [[ -f "$TEST_SCRIPT" ]]; then
+            debug_log "Running test script: $TEST_SCRIPT"
+            # shellcheck source=../tests/test-workspace-open.sh
+            source "$TEST_SCRIPT"
+        else
+            echo "Error: Test script not found: $TEST_SCRIPT" >&2
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Error: Unknown command: $COMMAND" >&2
+        echo "Run 'kdoitall --help' for usage information" >&2
+        exit 1
+        ;;
+esac
