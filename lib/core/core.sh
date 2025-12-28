@@ -29,15 +29,14 @@ launch_window() {
     local position="$5"
     local launch_mode="$6"
     local launch_command="$7"
-    
-    shift 7
-    
     local window_title=""
     local workspace_name="default_workspace"
     local function_name="launch_window"
     local uuid
 
     debug_function_enter "$function_name" "$@"
+    
+    shift 7
  
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -79,7 +78,8 @@ launch_window() {
     else
         debug_log "$function_name" "Launch Window"
         eval "$launch_command"
-        uuid=$(get_last_launched_uuid_by_class "$class")
+        sleep "$LAUNCH_DELAY"
+        uuid=$(get_uuid_by_process_of_elimination "$class")
 
         # Add Window to Database
         debug_log "$function_name" "Add Window to app_windows table."
@@ -132,29 +132,32 @@ auto_detect_windows() {
     debug_function_enter "$function_name"
     
     # Get all currently existing window UUIDs
-    debug_log "$function_name" "Get all currently existing window UUIDs."
+    debug_log "$function_name" "===== GET WINDOWS FROM KDOTOOL ====="
     mapfile -t existing_uuids < <(get_existing_windows_uuid)
 
     # Get all currently existing window classes
-    debug_log "$function_name" "Get all currently existing window classes."
+    debug_log "$function_name" "===== GET CLASSES FROM KDOTOOL ====="
     # shellcheck disable=SC2034
     mapfile -t existing_classes < <(get_existing_windows_class_by_uuids "${existing_uuids[@]}")
     
     # Get all UUIDs from the database
-    debug_log "$function_name" "Get all UUIDs from the database"
+    debug_log "$function_name" "===== GET UUIDS FROM DATABASE ====="
     # shellcheck disable=SC2034
     mapfile -t db_uuids < <(sqlite3 "$KDOITALL_DB" "SELECT uuid FROM app_windows WHERE uuid IS NOT NULL")
 
+    debug_log "$function_name" "===== KDOTOOL RESULTS ====="
     debug_array existing_uuids
     debug_array existing_classes
+    
+    debug_log "$function_name" "===== DATABASE RESULTS ====="
     debug_array db_uuids
 
     # Delete stale windows from database
-    debug_log "$function_name" "Delete stale windows from app_windows table"
+    debug_log "$function_name" "===== DELETE STALE WINDOWS ====="
     db_delete_stale_windows existing_uuids db_uuids
     
     # Add new windows to database
-    debug_log "$function_name" "Add new windows to app_windows table"
+    debug_log "$function_name" "===== ADD NEW WINDOWS ====="
     db_add_existing_windows existing_uuids existing_classes
 
     debug_function_exit "$function_name"

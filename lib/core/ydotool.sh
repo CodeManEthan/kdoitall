@@ -89,6 +89,11 @@ declare -a PRESSED_KEYS=()
 cleanup() {
     local function_name="cleanup"
 
+    # Only run cleanup if there are actually keys pressed
+    if [[ ${#PRESSED_KEYS[@]} -eq 0 ]]; then
+        return
+    fi
+
     debug_function_enter "$function_name"
 
     debug_log "$function_name" "CLEANUP: Starting cleanup, ${#PRESSED_KEYS[@]} keys pressed"

@@ -177,31 +177,57 @@ db_add_existing_windows() {
     local workspace_name="~auto:workspace"
     local function_name="db_add_existing_windows"
 
+    # Track class counts for unique naming
+    declare -A class_counts
+
     debug_function_enter "$function_name" "$1" "$2"
     
+    debug_log "$function_name" "===== ARRAYS FROM KDOTOOL ====="
     debug_array "$1"
     debug_array "$2"
 
     for i in "${!uuids_ref[@]}"; do
-        window_name="~auto:${classes_ref[$i]}"
+        local class="${classes_ref[$i]}"
+        local uuid="${uuids_ref[$i]}"
+        
+        # Increment counter for this class
+        if [[ -z "${class_counts[$class]+_}" ]]; then
+            class_counts[$class]=1
+        else
+            ((class_counts[$class]++))
+        fi
+        
+        # Create unique window name with counter
+        window_name="~auto:${class}:${class_counts[$class]}"
 
-        sqlite3 "$KDOITALL_DB" \
+        debug_log "$function_name" "Attempting INSERT: window_name='$window_name', uuid='$uuid', class='$class'"
+
+        # Check if UUID already exists first
+        local existing_check
+        existing_check=$(sqlite3 "$KDOITALL_DB" \
+            -cmd ".param init" \
+            -cmd ".param set :uuid '$uuid'" \
+            "SELECT window_name FROM app_windows WHERE uuid = :uuid;" 2>/dev/null)
+        
+        if [[ -n "$existing_check" ]]; then
+            debug_log "$function_name" "UUID ALREADY IN DB: uuid='$uuid' exists as window_name='$existing_check'"
+            continue
+        fi
+
+        changes=$(sqlite3 "$KDOITALL_DB" \
             -cmd ".param init" \
             -cmd ".param set :workspace '$workspace_name'" \
             -cmd ".param set :window '$window_name'" \
-            -cmd ".param set :uuid '${uuids_ref[$i]}'" \
-            -cmd ".param set :class '${classes_ref[$i]}'" \
+            -cmd ".param set :uuid '$uuid'" \
+            -cmd ".param set :class '$class'" \
             "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, is_tab) 
-             VALUES (:workspace, :window, :uuid, :class, FALSE);"
-        
-        # Check if row was inserted
-        local changes
-        changes=$(sqlite3 "$KDOITALL_DB" "SELECT changes()")
+            VALUES (:workspace, :window, :uuid, :class, FALSE);
+            SELECT changes();")
         
         if [ "$changes" -eq 1 ]; then
-            debug_log "$function_name" "INSERTED: window_name='$window_name', uuid='${uuids_ref[$i]}', class='${classes_ref[$i]}'"
+            debug_log "$function_name" "✓ INSERTED: window_name='$window_name', uuid='$uuid', class='$class'"
         else
-            debug_log "$function_name" "IGNORED: window_name='$window_name', uuid='${uuids_ref[$i]}' (already exists)"
+            debug_log "$function_name" "✗ INSERT FAILED (window_name conflict?): window_name='$window_name', uuid='$uuid'"
         fi
     done
 
@@ -229,7 +255,7 @@ db_delete_stale_windows() {
     
     # Delete UUIDs that don't exist anymore
     for uuid_to_delete in "${db_uuids_ref[@]}"; do
-        if [[ -z "${existing_lookup[$uuid_to_delete]}" ]]; then
+        if [[ ! -v existing_lookup[$uuid_to_delete] ]]; then
             sqlite3 "$KDOITALL_DB" \
                 -cmd ".param init" \
                 -cmd ".param set :uuid '$uuid_to_delete'" \

@@ -50,6 +50,89 @@ get_last_launched_uuid() {
     echo "$uuid"
 }
 
+get_uuid_by_window_title() {
+    local window_title="$1"
+    local uuid
+    local function_name="get_uuid_by_window_title"
+
+    debug_function_enter "$function_name" "$@"
+
+    uuid=$(kdotool search --name "$window_title")
+
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "'$window_title' → '$uuid'"
+
+    debug_function_exit "$function_name"
+    echo "$uuid"    
+}
+
+get_uuid_by_process_of_elimination() {
+    local class="$1"  # Optional class parameter for validation
+    local -a current_uuids=()
+    local -a db_uuids=()
+    local new_uuid=""
+    local found_count=0
+    local function_name="get_uuid_by_process_of_elimination"
+
+    debug_function_enter "$function_name" "$@"
+
+    # Get all current window UUIDs from kdotool
+    mapfile -t current_uuids < <(get_existing_windows_uuid)
+    
+    # Get all UUIDs from database
+    mapfile -t db_uuids < <(sqlite3 "$KDOITALL_DB" "SELECT uuid FROM app_windows WHERE uuid IS NOT NULL")
+    
+    debug_log "$function_name" "Current windows: ${#current_uuids[@]}, Database windows: ${#db_uuids[@]}"
+    
+    # Build lookup table of database UUIDs
+    declare -A db_lookup
+    for uuid in "${db_uuids[@]}"; do
+        db_lookup["$uuid"]=1
+    done
+    
+    # Find UUIDs that exist in current windows but not in database
+    for uuid in "${current_uuids[@]}"; do
+        if [[ ! -v db_lookup[$uuid] ]]; then
+            new_uuid="$uuid"
+            ((found_count++))
+            debug_log "$function_name" "Found new UUID: $uuid"
+        fi
+    done
+    
+    if [[ $found_count -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "No new windows found"
+        debug_function_exit "$function_name"
+        return 1
+    elif [[ $found_count -gt 1 ]]; then
+        debug_error "$function_name" "$ERR_MULTIPLE_WINDOWS_FOUND" "Found $found_count new windows, expected 1"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate class if provided
+    if [[ -n "$class" ]]; then
+        local found_class
+        found_class=$(get_window_class_by_uuid "$new_uuid")
+        
+        if [[ "$class" != "$found_class" ]]; then
+            debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$new_uuid'"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+        
+        debug_log "$function_name" "Class validation passed: '$class' matches for UUID '$new_uuid'"
+    fi
+    
+    debug_log "$function_name" "New window UUID: $new_uuid"
+    debug_function_exit "$function_name"
+    echo "$new_uuid"
+}
+
 get_window_title_by_uuid() {
     local uuid="$1" 
     local window_title
@@ -340,7 +423,7 @@ minimize_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-close_window() {
+close_window_by_uuid() {
     local uuid="$1"
     local function_name="close_window_by_uuid"
 

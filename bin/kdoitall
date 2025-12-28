@@ -109,6 +109,18 @@ case "$COMMAND" in
             exit 1
         fi
         ;;
+    --test-close)
+        # Run test script
+        TEST_SCRIPT="${KDOITALL_ROOT}/tests/test-workspace-close.sh"
+        if [[ -f "$TEST_SCRIPT" ]]; then
+            debug_log "Running test script: $TEST_SCRIPT"
+            # shellcheck source=../tests/test-workspace-close.sh
+            source "$TEST_SCRIPT"
+        else
+            echo "Error: Test script not found: $TEST_SCRIPT" >&2
+            exit 1
+        fi
+        ;;
     *)
         echo "Error: Unknown command: $COMMAND" >&2
         echo "Run 'kdoitall --help' for usage information" >&2
