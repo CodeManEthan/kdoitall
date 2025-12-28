@@ -10,22 +10,24 @@ db_get_uuid_by_window_name() {
     local uuid
     local function_name="get_uuid_by_window_name"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Get UUID for Window Name from 'windows' table
     uuid=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
         -cmd ".param set :window_name '$window_name'" \
-        "SELECT uuid FROM windows WHERE window_name = :window_name;" 2>/dev/null)
+        "SELECT uuid FROM app_windows WHERE window_name = :window_name;" 2>/dev/null)
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$window_name' → '$uuid'" "verbose"
-    
     # Pass UUID
+    debug_log "$function_name" "'$window_name' → '$uuid'"
+    
+    debug_function_exit "$function_name"
     echo "$uuid"
 }
 
@@ -34,22 +36,24 @@ db_get_window_name_by_uuid() {
     local window_name
     local function_name="get_window_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Get Window Name for UUID from 'windows' table
     window_name=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
         -cmd ".param set :uuid '$uuid'" \
-        "SELECT window_name FROM windows WHERE uuid = :uuid;" 2>/dev/null)
+        "SELECT window_name FROM app_windows WHERE uuid = :uuid;" 2>/dev/null)
 
     if [[ -z "$window_name" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_WINDOW_NAME_NOT_FOUND]} - $uuid"
+        debug_error "$function_name" "$ERR_WINDOW_NAME_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$uuid' → '$window_name'" "verbose"
-
     # Pass Window Name
+    debug_log "$function_name" "'$uuid' → '$window_name'"
+
+    debug_function_exit "$function_name"
     echo "$window_name"
 }
 
@@ -59,7 +63,7 @@ db_get_tab_by_tab_name() {
     local tab_number
     local function_name="get_tab_by_tab_name"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Get Tab Number for Window Name & Tab Name from 'tabs' table
     tab_number=$(sqlite3 "$KDOITALL_DB" \
@@ -69,13 +73,15 @@ db_get_tab_by_tab_name() {
         "SELECT tab FROM tabs WHERE window_name = :window_name AND tab_name = :tab_name;" 2>/dev/null)
 
     if [[ -z "$tab_number" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_TAB_NUMBER_NOT_FOUND]} - $window_name - $tab_name"
+        debug_error "$function_name" "$ERR_TAB_NUMBER_NOT_FOUND"  "$window_name - $tab_name"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$window_name' '$tab_name' → '$tab_number'" "verbose"
-    
     # Pass Tab Number
+    debug_log "$function_name" "'$window_name' '$tab_name' → '$tab_number'"
+    
+    debug_function_exit "$function_name"
     echo "$tab_number"
 }
 
@@ -84,19 +90,21 @@ db_check_window_exists_by_window_name() {
     local uuid
     local function_name="check_window_exists_by_window_name"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Get UUID by Window Name
     uuid=$(db_get_uuid_by_window_name "$window_name")
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "'$window_name' ($uuid) already exists." "verbose"
-
     # Pass UUID
+    debug_log "$function_name" "'$window_name' ($uuid) already exists."
+
+    debug_function_exit "$function_name"
     echo "$uuid"    
 }
 
@@ -108,7 +116,7 @@ db_add_window() {
     local class="$4"
     local function_name="db_add_window"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
     
     # Add entry to 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
@@ -120,14 +128,15 @@ db_add_window() {
         "INSERT INTO app_windows (workspace_name, window_name, uuid, class, is_tab)
          VALUES (:workspace, :window, :uuid, :class, FALSE);"
     
-    debug_log "$function_name: Added window '$window_name' (workspace: '$workspace_name', uuid: '$uuid', class: '$class')" "verbose"
+    debug_log "$function_name" "Added window '$window_name' (workspace: '$workspace_name', uuid: '$uuid', class: '$class')"
+    debug_function_exit "$function_name"
 }
 
 db_delete_window() {
     local window_name="$1"
     local function_name="db_delete_window"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Delete entry from 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
@@ -135,7 +144,8 @@ db_delete_window() {
         -cmd ".param set :window '$window_name'" \
         "DELETE FROM app_windows WHERE window_name = :window;"
     
-    debug_log "$function_name: Deleted window '$window_name'" "verbose"
+    debug_log "$function_name" "Deleted window '$window_name'"
+    debug_function_exit "$function_name"
 }
 
 db_claim_window() {
@@ -144,7 +154,7 @@ db_claim_window() {
     local uuid="$3"
     local function_name="db_claim_window"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -155,6 +165,9 @@ db_claim_window() {
          SET window_name = :window,
              workspace_name = :workspace
          WHERE uuid = :uuid;"
+
+    debug_log "$function_name" "Claimed window '$new_window_name' (workspace: '$new_workspace_name', uuid: '$uuid')"
+    debug_function_exit "$function_name"
 }
 
 db_add_existing_windows() {
@@ -164,10 +177,10 @@ db_add_existing_windows() {
     local workspace_name="~auto:workspace"
     local function_name="db_add_existing_windows"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$1" "$2"
     
-    debug_array "$1" "verbose"
-    debug_array "$2" "verbose"
+    debug_array "$1"
+    debug_array "$2"
 
     for i in "${!uuids_ref[@]}"; do
         window_name="~auto:${classes_ref[$i]}"
@@ -186,11 +199,13 @@ db_add_existing_windows() {
         changes=$(sqlite3 "$KDOITALL_DB" "SELECT changes()")
         
         if [ "$changes" -eq 1 ]; then
-            debug_log "INSERTED: window_name='$window_name', uuid='${uuids_ref[$i]}', class='${classes_ref[$i]}'" "verbose"
+            debug_log "$function_name" "INSERTED: window_name='$window_name', uuid='${uuids_ref[$i]}', class='${classes_ref[$i]}'"
         else
-            debug_log "IGNORED: window_name='$window_name', uuid='${uuids_ref[$i]}' (already exists)" "verbose"
+            debug_log "$function_name" "IGNORED: window_name='$window_name', uuid='${uuids_ref[$i]}' (already exists)"
         fi
     done
+
+    debug_function_exit "$function_name"
 }
 
 db_delete_stale_windows() {
@@ -200,17 +215,17 @@ db_delete_stale_windows() {
     local uuid_to_delete
     local function_name="db_delete_stale_windows"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$1" "$2"
     
-    debug_array "$1" "verbose"
-    debug_array "$2" "verbose"
+    debug_array "$1" 
+    debug_array "$2"
 
     # Build lookup table for O(1) checking
     for uuid in "${existing_uuids_ref[@]}"; do
         existing_lookup["$uuid"]=1
     done
     
-    debug_log "Built lookup table with ${#existing_lookup[@]} entries" "verbose"
+    debug_log "$function_name" "Built lookup table with ${#existing_lookup[@]} entries"
     
     # Delete UUIDs that don't exist anymore
     for uuid_to_delete in "${db_uuids_ref[@]}"; do
@@ -225,14 +240,16 @@ db_delete_stale_windows() {
             changes=$(sqlite3 "$KDOITALL_DB" "SELECT changes()")
             
             if [ "$changes" -eq 1 ]; then
-                debug_log "DELETED: Stale window with uuid='$uuid_to_delete'" "verbose"
+                debug_log "$function_name" "DELETED: Stale window with uuid='$uuid_to_delete'"
                 echo "Deleted stale window: $uuid_to_delete"
             else
-                debug_log "DELETE FAILED: uuid='$uuid_to_delete' not found in database" "verbose"
+                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database"
             fi
         else
-            debug_log "KEPT: uuid='$uuid_to_delete' still exists" "verbose"
+            debug_log "$function_name" "KEPT: uuid='$uuid_to_delete' still exists"
         fi
     done
+
+    debug_function_exit "$function_name"
 }
 

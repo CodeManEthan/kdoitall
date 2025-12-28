@@ -77,8 +77,6 @@ source "${LIB_DIR}/utils/validators.sh"
 source "${LIB_DIR}/core/database.sh"
 # shellcheck source=../lib/core/ydotool.sh
 source "${LIB_DIR}/core/ydotool.sh"
-# shellcheck source=../lib/utils/parsers.sh
-source "${LIB_DIR}/utils/parsers.sh"
 
 # ============================================================================
 # Dependency Check

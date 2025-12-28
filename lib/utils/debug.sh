@@ -15,35 +15,62 @@ for arg in "$@"; do
 done
 
 debug_log() {
-    local message="$1"
-    local level="${2:-error}"  # Default to "error" level
+    local function_name="$1"
+    local message="$2"
     
-    if [[ "$level" == "verbose" ]]; then
-        # Only show in verbose mode
-        if [ "$VERBOSE_MODE" = "true" ]; then
-            echo "[DEBUG $(date +%H:%M:%S.%3N)] $message" >&2
+    if [ "$VERBOSE_MODE" = "true" ]; then
+        echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: $message" >&2
+    fi
+}
+
+debug_error() {
+    local function_name="$1"
+    local error_code="$2"
+    local additional_info="${3:-}"  # Optional additional context
+    
+    if [ "$DEBUG_MODE" = "true" ]; then
+        local error_message="${ERROR_MESSAGES[$error_code]}"
+        
+        if [[ -n "$additional_info" ]]; then
+            echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: ERROR: $error_message - $additional_info" >&2
+        else
+            echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: ERROR: $error_message" >&2
         fi
-    else
-        # Show in both debug and verbose modes (errors)
-        if [ "$DEBUG_MODE" = "true" ]; then
-            echo "[DEBUG $(date +%H:%M:%S.%3N)] $message" >&2
+    fi
+}
+
+debug_function_enter() {
+    local function_name="$1"
+    shift  # Remove function_name, leaving only the actual parameters
+    
+    if [ "$VERBOSE_MODE" = "true" ]; then
+        echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: ENTER" >&2
+        
+        # Show parameters if any were passed
+        if [ $# -gt 0 ]; then
+            echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: PARAMS ($# total)" >&2
+            local i=1
+            for param in "$@"; do
+                echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name:   [$i] = '$param'" >&2
+                ((i++))
+            done
         fi
+    fi
+}
+
+debug_function_exit() {
+    local function_name="$1"
+    
+    if [ "$VERBOSE_MODE" = "true" ]; then
+        echo "[DEBUG $(date +%H:%M:%S.%3N)] $function_name: EXIT" >&2
+        echo "" >&2  # Blank line for readability
     fi
 }
 
 debug_array() {
     local array_name="$1"
-    local level="${2:-error}"  # Default to "error" level
     
-    # Check if we should display based on mode
-    local should_display=false
-    if [[ "$level" == "verbose" ]]; then
-        [ "$VERBOSE_MODE" = "true" ] && should_display=true
-    else
-        [ "$DEBUG_MODE" = "true" ] && should_display=true
-    fi
-    
-    if [ "$should_display" = "true" ]; then
+    if [ "$VERBOSE_MODE" = "true" ]; then
         # Use nameref to reference the array by name
         local -n array_ref="$array_name"
         
@@ -112,6 +139,9 @@ debug_chord() {
 
 export DEBUG_MODE VERBOSE_MODE
 export -f debug_log
+export -f debug_error
+export -f debug_function_enter
+export -f debug_function_exit
 export -f debug_array
 export -f debug_app_windows
 export -f debug_chord

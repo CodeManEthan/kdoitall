@@ -87,11 +87,18 @@ declare -A KEYS=(
 declare -a PRESSED_KEYS=()
 
 cleanup() {
-    debug_log "CLEANUP: Starting cleanup, ${#PRESSED_KEYS[@]} keys pressed" "verbose"
+    local function_name="cleanup"
+
+    debug_function_enter "$function_name"
+
+    debug_log "$function_name" "CLEANUP: Starting cleanup, ${#PRESSED_KEYS[@]} keys pressed"
+
     # Release all tracked keys
     for key in "${PRESSED_KEYS[@]}"; do
         ydotool key "$key:0"
     done
+
+    debug_function_exit "$function_name"
     exit
 }
 
@@ -102,7 +109,7 @@ press_key() {
     local function_name="press_key"
     
     if [[ -z $keycode ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UNKNOWN_KEY]} - '$key_name'"
+        debug_error "$function_name" "$ERR_UNKNOWN_KEY" "$key_name"
         return 1
     fi
     
@@ -118,7 +125,7 @@ release_key() {
     local function_name="release_key"
     
     if [[ -z $keycode ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UNKNOWN_KEY]} - '$key_name'"
+        debug_error "$function_name" "$ERR_UNKNOWN_KEY" "$key_name"
         return 1
     fi
     
@@ -147,6 +154,9 @@ tap_key() {
 # Press multiple keys together (chord)
 chord() {
     local keys=("$@")
+    local function_name="chord"
+
+    debug_function_enter "$function_name" "$@"
 
     debug_chord "${keys[@]}"
     
@@ -170,13 +180,21 @@ chord() {
     
     # Add delay after chord completes
     sleep "$KEY_CHORD_DELAY"
+
+    debug_function_exit "$function_name"
 }
 
 # Type text safely
 type_text() {
-    debug_log "TYPE: '$1'"
+    local function_name="type_text"
+
+    debug_function_enter "$function_name" "$@"
+
+    debug_log "$function_name" "TYPE: '$1'"
     ydotool type "$1"
     sleep "$TYPE_TEXT_DELAY"
+
+    debug_function_exit "$function_name"
 }
 
 # Setup trap

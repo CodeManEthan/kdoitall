@@ -18,7 +18,7 @@ launch_vscode_window() {
     local window_title
     local function_name="launch_vscode_window"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     directory_path=$(safe_directory "$directory_path") || return 1
     
@@ -32,6 +32,8 @@ launch_vscode_window() {
     window_title=$(safe_name "$window_title")
 
     launch_window "$window_name" "$class" "$desktop" "$screen" "$position" "$launch_mode" "$launch_command" --window-title "$window_title"
+
+    debug_function_exit "$function_name"
 }
 
 launch_vscode_workspace_window() {
@@ -47,7 +49,7 @@ launch_vscode_workspace_window() {
     local window_title
     local function_name="launch_vscode_workspace_window"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     workspace_path=$(safe_file "$workspace_path") || return 1
 
@@ -61,5 +63,7 @@ launch_vscode_workspace_window() {
     window_title=$(safe_name "$window_title")
 
     launch_window "$window_name" "$class" "$desktop" "$screen" "$position" "$launch_mode" "$launch_command" --window-title "$window_title"
+
+    debug_function_exit "$function_name"
 }
 

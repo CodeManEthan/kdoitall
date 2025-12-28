@@ -4,25 +4,27 @@
 # core/common.sh
 # core/debug.sh
 # core/error_codes.sh
-# utils/parsers.sh
 
 get_last_launched_uuid_by_class() {
     local class="$1"
     local uuid
     local function_name="get_last_launched_uuid_by_class"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     # Get last UUID by class
     uuid=$(kdotool search --classname "$class" | tail -1)
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $class"
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$class"
+        debug_function_exit "$function_name"
         return 1
     fi
 
     # Pass UUID
-    debug_log "$function_name: '$class' → '$uuid'" "verbose"
+    debug_log "$function_name" "'$class' → '$uuid'"
+    
+    debug_function_exit "$function_name"
     echo "$uuid"
 }
 
@@ -30,33 +32,34 @@ get_last_launched_uuid() {
     local uuid
     local function_name="get_last_launched_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name"
 
     # Get last UUID
     uuid=$(kdotool search | tail -1)
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $class"
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND"
+        debug_function_exit "$function_name"
         return 1
     fi
 
     # Pass UUID
-    debug_log "$function_name: '$uuid'" "verbose"
+    debug_log "$function_name" "'$uuid'"
+
+    debug_function_exit "$function_name"
     echo "$uuid"
 }
 
-get_window_title() {
-    local identifiers uuid window_name window_title
-    local function_name="get_window_title"
+get_window_title_by_uuid() {
+    local uuid="$1" 
+    local window_title
+    local function_name="get_window_title_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -64,26 +67,27 @@ get_window_title() {
     window_title=$(kdotool getwindowname "$uuid")
 
     if [[ -z "$window_title" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_WINDOW_TITLE_NOT_FOUND]} - '$window_name' ($uuid)"
+        debug_error "$function_name" "$ERR_WINDOW_TITLE_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$window_name' ($uuid) → '$window_title'" "verbose"
+    debug_log "$function_name" "'$uuid' → '$window_title'"
+
+    debug_function_exit "$function_name"
     echo "$window_title"
 }
 
-get_window_class() {
-    local identifiers uuid window_name class
-    local function_name="get_window_class"
+get_window_class_by_uuid() {
+    local uuid="$1" 
+    local class
+    local function_name="get_window_class_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -91,26 +95,27 @@ get_window_class() {
     class=$(kdotool getwindowclassname "$uuid")
 
     if [[ -z "$class" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_WINDOW_CLASS_NOT_FOUND]} - '$window_name' ($uuid)"
+        debug_error "$function_name" "$ERR_WINDOW_CLASS_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$window_name' ($uuid) → '$class'" "verbose"
+    debug_log "$function_name" "'$uuid' → '$class'"
+
+    debug_function_exit "$function_name"
     echo "$class"
 }
 
-get_window_size() {
-    local identifiers uuid window_name window_size
-    local function_name="get_window_size"
+get_window_size_by_uuid() {
+    local uuid="$1" 
+    local window_size
+    local function_name="get_window_size_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -118,38 +123,42 @@ get_window_size() {
     window_size=$(kdotool getwindowgeometry "$uuid" | grep "Geometry:" | awk '{print $2}')
 
     if [[ -z "$window_size" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_WINDOW_SIZE_NOT_FOUND]} - '$window_name' ($uuid)"
+        debug_error "$function_name" "$ERR_WINDOW_SIZE_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
         return 1
     fi
     
-    debug_log "$function_name: '$window_name' ($uuid) → '$window_size'" "verbose"
+    debug_log "$function_name" "'$uuid' → '$window_size'"
+
+    debug_function_exit "$function_name"
     echo "$window_size"
 }
 
-get_window_position() {
-    local identifiers uuid window_name window_position
-    local function_name="get_window_position"
+get_window_position_by_uuid() {
+    local uuid="$1" 
+    local window_position
+    local function_name="get_window_position_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
     # Get window position
-    window_position=$(kdotool getwindowgeometry "$uuid" | grep "Position:" | awk '{print $2}') || return 2
+    window_position=$(kdotool getwindowgeometry "$uuid" | grep "Position:" | awk '{print $2}')
     
     if [[ -z "$window_position" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_WINDOW_POSITION_NOT_FOUND]} - '$window_name' ($uuid)"
+        debug_error "$function_name" "$ERR_WINDOW_POSITION_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: '$window_name' ($uuid) → '$window_position'" "verbose"
+    debug_log "$function_name" "'$uuid' → '$window_position'"
+
+    debug_function_exit "$function_name"
     echo "$window_position"
 }
 
@@ -157,20 +166,28 @@ get_existing_windows_uuid() {
     local uuids=()
     local function_name="get_existing_windows_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name"
 
     mapfile -t uuids < <(kdotool search)
 
-    debug_array uuids "verbose"
+    if [[ ${#uuids[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No windows found"
+        debug_function_exit "$function_name"
+        return 0  # Not an error - just no windows open
+    fi
+
+    debug_array uuids
+
+    debug_function_exit "$function_name"
     printf '%s\n' "${uuids[@]}"
 }
 
-get_existing_windows_class_by_uuid() {
+get_existing_windows_class_by_uuids() {
     local uuid
-    local function_name="get_existing_windows_class_by_uuid"
     local classes=()
+    local function_name="get_existing_windows_class_by_uuids"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
     for uuid in "$@"; do  # Accept UUIDs as separate arguments
         class=$(kdotool getwindowclassname "$uuid")
@@ -179,54 +196,55 @@ get_existing_windows_class_by_uuid() {
         printf '%s\n' "${class:-N/A}"
     done
 
-    debug_array classes "verbose"
+    debug_array classes
+    debug_function_exit "$function_name"
 }
 
-check_window_exists() {
+check_window_exists_by_window_title_and_class() {
     local window_title="$1"
     local class="$2"
     local uuid
-    local function_name="check_window_exists"
+    local function_name="check_window_exists_by_window_title_and_class"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name" "$@"
 
-    # Check current windows for matching Window Title & Class
-    debug_log "$function_name: Search for $window_title" "verbose"
+    # Search for window by title
     uuid=$(kdotool search --name "$window_title" | head -1)
 
-    if [[ -n "$uuid" ]]; then
-        debug_log "$function_name: Found uuid $uuid for $window_title" "verbose"
-
-        local found_class
-        found_class=$(class_by_uuid "$uuid")
-
-        if [[ "$class" == "$found_class" ]]; then
-            debug_log "$function_name: Class is a match - Look: $class - Found: $found_class" "verbose"
-            echo "$uuid"
-            return 0
-        else
-            debug_log "Class does not match - Look: $class - Found: $found_class" "verbose"
-        fi
-    else
-        debug_log "$function_name: UUID not found" "verbose"
-        return 1
+    if [[ -z "$uuid" ]]; then
+        debug_log "$function_name" "No window found with title '$window_title'"
+        debug_function_exit "$function_name"
+        return 0
     fi
 
-    return 1
+    debug_log "$function_name" "Found window '$uuid' with title '$window_title'"
+
+    # Verify class matches
+    local found_class
+    found_class=$(get_window_class_by_uuid "$uuid")
+
+    if [[ "$class" != "$found_class" ]]; then
+        debug_log "$function_name" "Class mismatch: expected '$class', found '$found_class'"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    debug_log "$function_name" "Class matches: '$class'"
+    
+    debug_function_exit "$function_name"
+    echo "$uuid"
+    return 0
 }
 
-activate_window() {
-    local identifiers uuid window_name
-    local function_name="activate_window"
+activate_window_by_uuid() {
+    local uuid="$1"
+    local function_name="activate_window_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -234,21 +252,19 @@ activate_window() {
     kdotool windowactivate "$uuid"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) activated." "verbose"
+    debug_log "$function_name" "'$uuid' activated."
+    debug_function_exit "$function_name"
 }
 
-raise_window() {
-    local identifiers uuid window_name
-    local function_name="raise_window"
+raise_window_by_uuid() {
+    local uuid="$1"
+    local function_name="raise_window_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -256,25 +272,21 @@ raise_window() {
     kdotool windowraise "$uuid"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) raised." "verbose"
+    debug_log "$function_name" "'$uuid' raised."
+    debug_function_exit "$function_name"
 }
 
-move_window() {
-    local x="$1"
-    local y="$2"
-    shift 2
+move_window_by_uuid() {
+    local uuid="$1"
+    local x="$2"
+    local y="$3"
+    local function_name="move_window_by_uuid"
 
-    local identifiers uuid window_name
-    local function_name="move_window"
-
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -282,25 +294,21 @@ move_window() {
     kdotool windowmove "$uuid" "$x" "$y"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) moved to x=$x y=$y." "verbose"
+    debug_log "$function_name" "'$uuid' moved to x=$x y=$y."
+    debug_function_exit "$function_name"
 }
 
-size_window() {
-    local width="$1"
-    local height="$2"
-    shift 2
+size_window_by_uuid() {
+    local uuid="$1"
+    local width="$2"
+    local height="$3"
+    local function_name="size_window_by_uuid"
 
-    local identifiers uuid window_name
-    local function_name="size_window"
-
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -308,21 +316,19 @@ size_window() {
     kdotool windowsize "$uuid" "$width" "$height"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) sized to width=$width height-$height." "verbose"
+    debug_log "$function_name" "'$uuid' sized to width=$width height=$height."
+    debug_function_exit "$function_name"
 }
 
-minimize_window() {
-    local identifiers uuid window_name
-    local function_name="minimize_window"
+minimize_window_by_uuid() {
+    local uuid="$1"
+    local function_name="minimize_window_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -330,21 +336,19 @@ minimize_window() {
     kdotool windowminimize "$uuid"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) minimized." "verbose"
+    debug_log "$function_name" "'$uuid' minimized."
+    debug_function_exit "$function_name"
 }
 
 close_window() {
-    local identifiers uuid window_name
-    local function_name="close_window"
+    local uuid="$1"
+    local function_name="close_window_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]} - $window_name"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
 
@@ -352,25 +356,21 @@ close_window() {
     kdotool windowclose "$uuid"
     sleep "$WINDOW_DELAY"
 
-    debug_log "$function_name: Window '$window_name' ($uuid) closed." "verbose"
+    debug_log "$function_name" "'$uuid' closed."
+    debug_function_exit "$function_name"
 }
 
-move_window_to_position() {
-    local screen_num="$1"
-    local position_mode="$2"
-    shift 2
-    
-    local identifiers uuid window_name
-    local function_name="move_window_to_position"
+move_window_to_position_by_uuid() {
+    local uuid="$1"
+    local screen_num="$2"
+    local position_mode="$3"
+    local function_name="move_window_to_position_by_uuid"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
-
-    # Parse UUID & Window Name
-    identifiers=$(parse_window_identifiers "$@") || return 1
-    IFS='|' read -r uuid window_name <<< "$identifiers"
+    debug_function_enter "$function_name" "$@"
 
     if [[ -z "$uuid" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_UUID_NOT_FOUND]}"
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
         return 1
     fi
     
@@ -379,11 +379,12 @@ move_window_to_position() {
     local screen_size="${!screen_size_var}"
     
     if [[ -z "$screen_size" ]]; then
-        debug_log "$function_name: ${ERROR_MESSAGES[$ERR_SCREEN_NOT_CONFIGURED]} - Screen: $screen_num"
+        debug_error "$function_name" "$ERR_SCREEN_NOT_CONFIGURED" "Screen: $screen_num"
+        debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name: Screen size for screen $screen_num is $screen_size" "verbose"
+    debug_log "$function_name" "Screen size for screen $screen_num is $screen_size"
     
     # Parse screen dimensions
     local screen_width screen_height
@@ -467,16 +468,18 @@ move_window_to_position() {
             height="$screen_height"
             ;;
         *)
-            debug_log "$function_name: ${ERROR_MESSAGES[$INVALID_POSITION_MODE]}"
+            debug_error "$function_name" "$INVALID_POSITION_MODE"
+            debug_function_exit "$function_name"
             return 1
             ;;
     esac
     
-    debug_log "$function_name: $position_mode Geometry: x=$x | y=$y | width=$width | height=$height" "verbose"
+    debug_log "$function_name" "$position_mode Geometry: x=$x | y=$y | width=$width | height=$height"
 
     # Move and resize the window
-    move_window "$x" "$y" "$uuid"
-    size_window "$width" "$height" "$uuid"
+    move_window_by_uuid "$uuid" "$x" "$y"
+    size_window_by_uuid "$uuid" "$width" "$height"
 
-    debug_log "$function_name: Moved window '$window_name' ($uuid) to $position_mode position mode." "verbose"
+    debug_log "$function_name" "Moved window '$uuid' to $position_mode position mode."
+    debug_function_exit "$function_name"
 }

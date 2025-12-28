@@ -35,6 +35,9 @@ launch_window() {
     local window_title=""
     local workspace_name="default_workspace"
     local function_name="launch_window"
+    local uuid
+
+    debug_function_enter "$function_name" "$@"
  
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -47,66 +50,77 @@ launch_window() {
                 shift 2
                 ;;
             *)
-                echo "Unknown parameter: $1"
+                debug_error "$function_name" "$ERR_INVALID_PARAMETER" "$1"
+                debug_function_exit "$function_name"
                 return 1
                 ;;
         esac
     done
-    
-    local uuid
-
-    debug_log "CALL FUNCTION: $function_name" "verbose"
 
     # Refresh database with current windows
+    debug_log "$function_name" "Auto Detect Windows"
     auto_detect_windows
 
-    debug_log "$function_name: Check Window Exists (If SINGLE or UNIQUE Launch Mode.)"
+    
     # Check Window Exists (If SINGLE or UNIQUE Launch Mode)
     if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
-        uuid=$(check_window_exists "$window_title" "$class")
+        debug_log "$function_name" "Check Window Exists"
+        uuid=$(check_window_exists_by_window_title_and_class "$window_title" "$class")
     fi
 
     # Launch Window
     if [ -n "$uuid" ]; then
-        debug_log "$function_name: Activate Window"
-        activate_window --uuid "$uuid"
+        debug_log "$function_name" "Window already exists. Activate window."
+        activate_window_by_uuid "$uuid"
 
         # Claim Window in Database
+        debug_log "$function_name" "Claim Window in app_windows table."
         db_claim_window "$window_name" "$workspace_name" "$uuid"
     else
-        debug_log "$function_name: Launch Window"
+        debug_log "$function_name" "Launch Window"
         eval "$launch_command"
         uuid=$(get_last_launched_uuid_by_class "$class")
 
         # Add Window to Database
-        debug_log "$function_name: Add Window to Database"
+        debug_log "$function_name" "Add Window to app_windows table."
         db_add_window "$window_name" "$workspace_name" "$uuid" "$class" 
     fi
 
     # Move Window to Desktop
-    debug_log "$function_name: Move Window to Desktop"
-    move_window_to_desktop "$desktop" --uuid "$uuid"
+    debug_log "$function_name" "Move Window to Desktop"
+    move_window_to_desktop_by_uuid "$uuid" "$desktop"
 
     # Move Window to Screen
-    debug_log "$function_name: Move Window to Screen"
+    debug_log "$function_name" "Move Window to Screen"
     move_active_window_to_screen "$screen"
 
     # Move Window to Position
-    debug_log "$function_name: Move Window to Position"
-    move_window_to_position "$screen" "$position" --uuid "$uuid"
+    debug_log "$function_name" "Move Window to Position"
+    move_window_to_position_by_uuid "$uuid" "$screen" "$position"
 
-    
+    debug_function_exit "$function_name"
 }
 
 close_window() {
     local window_name="$1"
     local uuid
+    local function_name="close-window"
 
-    uuid=$(db_get_uuid_by_window_name "$window_name") || return 1
+    debug_function_enter "$function_name" "$@"
 
-    close_window --uuid "$uuid"
+    uuid=$(db_get_uuid_by_window_name "$window_name")
+
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    close_window_by_uuid "$uuid"
 
     db_delete_window "$window_name"
+
+    debug_function_exit "$function_name"
 }
 
 auto_detect_windows() {
@@ -115,24 +129,35 @@ auto_detect_windows() {
     local db_uuids=()
     local function_name="auto_detect_windows"
 
-    debug_log "CALL FUNCTION: $function_name" "verbose"
+    debug_function_enter "$function_name"
     
     # Get all currently existing window UUIDs
+    debug_log "$function_name" "Get all currently existing window UUIDs."
     mapfile -t existing_uuids < <(get_existing_windows_uuid)
 
     # Get all currently existing window classes
+    debug_log "$function_name" "Get all currently existing window classes."
     # shellcheck disable=SC2034
-    mapfile -t existing_classes < <(get_existing_windows_class_by_uuid "${existing_uuids[@]}")
+    mapfile -t existing_classes < <(get_existing_windows_class_by_uuids "${existing_uuids[@]}")
     
     # Get all UUIDs from the database
+    debug_log "$function_name" "Get all UUIDs from the database"
     # shellcheck disable=SC2034
     mapfile -t db_uuids < <(sqlite3 "$KDOITALL_DB" "SELECT uuid FROM app_windows WHERE uuid IS NOT NULL")
+
+    debug_array existing_uuids
+    debug_array existing_classes
+    debug_array db_uuids
+
+    # Delete stale windows from database
+    debug_log "$function_name" "Delete stale windows from app_windows table"
+    db_delete_stale_windows existing_uuids db_uuids
     
     # Add new windows to database
+    debug_log "$function_name" "Add new windows to app_windows table"
     db_add_existing_windows existing_uuids existing_classes
-    
-    # Delete stale windows from database
-    db_delete_stale_windows existing_uuids db_uuids
+
+    debug_function_exit "$function_name"
 }
 
 
