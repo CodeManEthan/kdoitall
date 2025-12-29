@@ -5,6 +5,8 @@
 # core/debug.sh
 # core/error_codes.sh
 
+check_and_set_guard "_KDOITALL_DESKTOP_LOADED" || return 0
+
 validate_desktop_number() {
     local desktop="$1"
     local function_name="validate_desktop_number"
@@ -44,7 +46,7 @@ validate_desktop_number() {
 
 get_desktop_for_window_by_uuid() {
     local uuid="$1"
-    local desktop
+    local desktop=""
     local function_name="get_desktop_for_window_by_uuid"
     
     debug_function_enter "$function_name" "$@"

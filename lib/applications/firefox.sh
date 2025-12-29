@@ -12,8 +12,8 @@ launch_firefox_window() {
     local position="$4"
     local url="$5"
 
-    local class
-    local launch_command
+    local class=""
+    local launch_command=""
     local function_name="launch_firefox_window"
 
     debug_function_enter "$function_name" "$@"

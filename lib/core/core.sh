@@ -32,7 +32,7 @@ launch_window() {
     local window_title=""
     local workspace_name="default_workspace"
     local function_name="launch_window"
-    local uuid
+    local uuid=""
 
     debug_function_enter "$function_name" "$@"
     
@@ -68,7 +68,7 @@ launch_window() {
     fi
 
     # Launch Window
-    if [ -n "$uuid" ]; then
+    if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ) ]]; then
         debug_log "$function_name" "Window already exists. Activate window."
         activate_window_by_uuid "$uuid"
 
@@ -92,7 +92,7 @@ launch_window() {
 
     # Move Window to Screen
     debug_log "$function_name" "Move Window to Screen"
-    move_active_window_to_screen "$screen"
+    move_window_to_screen_by_uuid "$uuid" "$screen"
 
     # Move Window to Position
     debug_log "$function_name" "Move Window to Position"
@@ -103,7 +103,7 @@ launch_window() {
 
 close_window() {
     local window_name="$1"
-    local uuid
+    local uuid=""
     local function_name="close-window"
 
     debug_function_enter "$function_name" "$@"
@@ -124,9 +124,9 @@ close_window() {
 }
 
 auto_detect_windows() {
-    local existing_uuids=()
-    local existing_classes=()
-    local db_uuids=()
+    local -a existing_uuids=()
+    local -a existing_classes=()
+    local -a db_uuids=()
     local function_name="auto_detect_windows"
 
     debug_function_enter "$function_name"

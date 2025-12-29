@@ -110,9 +110,11 @@ cleanup() {
 # Press a key (tracks it for cleanup)
 press_key() {
     local key_name=$1
-    local keycode=${KEYS[$key_name]}
+    local keycode=""
     local function_name="press_key"
     
+    keycode=${KEYS[$key_name]}
+
     if [[ -z $keycode ]]; then
         debug_error "$function_name" "$ERR_UNKNOWN_KEY" "$key_name"
         return 1
@@ -126,8 +128,10 @@ press_key() {
 # Release a key (removes from tracking)
 release_key() {
     local key_name=$1
-    local keycode=${KEYS[$key_name]}
+    local keycode=""
     local function_name="release_key"
+
+    keycode=${KEYS[$key_name]}
     
     if [[ -z $keycode ]]; then
         debug_error "$function_name" "$ERR_UNKNOWN_KEY" "$key_name"

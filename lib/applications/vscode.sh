@@ -12,10 +12,10 @@ launch_vscode_window() {
     local position="$4"
     local directory_path="$5"
     
-    local class
-    local launch_mode
-    local launch_command
-    local window_title
+    local class=""
+    local launch_mode=""
+    local launch_command=""
+    local window_title=""
     local function_name="launch_vscode_window"
 
     debug_function_enter "$function_name" "$@"

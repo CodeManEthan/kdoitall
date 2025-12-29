@@ -5,9 +5,11 @@
 # core/debug.sh
 # core/error_codes.sh
 
+check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
+
 get_last_launched_uuid_by_class() {
     local class="$1"
-    local uuid
+    local uuid=""
     local function_name="get_last_launched_uuid_by_class"
 
     debug_function_enter "$function_name" "$@"
@@ -29,7 +31,7 @@ get_last_launched_uuid_by_class() {
 }
 
 get_last_launched_uuid() {
-    local uuid
+    local uuid=""
     local function_name="get_last_launched_uuid"
 
     debug_function_enter "$function_name"
@@ -52,7 +54,7 @@ get_last_launched_uuid() {
 
 get_uuid_by_window_title() {
     local window_title="$1"
-    local uuid
+    local uuid=""
     local function_name="get_uuid_by_window_title"
 
     debug_function_enter "$function_name" "$@"
@@ -116,7 +118,7 @@ get_uuid_by_process_of_elimination() {
     
     # Validate class if provided
     if [[ -n "$class" ]]; then
-        local found_class
+        local found_class=""
         found_class=$(get_window_class_by_uuid "$new_uuid")
         
         if [[ "$class" != "$found_class" ]]; then
@@ -135,7 +137,7 @@ get_uuid_by_process_of_elimination() {
 
 get_window_title_by_uuid() {
     local uuid="$1" 
-    local window_title
+    local window_title=""
     local function_name="get_window_title_by_uuid"
 
     debug_function_enter "$function_name" "$@"
@@ -163,7 +165,7 @@ get_window_title_by_uuid() {
 
 get_window_class_by_uuid() {
     local uuid="$1" 
-    local class
+    local class=""
     local function_name="get_window_class_by_uuid"
 
     debug_function_enter "$function_name" "$@"
@@ -191,7 +193,7 @@ get_window_class_by_uuid() {
 
 get_window_size_by_uuid() {
     local uuid="$1" 
-    local window_size
+    local window_size=""
     local function_name="get_window_size_by_uuid"
 
     debug_function_enter "$function_name" "$@"
@@ -219,7 +221,7 @@ get_window_size_by_uuid() {
 
 get_window_position_by_uuid() {
     local uuid="$1" 
-    local window_position
+    local window_position=""
     local function_name="get_window_position_by_uuid"
 
     debug_function_enter "$function_name" "$@"
@@ -246,7 +248,7 @@ get_window_position_by_uuid() {
 }
 
 get_existing_windows_uuid() {
-    local uuids=()
+    local -a uuids=()
     local function_name="get_existing_windows_uuid"
 
     debug_function_enter "$function_name"
@@ -266,8 +268,9 @@ get_existing_windows_uuid() {
 }
 
 get_existing_windows_class_by_uuids() {
-    local uuid
-    local classes=()
+    local uuid=""
+    local class=""
+    local -a classes=()
     local function_name="get_existing_windows_class_by_uuids"
 
     debug_function_enter "$function_name" "$@"
@@ -286,7 +289,7 @@ get_existing_windows_class_by_uuids() {
 check_window_exists_by_window_title_and_class() {
     local window_title="$1"
     local class="$2"
-    local uuid
+    local uuid=""
     local function_name="check_window_exists_by_window_title_and_class"
 
     debug_function_enter "$function_name" "$@"
@@ -303,11 +306,11 @@ check_window_exists_by_window_title_and_class() {
     debug_log "$function_name" "Found window '$uuid' with title '$window_title'"
 
     # Verify class matches
-    local found_class
+    local found_class=""
     found_class=$(get_window_class_by_uuid "$uuid")
 
     if [[ "$class" != "$found_class" ]]; then
-        debug_log "$function_name" "Class mismatch: expected '$class', found '$found_class'"
+        debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
         debug_function_exit "$function_name"
         return 0
     fi
@@ -448,6 +451,14 @@ move_window_to_position_by_uuid() {
     local screen_num="$2"
     local position_mode="$3"
     local function_name="move_window_to_position_by_uuid"
+    local screen_size_var=""
+    local screen_size=""
+    local screen_width=""
+    local screen_height=""
+    local x=""
+    local y=""
+    local width="" 
+    local height=""
 
     debug_function_enter "$function_name" "$@"
 
@@ -458,8 +469,8 @@ move_window_to_position_by_uuid() {
     fi
     
     # Get screen size for the specified screen
-    local screen_size_var="SCREEN${screen_num}_SIZE"
-    local screen_size="${!screen_size_var}"
+    screen_size_var="SCREEN${screen_num}_SIZE"
+    screen_size="${!screen_size_var}"
     
     if [[ -z "$screen_size" ]]; then
         debug_error "$function_name" "$ERR_SCREEN_NOT_CONFIGURED" "Screen: $screen_num"
@@ -470,13 +481,11 @@ move_window_to_position_by_uuid() {
     debug_log "$function_name" "Screen size for screen $screen_num is $screen_size"
     
     # Parse screen dimensions
-    local screen_width screen_height
+    
     screen_width="${screen_size%x*}"
     screen_height="${screen_size#*x}"
     
-    # Calculate position and size based on mode
-    local x y width height
-    
+    # Calculate position and size based on mode    
     case "$position_mode" in
         "$FULLSCREEN")
             x=0

@@ -2,7 +2,7 @@
 # Dependency checking functions
 
 check_dependencies() {
-    local missing=()
+    local -a missing=()
     
     if ! command -v kdotool &> /dev/null; then
         missing+=("kdotool")

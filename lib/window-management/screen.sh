@@ -5,6 +5,12 @@
 # core/debug.sh
 # core/error_codes.sh
 # core/ydotool.sh
+# core/ydotool.sh
+
+check_and_set_guard "_KDOITALL_SCREEN_LOADED" || return 0
+
+# shellcheck source=../window-management/window.sh
+source "${LIB_DIR}/window-management/window.sh"
 
 validate_screen_number() {
     local screen="$1"
@@ -44,6 +50,9 @@ validate_screen_number() {
 # Move focus to a specific screen (simulates the keyboard shortcut)
 set_current_screen() {
     local screen_num="$1"
+    local screen_key_var=""
+    local screen_key=""
+    local -a chord_keys=()
     local function_name="set_current_screen"
 
     debug_function_enter "$function_name" "$@"
@@ -58,8 +67,8 @@ set_current_screen() {
     fi
     
     # Get the key for this screen
-    local screen_key_var="SCREEN${screen_num}_KEY"
-    local screen_key="${!screen_key_var}"
+    screen_key_var="SCREEN${screen_num}_KEY"
+    screen_key="${!screen_key_var}"
     
     if [[ -z "$screen_key" ]]; then
         debug_error "$function_name" "$ERR_SCREEN_KEY_NOT_CONFIGURED"
@@ -77,17 +86,22 @@ set_current_screen() {
     fi
     
     # Build the chord array with modifiers + screen key
-    local chord_keys=("${modifiers[@]}" "$screen_key")
+    chord_keys=("${modifiers[@]}" "$screen_key")
     
     debug_log "$function_name" "Moving to screen $screen_num with shortcut: ${chord_keys[*]}"
 
     debug_function_exit "$function_name"
     chord "${chord_keys[@]}"
+    sleep "$SCREEN_DELAY"
 }
 
 # Move the active window to a specific screen (simulates the keyboard shortcut)
-move_active_window_to_screen() {
-    local screen_num="$1"
+move_window_to_screen_by_uuid() {
+    local uuid="$1"
+    local screen_num="$2"
+    local screen_key_var=""
+    local screen_key=""
+    local -a chord_keys=()
     local function_name="move_active_window_to_screen"
 
     debug_function_enter "$function_name" "$@"
@@ -102,8 +116,8 @@ move_active_window_to_screen() {
     fi
     
     # Get the key for this screen
-    local screen_key_var="SCREEN${screen_num}_KEY"
-    local screen_key="${!screen_key_var}"
+    screen_key_var="SCREEN${screen_num}_KEY"
+    screen_key="${!screen_key_var}"
     
     if [[ -z "$screen_key" ]]; then
         debug_error "$function_name" "$ERR_SCREEN_KEY_NOT_CONFIGURED"
@@ -121,10 +135,15 @@ move_active_window_to_screen() {
     fi
 
     # Build the chord array with modifiers + screen key
-    local chord_keys=("${modifiers[@]}" "$screen_key")
+    chord_keys=("${modifiers[@]}" "$screen_key")
     
+    # Activate Window
+    activate_window_by_uuid "$uuid"
+
+    # Move Window to Screen
     debug_log "$function_name" "Moving window to screen $screen_num with shortcut: ${chord_keys[*]}"
 
     debug_function_exit "$function_name"
     chord "${chord_keys[@]}"
+    sleep "$SCREEN_DELAY"
 }

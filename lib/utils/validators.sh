@@ -25,7 +25,7 @@ safe_name() {
 
 safe_file() {
     local file_path="$1"
-    local safe_file_path
+    local safe_file_path=""
     local function_name="safe_file"
 
     debug_function_enter "$function_name" "$@"
@@ -55,7 +55,7 @@ safe_file() {
 
 safe_directory() {
     local directory_path="$1"
-    local safe_directory_path
+    local safe_directory_path=""
     local function_name="safe_directory"
 
     debug_function_enter "$function_name" "$@"

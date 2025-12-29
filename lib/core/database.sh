@@ -7,7 +7,7 @@
 
 db_get_uuid_by_window_name() {
     local window_name="$1"
-    local uuid
+    local uuid=""
     local function_name="get_uuid_by_window_name"
 
     debug_function_enter "$function_name" "$@"
@@ -33,7 +33,7 @@ db_get_uuid_by_window_name() {
 
 db_get_window_name_by_uuid() {
     local uuid="$1"
-    local window_name
+    local window_name=""
     local function_name="get_window_by_uuid"
 
     debug_function_enter "$function_name" "$@"
@@ -60,7 +60,7 @@ db_get_window_name_by_uuid() {
 db_get_tab_by_tab_name() {
     local window_name="$1"
     local tab_name="$2"
-    local tab_number
+    local tab_number=""
     local function_name="get_tab_by_tab_name"
 
     debug_function_enter "$function_name" "$@"
@@ -87,7 +87,7 @@ db_get_tab_by_tab_name() {
 
 db_check_window_exists_by_window_name() {
     local window_name="$1"
-    local uuid
+    local uuid=""
     local function_name="check_window_exists_by_window_name"
 
     debug_function_enter "$function_name" "$@"
@@ -173,7 +173,7 @@ db_claim_window() {
 db_add_existing_windows() {
     local -n uuids_ref="$1"
     local -n classes_ref="$2"
-    local window_name
+    local window_name=""
     local workspace_name="~auto:workspace"
     local function_name="db_add_existing_windows"
 
@@ -203,7 +203,7 @@ db_add_existing_windows() {
         debug_log "$function_name" "Attempting INSERT: window_name='$window_name', uuid='$uuid', class='$class'"
 
         # Check if UUID already exists first
-        local existing_check
+        local existing_check=""
         existing_check=$(sqlite3 "$KDOITALL_DB" \
             -cmd ".param init" \
             -cmd ".param set :uuid '$uuid'" \
@@ -214,6 +214,7 @@ db_add_existing_windows() {
             continue
         fi
 
+        local changes=""
         changes=$(sqlite3 "$KDOITALL_DB" \
             -cmd ".param init" \
             -cmd ".param set :workspace '$workspace_name'" \
@@ -238,7 +239,7 @@ db_delete_stale_windows() {
     local -n existing_uuids_ref="$1"
     local -n db_uuids_ref="$2"
     local -A existing_lookup=()
-    local uuid_to_delete
+    local uuid_to_delete=""
     local function_name="db_delete_stale_windows"
 
     debug_function_enter "$function_name" "$1" "$2"
@@ -262,7 +263,7 @@ db_delete_stale_windows() {
                 "DELETE FROM app_windows WHERE uuid = :uuid;"
             
             # Check if row was actually deleted
-            local changes
+            local changes=""
             changes=$(sqlite3 "$KDOITALL_DB" "SELECT changes()")
             
             if [ "$changes" -eq 1 ]; then
