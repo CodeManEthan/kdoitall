@@ -18,8 +18,8 @@ export KDOITALL_ROOT="${SCRIPT_DIR}/.."
 # ============================================================================
 # LAYER 1 - Foundation (no dependencies)
 # ============================================================================
-# shellcheck source=../lib/core/error_codes.sh
-source "${LIB_DIR}/core/error_codes.sh"
+# shellcheck source=../lib/core/error-codes.sh
+source "${LIB_DIR}/core/error-codes.sh"
 # shellcheck source=../lib/utils/debug.sh
 source "${LIB_DIR}/utils/debug.sh"
 
@@ -78,6 +78,32 @@ source "${LIB_DIR}/core/database.sh"
 # shellcheck source=../lib/core/ydotool.sh
 source "${LIB_DIR}/core/ydotool.sh"
 
+# ============================================================================
+# LAYER 4 - Screen and Desktop Detection (depends on core services)
+# ============================================================================
+# shellcheck source=../lib/core/screen-detection.sh
+source "${LIB_DIR}/core/screen-detection.sh"
+
+# Detect screen configuration on startup
+if ! detect_screens; then
+    echo "ERROR: Failed to detect screen configuration" >&2
+    echo "Make sure kscreen-doctor is available and screens are configured" >&2
+    exit 1
+fi
+
+# Detect desktop configuration on startup
+if ! detect_desktops; then
+    echo "ERROR: Failed to detect desktop configuration" >&2
+    echo "Make sure kdotool is available and virtual desktops are configured" >&2
+    exit 1
+fi
+
+# Optionally log detected screens and desktops in debug/verbose mode
+if [[ "${DEBUG_MODE:-false}" == "true" || "${VERBOSE_MODE:-false}" == "true" ]]; then
+    list_detected_screens
+    echo ""
+    echo "Detected Desktops: $DETECTED_DESKTOP_COUNT"
+fi
 # ============================================================================
 # Dependency Check
 # ============================================================================
