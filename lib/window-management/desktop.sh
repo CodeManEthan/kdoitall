@@ -29,9 +29,17 @@ validate_desktop_number() {
         return 1
     fi
 
-    # Check if desktop number is within valid range (1 to NUM_DESKTOPS)
-    if [[ "$desktop" -lt 1 || "$desktop" -gt "$NUM_DESKTOPS" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_DESKTOP_NUMBER" "'$desktop' (must be 1-$NUM_DESKTOPS)"
+    # Check if desktop detection has been run
+    if [[ $DETECTED_DESKTOP_COUNT -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DESKTOP_DETECTION_NOT_RUN" "Must call detect_desktops() first"
+        debug_function_exit "$function_name"
+        echo ""
+        return 1
+    fi
+
+    # Check if desktop number is within valid range
+    if [[ "$desktop" -lt 1 || "$desktop" -gt "$DETECTED_DESKTOP_COUNT" ]]; then
+        debug_error "$function_name" "$ERR_INVALID_DESKTOP_NUMBER" "'$desktop' (must be 1-$DETECTED_DESKTOP_COUNT)"
         debug_function_exit "$function_name"
         echo ""
         return 1
