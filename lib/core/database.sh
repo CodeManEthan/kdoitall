@@ -285,20 +285,21 @@ db_delete_stale_windows() {
 # ============================================================================
 # Application Registry Database Functions
 # ============================================================================
-# These functions should be added to lib/core/database.sh
-# They handle CRUD operations for the application registry tables
+# These functions handle CRUD operations for the application registry tables
 
 # ----------------------------------------------------------------------------
 # db_add_application()
-# Insert or update an application in the database
+# Insert or update an application in the database with all metadata
 # ----------------------------------------------------------------------------
 db_add_application() {
     local app_id="$1"
     local display_name="$2"
     local desktop_file_path="$3"
-    local has_terminal_launch="$4"
-    local has_desktop_launch="$5"
-    local app_file_path="$6"
+    local app_file_path="$4"
+    local terminal_command="$5"
+    local app_class="$6"
+    local has_terminal_launch="$7"
+    local has_desktop_launch="$8"
     local function_name="db_add_application"
     
     debug_function_enter "$function_name" "$@"
@@ -329,17 +330,21 @@ db_add_application() {
         -cmd ".param set :app_id '$app_id'" \
         -cmd ".param set :display_name '$display_name'" \
         -cmd ".param set :desktop_file '$desktop_file_path'" \
+        -cmd ".param set :app_file '$app_file_path'" \
+        -cmd ".param set :terminal_cmd '$terminal_command'" \
+        -cmd ".param set :app_class '$app_class'" \
         -cmd ".param set :has_terminal '$terminal_bool'" \
         -cmd ".param set :has_desktop '$desktop_bool'" \
-        -cmd ".param set :app_file '$app_file_path'" \
         "INSERT OR REPLACE INTO applications (
             app_id, display_name, desktop_file_path,
+            app_file_path, terminal_command, app_class,
             has_terminal_launch, has_desktop_launch,
-            app_file_path, last_validated
+            last_validated
         ) VALUES (
             :app_id, :display_name, :desktop_file,
+            :app_file, :terminal_cmd, :app_class,
             :has_terminal, :has_desktop,
-            :app_file, datetime('now')
+            datetime('now')
         );" 2>/dev/null
     
     if [[ $? -ne 0 ]]; then
@@ -356,7 +361,7 @@ db_add_application() {
 # ----------------------------------------------------------------------------
 # db_get_application()
 # Retrieve complete information for a single application
-# Returns: app_id|display_name|desktop_file_path|has_terminal_launch|has_desktop_launch|app_file_path|last_validated
+# Returns: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal_launch|has_desktop_launch|last_validated
 # ----------------------------------------------------------------------------
 db_get_application() {
     local app_id="$1"
@@ -372,13 +377,14 @@ db_get_application() {
         return 1
     fi
     
-    # Query database
+    # Query database with all fields
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
         -cmd ".param set :app_id '$app_id'" \
         "SELECT app_id, display_name, desktop_file_path,
+                app_file_path, terminal_command, app_class,
                 has_terminal_launch, has_desktop_launch,
-                app_file_path, last_validated
+                last_validated
          FROM applications
          WHERE app_id = :app_id;" 2>/dev/null)
     
@@ -399,7 +405,7 @@ db_get_application() {
 # List applications with optional filtering
 # Parameters: filter = "all", "terminal", "desktop", "both" (default: "all")
 # Returns: Multi-line output, one app per line:
-#          app_id|display_name|has_terminal_launch|has_desktop_launch|app_file_path
+#          app_id|display_name|has_terminal_launch|has_desktop_launch
 # ----------------------------------------------------------------------------
 db_list_applications() {
     local filter="${1:-all}"
@@ -413,27 +419,27 @@ db_list_applications() {
     case "$filter" in
         all)
             query="SELECT app_id, display_name, has_terminal_launch,
-                          has_desktop_launch, app_file_path
+                          has_desktop_launch
                    FROM applications
                    ORDER BY display_name;"
             ;;
         terminal)
             query="SELECT app_id, display_name, has_terminal_launch,
-                          has_desktop_launch, app_file_path
+                          has_desktop_launch
                    FROM applications
                    WHERE has_terminal_launch = TRUE
                    ORDER BY display_name;"
             ;;
         desktop)
             query="SELECT app_id, display_name, has_terminal_launch,
-                          has_desktop_launch, app_file_path
+                          has_desktop_launch
                    FROM applications
                    WHERE has_desktop_launch = TRUE
                    ORDER BY display_name;"
             ;;
         both)
             query="SELECT app_id, display_name, has_terminal_launch,
-                          has_desktop_launch, app_file_path
+                          has_desktop_launch
                    FROM applications
                    WHERE has_terminal_launch = TRUE AND has_desktop_launch = TRUE
                    ORDER BY display_name;"
@@ -609,4 +615,292 @@ db_get_applications_needing_validation() {
     debug_function_exit "$function_name"
     echo "$result"
     return 0
+}
+
+# ============================================================================
+# New Getter/Setter Functions for Individual Application Fields
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# db_get_app_class()
+# Get the window class for an application
+# Returns: app_class value (may be empty if not yet detected)
+# ----------------------------------------------------------------------------
+db_get_app_class() {
+    local app_id="$1"
+    local function_name="db_get_app_class"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT app_class FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Retrieved app_class for $app_id: ${result:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_set_app_class()
+# Store the detected window class for an application
+# ----------------------------------------------------------------------------
+db_set_app_class() {
+    local app_id="$1"
+    local app_class="$2"
+    local function_name="db_set_app_class"
+    local changes=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$app_class" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_class"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :app_class '$app_class'" \
+        "UPDATE applications SET app_class = :app_class WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+    
+    if [[ "$changes" -eq 1 ]]; then
+        debug_log "$function_name" "Set app_class='$app_class' for $app_id"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+# ----------------------------------------------------------------------------
+# db_get_terminal_command()
+# Get the terminal command for an application
+# Returns: terminal_command value (may be empty)
+# ----------------------------------------------------------------------------
+db_get_terminal_command() {
+    local app_id="$1"
+    local function_name="db_get_terminal_command"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT terminal_command FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Retrieved terminal_command for $app_id: ${result:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_get_app_file_path()
+# Get the app file path for an application
+# Returns: app_file_path value (may be empty)
+# ----------------------------------------------------------------------------
+db_get_app_file_path() {
+    local app_id="$1"
+    local function_name="db_get_app_file_path"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT app_file_path FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Retrieved app_file_path for $app_id: ${result:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+# ============================================================================
+# Launch Options Database Functions
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# db_add_launch_option()
+# Add or update a launch option for an application
+# ----------------------------------------------------------------------------
+db_add_launch_option() {
+    local app_id="$1"
+    local function_name="$2"
+    local description="$3"
+    local display_order="${4:-0}"
+    local func_name="db_add_launch_option"
+    
+    debug_function_enter "$func_name" "$@"
+    
+    # Validate required parameters
+    if [[ -z "$app_id" ]]; then
+        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$func_name"
+        return 1
+    fi
+    
+    if [[ -z "$function_name" ]]; then
+        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "function_name"
+        debug_function_exit "$func_name"
+        return 1
+    fi
+    
+    if [[ -z "$description" ]]; then
+        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "description"
+        debug_function_exit "$func_name"
+        return 1
+    fi
+    
+    # Execute INSERT OR REPLACE
+    sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :function_name '$function_name'" \
+        -cmd ".param set :description '$description'" \
+        -cmd ".param set :display_order '$display_order'" \
+        "INSERT OR REPLACE INTO launch_options (
+            app_id, function_name, description, display_order
+        ) VALUES (
+            :app_id, :function_name, :description, :display_order
+        );" 2>/dev/null
+    
+    if [[ $? -ne 0 ]]; then
+        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch option: $app_id.$function_name"
+        debug_function_exit "$func_name"
+        return 1
+    fi
+    
+    debug_log "$func_name" "Added launch option: $app_id.$function_name"
+    debug_function_exit "$func_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_get_launch_options()
+# Get all launch options for an application
+# Returns: function_name|description (one per line, ordered)
+# ----------------------------------------------------------------------------
+db_get_launch_options() {
+    local app_id="$1"
+    local function_name="db_get_launch_options"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT function_name, description 
+         FROM launch_options 
+         WHERE app_id = :app_id 
+         ORDER BY display_order, function_name;" 2>/dev/null)
+    
+    debug_log "$function_name" "Retrieved launch options for $app_id"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_delete_launch_options_for_app()
+# Delete all launch options for an application
+# Used during re-scanning to clear old options before adding new ones
+# ----------------------------------------------------------------------------
+db_delete_launch_options_for_app() {
+    local app_id="$1"
+    local function_name="db_delete_launch_options_for_app"
+    local changes=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "DELETE FROM launch_options WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+    
+    debug_log "$function_name" "Deleted $changes launch options for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_app_has_launch_options()
+# Check if an application has any launch options defined
+# Returns: 0 if has options, 1 if no options
+# ----------------------------------------------------------------------------
+db_app_has_launch_options() {
+    local app_id="$1"
+    local function_name="db_app_has_launch_options"
+    local count=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    count=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COUNT(*) FROM launch_options WHERE app_id = :app_id;" 2>/dev/null)
+    
+    if [[ "$count" -gt 0 ]]; then
+        debug_log "$function_name" "Application $app_id has $count launch options"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_log "$function_name" "Application $app_id has no launch options"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 }

@@ -30,8 +30,6 @@ registry_validate_app_metadata() {
     local app_file_path="$1"
     local function_name="registry_validate_app_metadata"
     local validation_output=""
-    local app_id_from_file=""
-    local expected_app_id=""
     local errors=0
     
     debug_function_enter "$function_name" "$@"
@@ -50,9 +48,10 @@ registry_validate_app_metadata() {
         return 1
     fi
     
-    # Extract expected app_id from filename
-    expected_app_id=$(basename "$app_file_path" .sh)
-    debug_log "$function_name" "Validating: $app_file_path (expected app_id: $expected_app_id)"
+    # Extract app_id from filename for display
+    local app_id=""
+    app_id=$(basename "$app_file_path" .sh)
+    debug_log "$function_name" "Validating: $app_file_path (app_id: $app_id)"
     
     # Source file in subshell to extract variables
     validation_output=$(
@@ -61,9 +60,7 @@ registry_validate_app_metadata() {
             # shellcheck disable=SC1090
             source "$app_file_path" 2>/dev/null || exit 1
             
-            # Check for required variables
-            [[ -z "${APP_ID:-}" ]] && echo "ERROR:APP_ID is missing"
-            [[ -z "${APP_CLASS:-}" ]] && echo "ERROR:APP_CLASS is missing"
+            # Check for required variables (APP_ID and APP_CLASS no longer required)
             [[ -z "${TERMINAL_COMMAND:-}" ]] && echo "ERROR:TERMINAL_COMMAND is missing"
             
             # Check if LAUNCH_OPTIONS exists and is not empty
@@ -73,9 +70,7 @@ registry_validate_app_metadata() {
                 echo "ERROR:LAUNCH_OPTIONS array is empty"
             fi
             
-            # Output values for further validation
-            echo "APP_ID=${APP_ID:-}"
-            echo "APP_CLASS=${APP_CLASS:-}"
+            # Output values for logging
             echo "TERMINAL_COMMAND=${TERMINAL_COMMAND:-}"
             echo "LAUNCH_OPTIONS_COUNT=${#LAUNCH_OPTIONS[@]}"
         ) 2>&1
@@ -86,16 +81,8 @@ registry_validate_app_metadata() {
         if [[ "$line" =~ ^ERROR:(.*)$ ]]; then
             echo "  ✗ ${BASH_REMATCH[1]}"
             ((errors++))
-        elif [[ "$line" =~ ^APP_ID=(.*)$ ]]; then
-            app_id_from_file="${BASH_REMATCH[1]}"
         fi
     done <<< "$validation_output"
-    
-    # Validate APP_ID matches filename
-    if [[ -n "$app_id_from_file" && "$app_id_from_file" != "$expected_app_id" ]]; then
-        echo "  ✗ APP_ID mismatch: file has '$app_id_from_file' but filename suggests '$expected_app_id'"
-        ((errors++))
-    fi
     
     # Report results
     if [[ $errors -eq 0 ]]; then
@@ -179,9 +166,10 @@ registry_scan_applications() {
     local app_id=""
     local display_name=""
     local desktop_file_path=""
+    local app_file_path=""
+    local terminal_command=""
     local has_terminal_launch=false
     local has_desktop_launch=false
-    local app_file_path=""
     
     debug_function_enter "$function_name"
     
@@ -228,31 +216,40 @@ registry_scan_applications() {
             desktop_file_path="$desktop_file"
             has_desktop_launch=true
             
+            # Reset app file variables
+            app_file_path=""
+            terminal_command=""
+            has_terminal_launch=false
+            
             debug_log "$function_name" "Processing: $app_id ($display_name)"
             
             # Check for app file
-            app_file_path=$(registry_check_app_file "$app_id")
-            if [[ -n "$app_file_path" ]]; then
-                debug_log "$function_name" "Found app file: $app_file_path"
+            if registry_check_app_file "$app_id" > /dev/null 2>&1; then
+                debug_log "$function_name" "Found app file for: $app_id"
                 
-                # Parse app file to extract metadata
-                if registry_parse_app_file "$app_file_path"; then
-                    # Parse successful - metadata extraction will call db functions
+                app_file_path=$(registry_get_app_file_path "$app_id")
+                
+                # Extract terminal command
+                terminal_command=$(registry_extract_terminal_command "$app_file_path")
+                
+                if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true
+                    debug_log "$function_name" "Extracted terminal_command: $terminal_command"
+                    
+                    # Store launch options in database
+                    registry_store_launch_options "$app_id" "$app_file_path"
                 else
-                    debug_error "$function_name" "$ERR_APP_FILE_PARSE_FAILED" "$app_id"
+                    debug_log "$function_name" "No terminal command found in app file"
                     has_terminal_launch=false
                 fi
             else
                 debug_log "$function_name" "No app file found for: $app_id"
-                has_terminal_launch=false
-                app_file_path=""
             fi
             
-            # Add application to database
+            # Add application to database with all metadata
             if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
-                                  "$has_terminal_launch" "$has_desktop_launch" \
-                                  "$app_file_path"; then
+                                  "$app_file_path" "$terminal_command" "" \
+                                  "$has_terminal_launch" "$has_desktop_launch"; then
                 debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
                 ((app_count++))
             else
@@ -267,6 +264,23 @@ registry_scan_applications() {
     debug_log "$function_name" "Scan complete: $app_count applications processed"
     debug_function_exit "$function_name"
     
+    return 0
+}
+
+# ============================================================================
+# App File Path Construction
+# ============================================================================
+
+registry_get_app_file_path() {
+    local app_id="$1"
+    
+    # Validate parameter
+    if [[ -z "$app_id" ]]; then
+        return 1
+    fi
+    
+    # Construct and return the path
+    echo "${LIB_DIR}/applications/${app_id}.sh"
     return 0
 }
 
@@ -289,7 +303,7 @@ registry_check_app_file() {
     fi
     
     # Construct expected path using LIB_DIR
-    app_file_path="${LIB_DIR}/applications/${app_id}.sh"
+    app_file_path=$(registry_get_app_file_path "$app_id")
     
     # Check if file exists and is readable
     if [[ -f "$app_file_path" && -r "$app_file_path" ]]; then
@@ -340,6 +354,123 @@ registry_validate_terminal_command() {
         debug_function_exit "$function_name"
         return 1
     fi
+}
+
+# ============================================================================
+# Helper Functions for Scanning
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# registry_extract_terminal_command()
+# Extract TERMINAL_COMMAND from app file
+# Returns: terminal command string (empty if not found)
+# ----------------------------------------------------------------------------
+registry_extract_terminal_command() {
+    local app_file_path="$1"
+    local function_name="registry_extract_terminal_command"
+    local terminal_command=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_file_path" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ ! -f "$app_file_path" ]]; then
+        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Source file in subshell and extract TERMINAL_COMMAND
+    terminal_command=$(
+        (
+            set +e
+            # shellcheck disable=SC1090
+            source "$app_file_path" 2>/dev/null || exit 1
+            echo "${TERMINAL_COMMAND:-}"
+        ) 2>&1
+    )
+    
+    debug_log "$function_name" "Extracted terminal_command: ${terminal_command:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$terminal_command"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# registry_store_launch_options()
+# Parse app file and store launch options in database
+# ----------------------------------------------------------------------------
+registry_store_launch_options() {
+    local app_id="$1"
+    local app_file_path="$2"
+    local function_name="registry_store_launch_options"
+    local parse_output=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$app_file_path" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ ! -f "$app_file_path" ]]; then
+        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Clear existing launch options for this app
+    db_delete_launch_options_for_app "$app_id"
+    
+    # Parse launch options from app file
+    parse_output=$(
+        (
+            set +e
+            # shellcheck disable=SC1090
+            source "$app_file_path" 2>/dev/null || exit 1
+            
+            # Check if LAUNCH_OPTIONS exists
+            if [[ -v LAUNCH_OPTIONS ]]; then
+                local order=1
+                for func_name in "${!LAUNCH_OPTIONS[@]}"; do
+                    echo "LAUNCH_OPTION:${order}:${func_name}:${LAUNCH_OPTIONS[$func_name]}"
+                    ((order++))
+                done
+            fi
+        ) 2>&1
+    )
+    
+    # Store each launch option in database
+    local options_stored=0
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^LAUNCH_OPTION:([0-9]+):([^:]+):(.*)$ ]]; then
+            local order="${BASH_REMATCH[1]}"
+            local func_name="${BASH_REMATCH[2]}"
+            local description="${BASH_REMATCH[3]}"
+            
+            if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
+                debug_log "$function_name" "Stored launch option: $app_id.$func_name"
+                ((options_stored++))
+            else
+                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
+            fi
+        fi
+    done <<< "$parse_output"
+    
+    debug_log "$function_name" "Stored $options_stored launch options for $app_id"
+    debug_function_exit "$function_name"
+    return 0
 }
 
 # ============================================================================
@@ -482,9 +613,10 @@ registry_get_application_info() {
     fi
     
     # Parse the pipe-delimited output
-    # Note: First field is app_id which we already have, so we use _ to discard it
+    # Format: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal|has_desktop|last_validated
     IFS='|' read -r _ display_name desktop_file_path \
-        has_terminal has_desktop app_file_path last_validated <<< "$app_info"
+        app_file_path terminal_command app_class \
+        has_terminal has_desktop last_validated <<< "$app_info"
     
     # Convert boolean values for display
     local terminal_status="Not Available"
@@ -496,25 +628,37 @@ registry_get_application_info() {
     # Display formatted information
     echo "Application Information"
     echo "======================="
-    echo "Name:           $display_name"
-    echo "App ID:         $app_id"
-    echo "Desktop File:   $desktop_file_path"
-    echo ""
-    echo "Launch Methods:"
-    echo "  Terminal:     $terminal_status"
-    echo "  Desktop:      $desktop_status"
-    echo ""
+    echo "Name:              $display_name"
+    echo "App ID:            $app_id"
+    echo "Desktop File:      $desktop_file_path"
     
+    # Show app file path if available
     if [[ -n "$app_file_path" ]]; then
-        echo "App File:       $app_file_path"
-    else
-        echo "App File:       N/A"
+        echo "App File:          $app_file_path"
     fi
     
-    if [[ -n "$last_validated" ]]; then
-        echo "Last Validated: $last_validated"
+    # Show terminal command if available
+    if [[ -n "$terminal_command" ]]; then
+        echo "Terminal Command:  $terminal_command"
+    fi
+    
+    # Show app class if detected
+    if [[ -n "$app_class" ]]; then
+        echo "Window Class:      $app_class"
     else
-        echo "Last Validated: Never"
+        echo "Window Class:      Not yet detected"
+    fi
+    
+    echo ""
+    echo "Launch Methods:"
+    echo "  Terminal:        $terminal_status"
+    echo "  Desktop:         $desktop_status"
+    echo ""
+    
+    if [[ -n "$last_validated" ]]; then
+        echo "Last Validated:    $last_validated"
+    else
+        echo "Last Validated:    Never"
     fi
     
     debug_function_exit "$function_name"
@@ -567,8 +711,8 @@ registry_list_applications() {
     printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})"
     
     # Parse and display results from db_list_applications
-    # Format: app_id|display_name|has_terminal_launch|has_desktop_launch|app_file_path
-    while IFS='|' read -r app_id display_name has_terminal has_desktop app_file_path; do
+    # Format: app_id|display_name|has_terminal_launch|has_desktop_launch
+    while IFS='|' read -r app_id display_name has_terminal has_desktop; do
         # Skip empty lines
         [[ -z "$app_id" ]] && continue
         
@@ -606,13 +750,13 @@ registry_list_applications() {
 }
 
 # ----------------------------------------------------------------------------
-# registry_get_launch_options() - UPDATED
-# Reads launch options directly from the app file by parsing LAUNCH_OPTIONS array
+# registry_get_launch_options()
+# Query launch options from database (no file parsing needed)
 # ----------------------------------------------------------------------------
 registry_get_launch_options() {
     local app_id="$1"
     local function_name="registry_get_launch_options"
-    local app_file_path=""
+    local options=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -625,50 +769,21 @@ registry_get_launch_options() {
     
     debug_log "$function_name" "Retrieving launch options for: $app_id"
     
-    # Construct app file path directly from app_id
-    app_file_path="${LIB_DIR}/applications/${app_id}.sh"
-    
-    # Check if app file exists
-    if [[ ! -f "$app_file_path" ]]; then
-        echo "No launch options available for: $app_id"
-        echo "(This application does not have terminal launch capability)"
-        debug_log "$function_name" "No app file found at: $app_file_path"
+    # Check if app exists in database
+    if ! db_application_exists "$app_id"; then
+        echo "Error: Application not found: $app_id"
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
         debug_function_exit "$function_name"
         return 1
     fi
     
-    # Parse the app file to extract launch options
-    local parse_output=""
-    parse_output=$(
-        (
-            set +e
-            # shellcheck disable=SC1090
-            source "$app_file_path" 2>/dev/null || exit 1
-            
-            # Check if LAUNCH_OPTIONS exists and has entries
-            if [[ ! -v LAUNCH_OPTIONS ]]; then
-                echo "ERROR:No LAUNCH_OPTIONS array found"
-                exit 1
-            fi
-            
-            if [[ ${#LAUNCH_OPTIONS[@]} -eq 0 ]]; then
-                echo "ERROR:LAUNCH_OPTIONS array is empty"
-                exit 1
-            fi
-            
-            # Output launch options
-            for func_name in "${!LAUNCH_OPTIONS[@]}"; do
-                echo "LAUNCH_OPTION:${func_name}:${LAUNCH_OPTIONS[$func_name]}"
-            done
-        ) 2>&1
-    )
+    # Get launch options from database
+    options=$(db_get_launch_options "$app_id")
     
-    # Check for errors
-    if echo "$parse_output" | grep -q "^ERROR:"; then
-        local error_msg
-        error_msg=$(echo "$parse_output" | grep "^ERROR:" | head -1 | cut -d':' -f2-)
-        echo "Error parsing launch options: $error_msg"
-        debug_error "$function_name" "$ERR_APP_FILE_PARSE_FAILED" "$app_id: $error_msg"
+    if [[ -z "$options" ]]; then
+        echo "No launch options available for: $app_id"
+        echo "(This application does not have terminal launch capability)"
+        debug_log "$function_name" "No launch options found for $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -677,24 +792,14 @@ registry_get_launch_options() {
     echo "Launch Options for $app_id:"
     echo ""
     
-    # Parse and display launch options
+    # Parse and display launch options from database
+    # Format: function_name|description
     local index=1
-    local found_options=false
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^LAUNCH_OPTION:([^:]+):(.*)$ ]]; then
-            local func_name="${BASH_REMATCH[1]}"
-            local description="${BASH_REMATCH[2]}"
-            
-            printf "  %2d) %-40s - %s\n" "$index" "$func_name" "$description"
-            ((index++))
-            found_options=true
-        fi
-    done <<< "$parse_output"
-    
-    if [[ "$found_options" == false ]]; then
-        echo "  No launch options available"
-        debug_log "$function_name" "No launch options found in: $app_file_path"
-    fi
+    while IFS='|' read -r func_name description; do
+        [[ -z "$func_name" ]] && continue
+        printf "  %2d) %-40s - %s\n" "$index" "$func_name" "$description"
+        ((index++))
+    done <<< "$options"
     
     debug_function_exit "$function_name"
     return 0

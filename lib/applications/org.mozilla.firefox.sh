@@ -9,15 +9,6 @@ source "${LIB_DIR}/core/core.sh"
 # Application Metadata
 # ============================================================================
 
-
-# shellcheck disable=SC2034
-# Application identifier (must match .desktop file basename)
-APP_ID="org.mozilla.firefox"
-
-# shellcheck disable=SC2034
-# Window class for window management
-APP_CLASS="org.mozilla.firefox"
-
 # shellcheck disable=SC2034
 # Command to validate terminal availability
 TERMINAL_COMMAND="firefox"
@@ -35,16 +26,18 @@ launch_firefox_window() {
     local position="$4"
     local url="$5"
 
-    local class=""
+    local launch_mode=""
+    local launch_type=""
     local launch_command=""
     local function_name="launch_firefox_window"
 
     debug_function_enter "$function_name" "$@"
 
-    class="org.mozilla.firefox"
+    launch_mode="$LAUNCH_MODE_MULTI"
+    launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="firefox --new-window \"$url\" &"
 
-    launch_window "$window_name" "$class" "$desktop" "$screen" "$position" "$LAUNCH_MODE_MULTI" "$launch_command"
+    launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
 
     debug_function_exit "$function_name"
 }

@@ -305,14 +305,20 @@ check_window_exists_by_window_title_and_class() {
 
     debug_log "$function_name" "Found window '$uuid' with title '$window_title'"
 
-    # Verify class matches
-    local found_class=""
-    found_class=$(get_window_class_by_uuid "$uuid")
+    # Only verify class if provided
+    if [[ -n "$class" ]]; then
+        local found_class=""
+        found_class=$(get_window_class_by_uuid "$uuid")
 
-    if [[ "$class" != "$found_class" ]]; then
-        debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
-        debug_function_exit "$function_name"
-        return 0
+        if [[ "$class" != "$found_class" ]]; then
+            debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
+            debug_function_exit "$function_name"
+            return 0  # Return empty (no UUID) because class doesn't match
+        fi
+
+        debug_log "$function_name" "Class matches: '$class'"
+    else
+        debug_log "$function_name" "No class validation requested (class not provided)"
     fi
 
     debug_log "$function_name" "Class matches: '$class'"

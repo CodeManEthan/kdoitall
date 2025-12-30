@@ -29,9 +29,23 @@ CREATE TABLE applications (
     desktop_file_path TEXT,
     has_terminal_launch BOOLEAN DEFAULT FALSE,
     has_desktop_launch BOOLEAN DEFAULT FALSE,
+    app_class TEXT,
     app_file_path TEXT,
+    terminal_command TEXT, 
     last_validated TIMESTAMP
 );
+
+CREATE TABLE launch_options (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id TEXT NOT NULL,
+    function_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    display_order INTEGER DEFAULT 0,
+    FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE CASCADE,
+    UNIQUE(app_id, function_name)
+);
+
+CREATE INDEX idx_launch_options_app_id ON launch_options(app_id);
 
 CREATE TRIGGER auto_tab_number
 AFTER INSERT ON tabs
