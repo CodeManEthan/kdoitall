@@ -5,6 +5,29 @@ check_and_set_guard "_KDOITALL_FIREFOX_LOADED" || return 0
 # shellcheck source=lib/core/core.sh
 source "${LIB_DIR}/core/core.sh"
 
+# ============================================================================
+# Application Metadata
+# ============================================================================
+
+
+# shellcheck disable=SC2034
+# Application identifier (must match .desktop file basename)
+APP_ID="org.mozilla.firefox"
+
+# shellcheck disable=SC2034
+# Window class for window management
+APP_CLASS="org.mozilla.firefox"
+
+# shellcheck disable=SC2034
+# Command to validate terminal availability
+TERMINAL_COMMAND="firefox"
+
+# shellcheck disable=SC2034
+# Launch options with user-friendly descriptions
+declare -A LAUNCH_OPTIONS=(
+    ["launch_firefox_window"]="Open URL"
+)
+
 launch_firefox_window() {
     local window_name="$1"
     local desktop="$2"

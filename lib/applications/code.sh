@@ -1,9 +1,38 @@
 #!/bin/bash
 
-check_and_set_guard "_KDOITALL_VSCODE_LOADED" || return 0
+check_and_set_guard "_KDOITALL_CODE_LOADED" || return 0
 
 # shellcheck source=lib/core/core.sh
 source "${LIB_DIR}/core/core.sh"
+
+# ============================================================================
+# Application Metadata
+# ============================================================================
+
+
+# shellcheck disable=SC2034
+# Application identifier (must match .desktop file basename)
+APP_ID="code"
+
+# shellcheck disable=SC2034
+# Window class for window management
+APP_CLASS="code"
+
+# shellcheck disable=SC2034
+# Command to validate terminal availability
+TERMINAL_COMMAND="code"
+
+# shellcheck disable=SC2034
+# Launch options with user-friendly descriptions
+declare -A LAUNCH_OPTIONS=(
+    ["launch_vscode_window"]="Open directory or file"
+    ["launch_vscode_workspace_window"]="Open .code-workspace file"
+)
+
+# ============================================================================
+# Launch Functions
+# ============================================================================
+
 
 launch_vscode_window() {
     local window_name="$1"

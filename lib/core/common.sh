@@ -24,12 +24,18 @@ export TYPE_TEXT_DELAY="0.1"
 readonly LAUNCH_DELAY WINDOW_DELAY DESKTOP_DELAY SCREEN_DELAY POSITION_DELAY
 readonly KEYPRESS_DELAY KEY_CHORD_DELAY TYPE_TEXT_DELAY
 
-# Window launch modes
+# Application launch modes
 export LAUNCH_MODE_MULTI="multi"    # Multiple windows always allowed
 export LAUNCH_MODE_SINGLE="single"  # Only one instance allowed
-export LAUNCH_MODE_UNIQUE="unique"  # Multiple windows, but not with same path
+export LAUNCH_MODE_UNIQUE="unique"  # Multiple windows, but not the same
 
 readonly LAUNCH_MODE_MULTI LAUNCH_MODE_SINGLE LAUNCH_MODE_UNIQUE
+
+# Application launch types
+export LAUNCH_TYPE_TERMINAL="terminal"
+export LAUNCH_TYPE_DESKTOP="desktop"
+
+readonly LAUNCH_TYPE_TERMINAL LAUNCH_TYPE_DESKTOP
 
 # Window position modes
 export FULLSCREEN="Fullscreen"

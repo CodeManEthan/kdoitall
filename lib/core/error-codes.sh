@@ -74,6 +74,18 @@ export ERR_UNKNOWN_KEY=71
 
 readonly ERR_YDOTOOL_NOT_RUNNING ERR_UNKNOWN_KEY
 
+# Application Registry
+export ERR_APP_FILE_NOT_FOUND=80
+export ERR_APP_FILE_PARSE_FAILED=81
+export ERR_APP_METADATA_MISSING=82
+export ERR_DESKTOP_FILE_PARSE_FAILED=83
+export ERR_NO_DESKTOP_FILES_FOUND=84
+export ERR_APP_ID_INVALID=85
+
+readonly ERR_APP_FILE_NOT_FOUND ERR_APP_FILE_PARSE_FAILED
+readonly ERR_APP_METADATA_MISSING ERR_DESKTOP_FILE_PARSE_FAILED
+readonly ERR_NO_DESKTOP_FILES_FOUND ERR_APP_ID_INVALID
+
 
 # Error messages 
 declare -A ERROR_MESSAGES=(
@@ -127,6 +139,14 @@ declare -A ERROR_MESSAGES=(
     # Ydotool
     [$ERR_YDOTOOL_NOT_RUNNING]="ydotool daemon not running"
     [$ERR_UNKNOWN_KEY]="Unknown key"
+
+    # Application Registry
+    [$ERR_APP_FILE_NOT_FOUND]="ERROR: Application file not found"
+    [$ERR_APP_FILE_PARSE_FAILED]="ERROR: Failed to parse application file"
+    [$ERR_APP_METADATA_MISSING]="ERROR: Application metadata missing or incomplete"
+    [$ERR_DESKTOP_FILE_PARSE_FAILED]="ERROR: Failed to parse desktop file"
+    [$ERR_NO_DESKTOP_FILES_FOUND]="ERROR: No desktop files found"
+    [$ERR_APP_ID_INVALID]="ERROR: Invalid application ID"
 )
 
 export ERROR_MESSAGES

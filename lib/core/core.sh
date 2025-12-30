@@ -69,8 +69,7 @@ launch_window() {
 
     # Launch Window
     if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ) ]]; then
-        debug_log "$function_name" "Window already exists. Activate window."
-        activate_window_by_uuid "$uuid"
+        debug_log "$function_name" "Window already exists - $uuid."
 
         # Claim Window in Database
         debug_log "$function_name" "Claim Window in app_windows table."
