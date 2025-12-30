@@ -23,6 +23,15 @@ CREATE TABLE tabs (
     UNIQUE(window_name, tab_number)
 );
 
+CREATE TABLE applications (
+    app_id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    desktop_file_path TEXT,
+    has_terminal_launch BOOLEAN DEFAULT FALSE,
+    has_desktop_launch BOOLEAN DEFAULT FALSE,
+    app_file_path TEXT,
+    last_validated TIMESTAMP
+);
 
 CREATE TRIGGER auto_tab_number
 AFTER INSERT ON tabs
