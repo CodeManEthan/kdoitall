@@ -12,11 +12,33 @@ check_dependencies() {
         missing+=("ydotool")
     fi
     
+    if ! command -v jq &> /dev/null; then
+        missing+=("jq")
+    fi
+    
+    if ! command -v kscreen-doctor &> /dev/null; then
+        missing+=("kscreen-doctor")
+    fi
+    
     if [ ${#missing[@]} -gt 0 ]; then
         echo "Error: Missing dependencies: ${missing[*]}" >&2
         echo "" >&2
         echo "Install with:" >&2
-        echo "  sudo dnf install ${missing[*]}" >&2
+        
+        # Group packages by likely package names
+        local dnf_packages=()
+        for pkg in "${missing[@]}"; do
+            case "$pkg" in
+                kscreen-doctor)
+                    dnf_packages+=("kscreen")
+                    ;;
+                *)
+                    dnf_packages+=("$pkg")
+                    ;;
+            esac
+        done
+        
+        echo "  sudo dnf install ${dnf_packages[*]}" >&2
         exit 1
     fi
 }

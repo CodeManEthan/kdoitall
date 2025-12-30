@@ -13,9 +13,9 @@ readonly WORKSPACE_DIR
 
 # Timing delays
 export LAUNCH_DELAY="1.0"
-export WINDOW_DELAY="1.0"
-export DESKTOP_DELAY="1.0"
-export SCREEN_DELAY="1.0"
+export WINDOW_DELAY="0.1"
+export DESKTOP_DELAY="0.1"
+export SCREEN_DELAY="0.1"
 export POSITION_DELAY="0.5"
 export KEYPRESS_DELAY="0.05"
 export KEY_CHORD_DELAY="0.5"

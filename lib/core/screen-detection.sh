@@ -55,17 +55,15 @@ detect_desktops() {
 # Returns: 0 on success, 1 on failure
 detect_screens() {
     local function_name="detect_screens"
-    local kscreen_output=""
-    local current_output_num=0
-    local line=""
+    local kscreen_json=""
     
     debug_function_enter "$function_name"
     
-    # Get kscreen-doctor output
-    kscreen_output=$(kscreen-doctor -o 2>/dev/null)
+    # Get kscreen-doctor JSON output
+    kscreen_json=$(kscreen-doctor --json 2>/dev/null)
     
-    if [[ -z "$kscreen_output" ]]; then
-        debug_error "$function_name" "$ERR_KSCREEN_DETECTION_FAILED" "No output from kscreen-doctor"
+    if [[ -z "$kscreen_json" ]]; then
+        debug_error "$function_name" "$ERR_KSCREEN_DETECTION_FAILED" "No output from kscreen-doctor --json"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -74,49 +72,43 @@ detect_screens() {
     SCREEN_INFO=()
     DETECTED_SCREEN_COUNT=0
     
-    # Parse output line by line
-    while IFS= read -r line; do
-        # Detect new output (starts with "Output: ")
-        # Example: "Output: 1 eDP-1 d0a34112-3c2f-4d4a-97fc-03a893f1e8da"
-        if [[ "$line" =~ ^Output:[[:space:]]+([0-9]+)[[:space:]]+([^[:space:]]+)[[:space:]]+(.+)$ ]]; then
-            current_output_num="${BASH_REMATCH[1]}"
-            SCREEN_INFO["${current_output_num}_NAME"]="${BASH_REMATCH[2]}"
-            SCREEN_INFO["${current_output_num}_UUID"]="${BASH_REMATCH[3]}"
-            debug_log "$function_name" "Found Output $current_output_num: ${BASH_REMATCH[2]}"
-            continue
-        fi
+    # Parse JSON and extract enabled outputs
+    local output_count
+    output_count=$(echo "$kscreen_json" | jq -r '.outputs | length')
+    
+    for ((i=0; i<output_count; i++)); do
+        local output_id
+        local output_name
+        local output_enabled
+        local pos_x
+        local pos_y
+        local width
+        local height
         
-        # Skip if we haven't found an output yet
-        [[ $current_output_num -eq 0 ]] && continue
+        # Extract values using jq
+        output_id=$(echo "$kscreen_json" | jq -r ".outputs[$i].id")
+        output_name=$(echo "$kscreen_json" | jq -r ".outputs[$i].name")
+        output_enabled=$(echo "$kscreen_json" | jq -r ".outputs[$i].enabled")
+        pos_x=$(echo "$kscreen_json" | jq -r ".outputs[$i].pos.x")
+        pos_y=$(echo "$kscreen_json" | jq -r ".outputs[$i].pos.y")
+        width=$(echo "$kscreen_json" | jq -r ".outputs[$i].size.width")
+        height=$(echo "$kscreen_json" | jq -r ".outputs[$i].size.height")
         
-        # Parse enabled status
-        if [[ "$line" =~ ^[[:space:]]*enabled[[:space:]]*$ ]]; then
-            SCREEN_INFO["${current_output_num}_ENABLED"]="true"
+        # Store in SCREEN_INFO array
+        SCREEN_INFO["${output_id}_NAME"]="$output_name"
+        SCREEN_INFO["${output_id}_ENABLED"]="$output_enabled"
+        SCREEN_INFO["${output_id}_X"]="$pos_x"
+        SCREEN_INFO["${output_id}_Y"]="$pos_y"
+        SCREEN_INFO["${output_id}_WIDTH"]="$width"
+        SCREEN_INFO["${output_id}_HEIGHT"]="$height"
+        
+        debug_log "$function_name" "Found Output $output_id: $output_name (enabled: $output_enabled)"
+        
+        if [[ "$output_enabled" == "true" ]]; then
             ((DETECTED_SCREEN_COUNT++))
-            debug_log "$function_name" "Output $current_output_num is enabled"
-            continue
+            debug_log "$function_name" "Output $output_id geometry: ${width}x${height} at ($pos_x,$pos_y)"
         fi
-        
-        # Parse disabled status
-        if [[ "$line" =~ ^[[:space:]]*disabled[[:space:]]*$ ]]; then
-            SCREEN_INFO["${current_output_num}_ENABLED"]="false"
-            debug_log "$function_name" "Output $current_output_num is disabled"
-            continue
-        fi
-        
-        # Parse geometry: "Geometry: X,Y WIDTHxHEIGHT"
-        # Example: "Geometry: 1920,0 1920x1080"
-        if [[ "$line" =~ Geometry:[[:space:]]*([0-9]+),([0-9]+)[[:space:]]+([0-9]+)x([0-9]+) ]]; then
-            SCREEN_INFO["${current_output_num}_X"]="${BASH_REMATCH[1]}"
-            SCREEN_INFO["${current_output_num}_Y"]="${BASH_REMATCH[2]}"
-            SCREEN_INFO["${current_output_num}_WIDTH"]="${BASH_REMATCH[3]}"
-            SCREEN_INFO["${current_output_num}_HEIGHT"]="${BASH_REMATCH[4]}"
-            
-            debug_log "$function_name" "Output $current_output_num geometry: ${BASH_REMATCH[3]}x${BASH_REMATCH[4]} at (${BASH_REMATCH[1]},${BASH_REMATCH[2]})"
-            continue
-        fi
-        
-    done <<< "$kscreen_output"
+    done
     
     # Validate we found at least one enabled screen
     if [[ $DETECTED_SCREEN_COUNT -eq 0 ]]; then
@@ -244,7 +236,8 @@ list_detected_screens() {
     echo "----------------------------------------"
     
     for ((out=1; out<=20; out++)); do
-        if [[ "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+        # Check if this output exists before trying to access its ENABLED status
+        if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
             local name="${SCREEN_INFO[${out}_NAME]}"
             local width="${SCREEN_INFO[${out}_WIDTH]}"
             local height="${SCREEN_INFO[${out}_HEIGHT]}"
