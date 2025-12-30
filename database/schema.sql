@@ -1,8 +1,11 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE workspaces (
-    workspace_name TEXT PRIMARY KEY, 
-    is_active BOOLEAN DEFAULT FALSE
+CREATE TABLE workspace_definitions (
+    workspace_name TEXT PRIMARY KEY,
+    description TEXT,
+    is_active BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_opened_at TIMESTAMP
 );
 
 CREATE TABLE app_windows (

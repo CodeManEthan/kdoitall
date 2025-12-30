@@ -2,9 +2,10 @@
 
 # Database location
 export KDOITALL_DB="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/kdoitall.db"
+export WORKSPACE_SCRIPTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/workspaces"
 export KDOITALL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall/config"
 
-readonly KDOITALL_DB KDOITALL_CONFIG
+readonly KDOITALL_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
 
 # Workspace scripts location
 export WORKSPACE_DIR="$HOME/.local/bin"
