@@ -118,7 +118,7 @@ EOF_HEADER
     done
 
     # Add source statements
-    if [[ ${#app_files_to_source[@]} -gt 0 ]]; then
+    if [[ -v app_files_to_source && ${#app_files_to_source[@]} -gt 0 ]]; then
         echo "" >> "$script_path"
         echo "# Source required application files" >> "$script_path"
         for app_file in "${!app_files_to_source[@]}"; do

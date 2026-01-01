@@ -498,18 +498,18 @@ configure_positioning() {
     read -r pos_choice
     
     case "$pos_choice" in
-        1) position_ref="$FULLSCREEN" ;;
-        2) position_ref="$RIGHTHALF" ;;
-        3) position_ref="$LEFTHALF" ;;
-        4) position_ref="$TOPHALF" ;;
-        5) position_ref="$BOTTOMHALF" ;;
-        6) position_ref="$TOPLEFT" ;;
-        7) position_ref="$TOPRIGHT" ;;
-        8) position_ref="$BOTTOMLEFT" ;;
-        9) position_ref="$BOTTOMRIGHT" ;;
-        10) position_ref="$LEFTTHIRD" ;;
-        11) position_ref="$MIDDLETHIRD" ;;
-        12) position_ref="$RIGHTTHIRD" ;;
+        1) position_ref="FULLSCREEN" ;;
+        2) position_ref="RIGHTHALF" ;;
+        3) position_ref="LEFTHALF" ;;
+        4) position_ref="TOPHALF" ;;
+        5) position_ref="BOTTOMHALF" ;;
+        6) position_ref="TOPLEFT" ;;
+        7) position_ref="TOPRIGHT" ;;
+        8) position_ref="BOTTOMLEFT" ;;
+        9) position_ref="BOTTOMRIGHT" ;;
+        10) position_ref="LEFTTHIRD" ;;
+        11) position_ref="MIDDLETHIRD" ;;
+        12) position_ref="RIGHTTHIRD" ;;
         *) 
             echo "Error: Invalid choice"
             debug_function_exit "$function_name"
