@@ -27,34 +27,34 @@ app_command() {
     fi
     
     # Source app-registry module before dispatching
-    # shellcheck source=../core/app-registry.sh
-    source "${LIB_DIR}/core/app-registry.sh"
+    # shellcheck source=../app/registry.sh
+    source "${LIB_DIR}/app/registry.sh"
     
     # Dispatch to appropriate handler
     case "$subcommand" in
         scan)
-            # shellcheck source=app-scan.sh
-            source "${LIB_DIR}/commands/app-scan.sh"
+            # shellcheck source=scan.sh
+            source "${LIB_DIR}/commands/app/scan.sh"
             app_scan "$@"
             ;;
         list)
-            # shellcheck source=app-list.sh
-            source "${LIB_DIR}/commands/app-list.sh"
+            # shellcheck source=list.sh
+            source "${LIB_DIR}/commands/app/list.sh"
             app_list "$@"
             ;;
         info)
-            # shellcheck source=app-info.sh
-            source "${LIB_DIR}/commands/app-info.sh"
+            # shellcheck source=info.sh
+            source "${LIB_DIR}/commands/app/info.sh"
             app_info "$@"
             ;;
         validate)
-            # shellcheck source=app-validate.sh
-            source "${LIB_DIR}/commands/app-validate.sh"
+            # shellcheck source=validate.sh
+            source "${LIB_DIR}/commands/app/validate.sh"
             app_validate "$@"
             ;;
         options)
-            # shellcheck source=app-options.sh
-            source "${LIB_DIR}/commands/app-options.sh"
+            # shellcheck source=options.sh
+            source "${LIB_DIR}/commands/app/options.sh"
             app_options "$@"
             ;;
         *)

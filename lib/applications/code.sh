@@ -47,7 +47,7 @@ launch_vscode_window() {
     launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="code --new-window \"$directory_path\" &"
 
-    local directory
+    local directory=""
     directory=$(basename "$directory_path")
     window_title="$directory - Visual Studio Code"
     window_title=$(safe_name "$window_title")
@@ -58,15 +58,17 @@ launch_vscode_window() {
 }
 
 launch_vscode_workspace_window() {
-    local window_name="$1"
-    local desktop="$2"
-    local screen="$3"
-    local position="$4"
-    local workspace_path="$5"
+    local workspace_name="$1"
+    local window_name="$2"
+    local app_id="$3"
+    local desktop="$4"
+    local screen="$5"
+    local position="$6"
+    local workspace_path="$7"
 
     local launch_mode=""
-    local launch_command=""
     local launch_type=""
+    local launch_command=""
     local window_title=""
     local function_name="launch_vscode_workspace_window"
 
@@ -78,12 +80,12 @@ launch_vscode_workspace_window() {
     launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="code --new-window \"$workspace_path\" &"
 
-    local workspace
+    local workspace=""
     workspace=$(basename "$workspace_path" .code-workspace)
     window_title="$workspace (Workspace) - Visual Studio Code"
     window_title=$(safe_name "$window_title")
 
-    execute_launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" --launch-command "$launch_command" --window-title "$window_title"
+    execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" --window-title "$window_title"
 
     debug_function_exit "$function_name"
 }

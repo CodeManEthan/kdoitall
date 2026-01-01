@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# lib/core/application-registry.sh
+# lib/app/registry.sh
 # Application registry management - scanning, validation, and query functions
 #
 # This module scans the system for available applications, validates their 

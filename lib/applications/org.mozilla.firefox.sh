@@ -20,11 +20,13 @@ declare -A LAUNCH_OPTIONS=(
 )
 
 launch_firefox_window() {
-    local window_name="$1"
-    local desktop="$2"
-    local screen="$3"
-    local position="$4"
-    local url="$5"
+    local workspace_name="$1"
+    local window_name="$2"
+    local app_id="$3"
+    local desktop="$4"
+    local screen="$5"
+    local position="$6"
+    local url="$7"
 
     local launch_mode=""
     local launch_type=""
@@ -37,7 +39,7 @@ launch_firefox_window() {
     launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="firefox --new-window \"$url\" &"
 
-    execute_launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
+    execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
 
     debug_function_exit "$function_name"
 }

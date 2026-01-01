@@ -29,28 +29,28 @@ workspace_command() {
     # Dispatch to appropriate handler
     case "$subcommand" in
         create)
-            # shellcheck source=workspace-create.sh
-            source "${LIB_DIR}/commands/workspace-create.sh"
+            # shellcheck source=create.sh
+            source "${LIB_DIR}/commands/workspace/create.sh"
             workspace_create "$@"
             ;;
         list)
-            # shellcheck source=workspace-list.sh
-            source "${LIB_DIR}/commands/workspace-list.sh"
+            # shellcheck source=list.sh
+            source "${LIB_DIR}/commands/workspace/list.sh"
             workspace_list "$@"
             ;;
         open)
-            # shellcheck source=workspace-open.sh
-            source "${LIB_DIR}/commands/workspace-open.sh"
+            # shellcheck source=open.sh
+            source "${LIB_DIR}/commands/workspace/open.sh"
             workspace_open "$@"
             ;;
         close)
-            # shellcheck source=workspace-close.sh
-            source "${LIB_DIR}/commands/workspace-close.sh"
+            # shellcheck source=close.sh
+            source "${LIB_DIR}/commands/workspace/close.sh"
             workspace_close "$@"
             ;;
         delete)
-            # shellcheck source=workspace-delete.sh
-            source "${LIB_DIR}/commands/workspace-delete.sh"
+            # shellcheck source=delete.sh
+            source "${LIB_DIR}/commands/workspace/delete.sh"
             workspace_delete "$@"
             ;;
         *)

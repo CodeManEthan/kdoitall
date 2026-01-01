@@ -1,5 +1,7 @@
 #!/bin/bash
 
+check_and_set_guard "_KDOITALL_DB_WORKSPACE_LOADED" || return 0
+
 # ============================================================================
 # Workspace Database Functions
 # ============================================================================
