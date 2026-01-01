@@ -29,8 +29,9 @@ readonly KEYPRESS_DELAY KEY_CHORD_DELAY TYPE_TEXT_DELAY
 export LAUNCH_MODE_MULTI="multi"    # Multiple windows always allowed
 export LAUNCH_MODE_SINGLE="single"  # Only one instance allowed
 export LAUNCH_MODE_UNIQUE="unique"  # Multiple windows, but not the same
+export LAUNCH_MODE_UNKNOWN="unknown"
 
-readonly LAUNCH_MODE_MULTI LAUNCH_MODE_SINGLE LAUNCH_MODE_UNIQUE
+readonly LAUNCH_MODE_MULTI LAUNCH_MODE_SINGLE LAUNCH_MODE_UNIQUE LAUNCH_MODE_UNKNOWN
 
 # Application launch types
 export LAUNCH_TYPE_TERMINAL="terminal"

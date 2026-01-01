@@ -37,7 +37,7 @@ launch_firefox_window() {
     launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="firefox --new-window \"$url\" &"
 
-    launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
+    execute_launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
 
     debug_function_exit "$function_name"
 }

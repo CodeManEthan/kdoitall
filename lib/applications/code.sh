@@ -24,20 +24,14 @@ declare -A LAUNCH_OPTIONS=(
 # Launch Functions
 # ============================================================================
 
-code_desktop_launcher() {
-    local app_id=""
-
-    app_id="code"
-
-    launch_desktop_window "$app_id"
-}
-
 launch_vscode_window() {
-    local window_name="$1"
-    local desktop="$2"
-    local screen="$3"
-    local position="$4"
-    local directory_path="$5"
+    local workspace_name="$1"
+    local window_name="$2"
+    local app_id="$3"
+    local desktop="$4"
+    local screen="$5"
+    local position="$6"
+    local directory_path="$7"
     
     local launch_mode=""
     local launch_type=""
@@ -58,7 +52,7 @@ launch_vscode_window() {
     window_title="$directory - Visual Studio Code"
     window_title=$(safe_name "$window_title")
 
-    launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" --launch-command "$launch_command" --window-title "$window_title"
+    execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" --window-title "$window_title"
 
     debug_function_exit "$function_name"
 }
@@ -89,7 +83,7 @@ launch_vscode_workspace_window() {
     window_title="$workspace (Workspace) - Visual Studio Code"
     window_title=$(safe_name "$window_title")
 
-    launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" --launch-command "$launch_command" --window-title "$window_title"
+    execute_launch_window "$window_name" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" --launch-command "$launch_command" --window-title "$window_title"
 
     debug_function_exit "$function_name"
 }

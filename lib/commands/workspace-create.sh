@@ -20,7 +20,7 @@ workspace_create() {
     local function_name="workspace_create"
     
     # Array to hold workspace configuration during creation
-    # Format: app_id|window_name|launch_type|launch_function|launch_mode|desktop|screen|position|parameters
+    # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
     declare -a WORKSPACE_APPS=()
     
     debug_function_enter "$function_name" "$@"
@@ -139,7 +139,6 @@ add_application_to_workspace() {
     local window_name=""
     local launch_type=""
     local launch_function=""
-    local launch_mode=""
     local desktop_number=""
     local screen_number=""
     local position=""
@@ -175,7 +174,7 @@ add_application_to_workspace() {
         return 1
     fi
     
-    # Step 3: Choose launch type
+    # Step 3: Choose launch type (to determine launch function)
     echo ""
     echo "Step 3: Launch Type"
     echo "-------------------"
@@ -184,26 +183,20 @@ add_application_to_workspace() {
         return 1
     fi
     
-    # Step 4: Choose launch mode
-    echo ""
-    echo "Step 4: Launch Mode"
-    echo "-------------------"
-    echo "Choose how this window should behave:"
-    echo "  1) unique  - Multiple windows allowed, but not duplicates"
-    echo "  2) single  - Only one instance allowed"
-    echo "  3) multi   - Multiple instances always allowed"
-    read -r mode_choice
-    
-    case "$mode_choice" in
-        1) launch_mode="$LAUNCH_MODE_UNIQUE" ;;
-        2) launch_mode="$LAUNCH_MODE_SINGLE" ;;
-        3) launch_mode="$LAUNCH_MODE_MULTI" ;;
-        *) 
-            echo "Error: Invalid choice"
+    # Step 4: Determine launch function based on launch type
+    if [[ "$launch_type" == "desktop" ]]; then
+        # For desktop launches, use launch_by_app_id
+        launch_function="launch_by_app_id"
+    else
+        # For terminal launches, user selects from app-specific launch options
+        echo ""
+        echo "Step 4: Launch Function"
+        echo "-----------------------"
+        if ! launch_function=$(select_launch_function "$app_id"); then
             debug_function_exit "$function_name"
             return 1
-            ;;
-    esac
+        fi
+    fi
     
     # Step 5: Configure positioning
     echo ""
@@ -214,20 +207,11 @@ add_application_to_workspace() {
         return 1
     fi
     
-    # Step 6: Terminal-specific configuration
+    # Step 6: Terminal-specific parameters
     if [[ "$launch_type" == "terminal" ]]; then
-        # Select launch function
-        echo ""
-        echo "Step 6: Launch Function"
-        echo "-----------------------"
-        if ! launch_function=$(select_launch_function "$app_id"); then
-            debug_function_exit "$function_name"
-            return 1
-        fi
-        
         # Prompt for parameters
         echo ""
-        echo "Step 7: Function Parameters"
+        echo "Step 6: Function Parameters"
         echo "---------------------------"
         echo "Enter parameters for this function (space-separated):"
         echo "  Example: /path/to/project"
@@ -236,8 +220,11 @@ add_application_to_workspace() {
     fi
     
     # Store in array for script generation
-    # Format: app_id|window_name|launch_type|launch_function|launch_mode|desktop|screen|position|parameters
-    apps_array_ref+=("$app_id|$window_name|$launch_type|$launch_function|$launch_mode|$desktop_number|$screen_number|$position|$parameters")
+    # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
+    # Note: launch_type, launch_mode, and launch_command are NOT stored:
+    #   - launch_type is only used during creation to determine the launch_function
+    #   - launch_mode and launch_command are set internally by the launch functions
+    apps_array_ref+=("$app_id|$window_name|$launch_function|$desktop_number|$screen_number|$position|$parameters")
     
     echo ""
     echo "✓ Added: $window_name ($app_id)"

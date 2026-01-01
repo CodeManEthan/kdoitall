@@ -21,41 +21,29 @@ source "${LIB_DIR}/window-management/window.sh"
 # shellcheck source=../window-management/tab.sh
 source "${LIB_DIR}/window-management/tab.sh"
 
-launch_window() {
-    local window_name="$1"
-    local desktop="$2"
-    local screen="$3"
-    local position="$4"
-    local launch_mode="$5"
-    local launch_type="$6"
-    local launch_command=""
-    local app_id=""
-    local window_title=""
-    local workspace_name="default_workspace"
+execute_launch_window() {
+    local workspace_name="$1"
+    local window_name="$2"
+    local app_id="$3"
+    local desktop="$4"
+    local screen="$5"
+    local position="$6"
+    local launch_mode="$7"
+    local launch_type="$8"
+    local launch_command="$9"
     local function_name="launch_window"
     local uuid=""
     local class=""
+    local window_title=""
 
     debug_function_enter "$function_name" "$@"
     
-    shift 6
+    shift 9
  
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --launch-command)
-                launch_command="$2"
-                shift 2
-                ;;
-            --app-id)
-                app_id="$2"
-                shift 2
-                ;;
             --window-title)
                 window_title="$2"
-                shift 2
-                ;;
-            --workspace-name)
-                workspace_name="$2"
                 shift 2
                 ;;
             *)
@@ -147,7 +135,7 @@ launch_window() {
     debug_function_exit "$function_name"
 }
 
-close_window() {
+execute_close_window() {
     local window_name="$1"
     local uuid=""
     local function_name="close-window"
@@ -210,9 +198,17 @@ auto_detect_windows() {
 }
 
 
-launch_desktop_window() {
-    local app_id="$1"
+launch_by_app_id() {
+    local workspace_name="$1"
+    local window_name="$2"
+    local app_id="$3"
+    local desktop="$4"
+    local screen="$5"
+    local position="$6"
+    local launch_mode=""
+    local launch_type=""
     local launch_command=""
+    local function_name="launch_by_app_id"
 
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
@@ -220,7 +216,10 @@ launch_desktop_window() {
         return 1
     fi
 
+    launch_mode="$LAUNCH_MODE_UNKNOWN"
+    launch_type="$LAUNCH_TYPE_DESKTOP"
+
     launch_command="gtk-launch $app_id"
 
-    eval "$launch_command"
+     execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
 }
