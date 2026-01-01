@@ -88,6 +88,16 @@ readonly ERR_APP_METADATA_MISSING ERR_DESKTOP_FILE_PARSE_FAILED
 readonly ERR_NO_DESKTOP_FILES_FOUND ERR_APP_ID_INVALID
 readonly ERR_DATABASE_ERROR
 
+# Workspace-related errors
+export ERR_WORKSPACE_EXISTS="Workspace already exists"
+export ERR_WORKSPACE_NOT_FOUND="Workspace not found"
+export ERR_INVALID_WORKSPACE_NAME="Invalid workspace name"
+export ERR_SCRIPT_GENERATION_FAILED="Failed to generate workspace scripts"
+export ERR_NO_APPLICATIONS="No applications configured for workspace"
+
+readonly ERR_WORKSPACE_EXISTS ERR_WORKSPACE_NOT_FOUND ERR_INVALID_WORKSPACE_NAME
+readonly ERR_SCRIPT_GENERATION_FAILED ERR_NO_APPLICATIONS
+
 
 # Error messages 
 declare -A ERROR_MESSAGES=(
@@ -150,6 +160,13 @@ declare -A ERROR_MESSAGES=(
     [$ERR_NO_DESKTOP_FILES_FOUND]="ERROR: No desktop files found"
     [$ERR_APP_ID_INVALID]="ERROR: Invalid application ID"
     [$ERR_DATABASE_ERROR]="ERROR: Database operation failed"
+
+    # Workspace
+    [ERR_WORKSPACE_EXISTS]="Workspace already exists"
+    [ERR_WORKSPACE_NOT_FOUND]="Workspace not found"
+    [ERR_INVALID_WORKSPACE_NAME]="Invalid workspace name"
+    [ERR_SCRIPT_GENERATION_FAILED]="Failed to generate workspace scripts"
+    [ERR_NO_APPLICATIONS]="No applications configured for workspace"
 )
 
 export ERROR_MESSAGES
