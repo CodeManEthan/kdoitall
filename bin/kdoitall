@@ -26,6 +26,9 @@ source "${LIB_DIR}/utils/debug.sh"
 # ============================================================================
 # Command Parsing
 # ============================================================================
+# Save original arguments for potential re-execution
+ORIGINAL_ARGS=("$@")
+
 COMMAND=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -55,8 +58,8 @@ esac
 
 # If running interactively and not in debug/verbose mode, detach to background
 if [ -t 0 ] && [ "$DEBUG_MODE" != "true" ] && [ "$VERBOSE_MODE" != "true" ] && [ "$SKIP_DETACH" != "true" ]; then
-    # Re-run in background, discarding output
-    nohup "$0" "$@" > /dev/null 2>&1 &
+    # Re-run in background with ORIGINAL arguments
+    nohup "$0" "${ORIGINAL_ARGS[@]}" > /dev/null 2>&1 &
     exit 0
 fi
 
@@ -124,7 +127,15 @@ case "$COMMAND" in
         ;;
         
     workspace)
+        # shellcheck source=../lib/commands/workspace.sh
+        source "${LIB_DIR}/commands/workspace.sh"
         workspace_command "$@"
+        ;;
+
+    app)
+        # shellcheck source=../lib/commands/app.sh
+        source "${LIB_DIR}/commands/app.sh"
+        app_command "$@"
         ;;
 
     --test-open)

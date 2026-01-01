@@ -7,6 +7,9 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_CREATE_LOADED" || return 0
 
+# shellcheck source=../core/workspace-db.sh
+source "${LIB_DIR}/core/workspace-db.sh"
+
 # ----------------------------------------------------------------------------
 # workspace_create()
 # Main function for interactive workspace creation
@@ -70,7 +73,11 @@ workspace_create() {
         if ! add_application_to_workspace "$workspace_name" "$display_order" WORKSPACE_APPS; then
             echo "Error adding application. Try again? (y/n)"
             read -r retry
-            [[ "$retry" == "y" ]] && continue || break
+            if [[ "$retry" == "y" ]]; then
+                continue
+            else
+                break
+            fi
         fi
         
         ((display_order++))

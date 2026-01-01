@@ -34,6 +34,13 @@ WORKSPACE COMMANDS:
     workspace close <name>    Close a workspace
     workspace delete <name>   Delete a workspace
 
+APPLICATION COMMANDS:
+    app scan                  Scan system for available applications
+    app list [filter]         List applications (all, terminal, desktop, both)
+    app info <app_id>         Show detailed information about an application
+    app validate              Validate all application definition files
+    app options <app_id>      Show launch options for an application
+
 EXAMPLES:
     # Create a new workspace
     kdoitall workspace create my-dev-workspace
