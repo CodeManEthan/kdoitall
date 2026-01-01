@@ -54,6 +54,17 @@ case "$COMMAND" in
     --help|-h|--version|-v)
         SKIP_DETACH=true
         ;;
+    app)
+        # All app commands are informational/interactive
+        SKIP_DETACH=true
+        ;;
+    workspace)
+        # Check subcommand - list and create are interactive/informational
+        # open/close should still detach to background
+        if [[ "${1:-}" == "list" || "${1:-}" == "create" ]]; then
+            SKIP_DETACH=true
+        fi
+        ;;
 esac
 
 # If running interactively and not in debug/verbose mode, detach to background

@@ -55,14 +55,8 @@ workspace_create() {
     echo "Enter workspace description (optional, press Enter to skip):"
     read -r description
     
-    # Create workspace metadata in database
-    if ! db_create_workspace "$workspace_name" "$description"; then
-        echo "Error: Failed to create workspace in database"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    echo "✓ Created workspace: $workspace_name"
+    # Note: We validate workspace doesn't exist, but don't create it yet
+    # Database entry will be created at the end, after all apps are configured
     echo ""
     
     # Application addition loop
@@ -88,15 +82,41 @@ workspace_create() {
         [[ "$continue_adding" != "y" ]] && break
     done
     
-    # Check if any applications were added
+    # Check if any applications were added - must have at least one app
     if [[ ${#WORKSPACE_APPS[@]} -eq 0 ]]; then
         echo ""
-        echo "Warning: No applications added to workspace"
-        echo "Workspace '$workspace_name' created but is empty"
-        echo "You can manually edit the scripts later or delete and recreate the workspace"
+        echo "Error: No applications added to workspace"
+        echo "A workspace must have at least one application"
+        echo "Workspace creation cancelled"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Final confirmation before committing to database
+    echo ""
+    echo "=== Workspace Configuration Summary ==="
+    echo "Workspace: $workspace_name"
+    echo "Description: ${description:-<none>}"
+    echo "Applications configured: ${#WORKSPACE_APPS[@]}"
+    echo ""
+    echo "Proceed with workspace creation? (y/n)"
+    read -r confirm_create
+    
+    if [[ "$confirm_create" != "y" ]]; then
+        echo "Workspace creation cancelled"
         debug_function_exit "$function_name"
         return 0
     fi
+    
+    # Now create workspace in database (after user confirmation)
+    echo ""
+    echo "Creating workspace in database..."
+    if ! db_create_workspace "$workspace_name" "$description"; then
+        echo "Error: Failed to create workspace in database"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    echo "✓ Workspace created in database"
     
     # Generate scripts (passing the configuration array)
     echo ""
@@ -257,40 +277,40 @@ select_application() {
     apps=$(db_list_applications "all")
     
     if [[ -z "$apps" ]]; then
-        echo "Error: No applications found in registry"
-        echo "Run 'kdoitall scan' to populate the registry"
+        echo "Error: No applications found in registry" >&2
+        echo "Run 'kdoitall scan' to populate the registry" >&2
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Display applications
-    echo ""
-    echo "Available Applications:"
-    echo "======================"
-    echo ""
+    echo "" >&2
+    echo "Available Applications:" >&2
+    echo "======================" >&2
+    echo "" >&2
     
     local counter=1
     while IFS='|' read -r app_id display_name has_terminal has_desktop; do
         app_list+=("$app_id")
         
         local types=""
-        [[ "$has_terminal" == "TRUE" ]] && types+="T"
-        [[ "$has_desktop" == "TRUE" ]] && types+="D"
+        [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && types+="T"
+        [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && types+="D"
         
-        printf "%3d) %-40s [%s]\n" "$counter" "$display_name" "$types"
+        printf "%3d) %-40s [%s]\n" "$counter" "$display_name" "$types" >&2
         ((counter++))
     done <<< "$apps"
     
-    echo ""
-    echo "Legend: [T] = Terminal launch available, [D] = Desktop launch available"
-    echo ""
-    echo "Select application (1-$((counter-1))):"
+    echo "" >&2
+    echo "Legend: [T] = Terminal launch available, [D] = Desktop launch available" >&2
+    echo "" >&2
+    echo "Select application (1-$((counter-1))):" >&2
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
        [ "$selection" -lt 1 ] || \
        [ "$selection" -ge "$counter" ]; then
-        echo "Error: Invalid selection"
+        echo "Error: Invalid selection" >&2
         debug_function_exit "$function_name"
         return 1
     fi
@@ -322,12 +342,12 @@ choose_launch_type() {
     has_desktop=$(echo "$app_info" | cut -d'|' -f8)
     
     # If only one type available, use it
-    if [[ "$has_terminal" == "TRUE" && "$has_desktop" == "FALSE" ]]; then
+    if [[ ("$has_terminal" == "1" || "$has_terminal" == "TRUE") && ("$has_desktop" == "0" || "$has_desktop" == "FALSE") ]]; then
         debug_log "$function_name" "Only terminal launch available"
         debug_function_exit "$function_name"
         echo "terminal"
         return 0
-    elif [[ "$has_desktop" == "TRUE" && "$has_terminal" == "FALSE" ]]; then
+    elif [[ ("$has_desktop" == "1" || "$has_desktop" == "TRUE") && ("$has_terminal" == "0" || "$has_terminal" == "FALSE") ]]; then
         debug_log "$function_name" "Only desktop launch available"
         debug_function_exit "$function_name"
         echo "desktop"
@@ -335,9 +355,9 @@ choose_launch_type() {
     fi
     
     # Both available, let user choose
-    echo "This application supports both launch types:"
-    echo "  1) Desktop  - Simple GTK launch (uses .desktop file)"
-    echo "  2) Terminal - Advanced launch with custom options"
+    echo "This application supports both launch types:" >&2
+    echo "  1) Desktop  - Simple GTK launch (uses .desktop file)" >&2
+    echo "  2) Terminal - Advanced launch with custom options" >&2
     read -r type_choice
     
     case "$type_choice" in
@@ -383,21 +403,21 @@ select_launch_function() {
         return 1
     fi
     
-    echo ""
-    echo "Available Launch Functions:"
-    echo "==========================="
-    echo ""
+    echo "" >&2
+    echo "Available Launch Functions:" >&2
+    echo "===========================" >&2
+    echo "" >&2
     
     local counter=1
     while IFS='|' read -r function_name description; do
         option_list+=("$function_name")
-        printf "%3d) %-40s\n" "$counter" "$function_name"
-        printf "     %s\n" "$description"
-        echo ""
+        printf "%3d) %-40s\n" "$counter" "$function_name" >&2
+        printf "     %s\n" "$description" >&2
+        echo "" >&2
         ((counter++))
     done <<< "$options"
     
-    echo "Select launch function (1-$((counter-1))):"
+    echo "Select launch function (1-$((counter-1))):" >&2
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
