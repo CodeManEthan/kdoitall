@@ -138,14 +138,14 @@ case "$COMMAND" in
         ;;
         
     workspace)
-        # shellcheck source=../lib/commands/workspace.sh
-        source "${LIB_DIR}/commands/workspace.sh"
+        # shellcheck source=../lib/commands/workspace/dispatcher.sh
+        source "${LIB_DIR}/commands/workspace/dispatcher.sh"
         workspace_command "$@"
         ;;
 
     app)
-        # shellcheck source=../lib/commands/app.sh
-        source "${LIB_DIR}/commands/app.sh"
+        # shellcheck source=../lib/commands/app/dispatcher.sh
+        source "${LIB_DIR}/commands/app/dispatcher.sh"
         app_command "$@"
         ;;
 
