@@ -330,3 +330,81 @@ db_get_supports_pid_validation() {
     echo "$result"
     return 0
 }
+
+# ----------------------------------------------------------------------------
+# db_set_title_pattern()
+# Store window title pattern for an application
+# Parameters:
+#   $1 - app_id
+#   $2 - pattern (the unique part of the window title to match)
+# ----------------------------------------------------------------------------
+db_set_title_pattern() {
+    local app_id="$1"
+    local pattern="$2"
+    local function_name="db_set_title_pattern"
+    local changes=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$pattern" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "pattern"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :pattern '$pattern'" \
+        "UPDATE applications 
+         SET window_title_pattern = :pattern
+         WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+    
+    if [[ "$changes" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Set title pattern='$pattern' for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_get_title_pattern()
+# Get stored window title pattern for an application
+# Parameters:
+#   $1 - app_id
+# Returns: Pattern string or empty if not set
+# ----------------------------------------------------------------------------
+db_get_title_pattern() {
+    local app_id="$1"
+    local function_name="db_get_title_pattern"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COALESCE(window_title_pattern, '') FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Title pattern for $app_id: ${result:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}

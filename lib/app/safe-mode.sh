@@ -511,7 +511,13 @@ safe_mode_launch_and_detect() {
     # Store validated data
     safe_mode_store_metadata "$app_id" "$new_uuid"
     
-    # Run multi-instance test (optional)
+    # Get window title for advanced tests
+    local title
+    title=$(get_window_title_by_uuid "$new_uuid")
+    
+    # Run advanced validation tests (optional)
+    safe_mode_test_pid_validation "$app_id" "$new_uuid"
+    safe_mode_analyze_title_pattern "$app_id" "$new_uuid" "$title"
     safe_mode_test_multi_instance "$app_id" "$new_uuid"
     
     # Mark safe mode as complete
@@ -635,6 +641,188 @@ safe_mode_test_pid_validation() {
     echo ""
     
     debug_log "$function_name" "PID validation enabled for $app_id: process='$process_name', path='$executable_path'"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# safe_mode_analyze_title_pattern()
+# Analyze window title and prompt user to select a unique pattern
+# 
+# This function parses the current window title to identify potential unique
+# patterns based on separators (" - " and " — "). It presents suggestions to
+# the user (starting with rightmost segments) and allows custom input.
+# 
+# Parameters:
+#   $1 - app_id: Application identifier
+#   $2 - uuid: Window UUID
+#   $3 - title: Current window title
+# 
+# Returns: 0 on success (pattern stored or skipped), 1 on error
+# ----------------------------------------------------------------------------
+safe_mode_analyze_title_pattern() {
+    local app_id="$1"
+    local uuid="$2"
+    local current_title="$3"
+    local function_name="safe_mode_analyze_title_pattern"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$current_title" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "current_title"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get display name
+    local display_name
+    display_name=$(db_get_app_display_name "$app_id")
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📝 WINDOW TITLE PATTERN (Optional)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Current window title: \"$current_title\""
+    echo ""
+    
+    # Parse title to get suggestions
+    local -a suggestions=()
+    mapfile -t suggestions < <(parse_window_title_segments "$current_title")
+    
+    if [[ ${#suggestions[@]} -eq 0 ]]; then
+        echo "No separators found in the window title."
+        echo "The title doesn't contain ' - ' or ' — ' separators."
+        echo ""
+        echo "You can still enter a custom pattern if you want."
+        echo ""
+        read -r -p "Enter a unique pattern (or press Enter to skip): " pattern
+        
+        if [[ -z "$pattern" ]]; then
+            echo "Skipping title pattern."
+            debug_function_exit "$function_name" "Skipped - no pattern entered"
+            return 0
+        fi
+        
+        # Validate custom pattern exists in title
+        if [[ ! "$current_title" =~ $pattern ]]; then
+            echo ""
+            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!"
+            read -r -p "Save anyway? [y/N]: " save_anyway
+            save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
+            
+            if [[ "$save_anyway" != "y" ]]; then
+                echo "Pattern not saved."
+                debug_function_exit "$function_name" "Rejected - pattern not in title"
+                return 0
+            fi
+        fi
+        
+        # Save the pattern
+        db_set_title_pattern "$app_id" "$pattern"
+        echo ""
+        echo "✓ Title pattern saved: \"$pattern\""
+        echo "  This pattern will match any window title containing: $pattern"
+        
+        debug_log "$function_name" "Custom pattern saved: $pattern"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+    
+    # We have suggestions - display them
+    echo "Based on the window title structure, here are suggested patterns:"
+    echo ""
+    echo "Suggestions (starting with rightmost):"
+    
+    local i=1
+    for suggestion in "${suggestions[@]}"; do
+        echo "  [$i] \"$suggestion\""
+        ((i++))
+    done
+    
+    echo "  [$i] Custom pattern (enter your own)"
+    local custom_option=$i
+    echo ""
+    echo "These patterns help kdoitall identify this application's windows"
+    echo "by matching unique parts of the window title."
+    echo ""
+    
+    # Get user choice
+    local choice
+    read -r -p "Select a pattern (1-$i) or press Enter to skip: " choice
+    
+    # If user pressed Enter, skip
+    if [[ -z "$choice" ]]; then
+        echo "Skipping title pattern."
+        debug_function_exit "$function_name" "Skipped by user"
+        return 0
+    fi
+    
+    # Validate choice is a number
+    if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+        echo "Invalid choice. Skipping title pattern."
+        debug_function_exit "$function_name" "Invalid input"
+        return 0
+    fi
+    
+    # Check if custom option was selected
+    if [[ "$choice" -eq "$custom_option" ]]; then
+        echo ""
+        read -r -p "Enter custom pattern: " pattern
+        
+        if [[ -z "$pattern" ]]; then
+            echo "No pattern entered. Skipping."
+            debug_function_exit "$function_name" "No custom pattern entered"
+            return 0
+        fi
+        
+        # Validate custom pattern exists in title
+        if [[ ! "$current_title" =~ $pattern ]]; then
+            echo ""
+            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!"
+            read -r -p "Save anyway? [y/N]: " save_anyway
+            save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
+            
+            if [[ "$save_anyway" != "y" ]]; then
+                echo "Pattern not saved."
+                debug_function_exit "$function_name" "Custom pattern rejected"
+                return 0
+            fi
+        fi
+    else
+        # User selected a suggestion
+        local suggestion_index=$((choice - 1))
+        
+        # Validate index is in range
+        if [[ "$suggestion_index" -lt 0 || "$suggestion_index" -ge "${#suggestions[@]}" ]]; then
+            echo "Invalid choice. Skipping title pattern."
+            debug_function_exit "$function_name" "Choice out of range"
+            return 0
+        fi
+        
+        pattern="${suggestions[$suggestion_index]}"
+    fi
+    
+    # Save the pattern
+    db_set_title_pattern "$app_id" "$pattern"
+    
+    echo ""
+    echo "✓ Title pattern saved: \"$pattern\""
+    echo "  This pattern will match any window title containing: $pattern"
+    
+    debug_log "$function_name" "Title pattern saved: $pattern"
     debug_function_exit "$function_name"
     return 0
 }
