@@ -408,3 +408,141 @@ db_get_title_pattern() {
     echo "$result"
     return 0
 }
+
+# ----------------------------------------------------------------------------
+# db_set_launch_time()
+# Store launch time measurement and update expected launch time
+# Uses rolling average algorithm with buffer
+# Parameters:
+#   $1 - app_id
+#   $2 - measured_time_ms (measured launch time in milliseconds)
+# ----------------------------------------------------------------------------
+db_set_launch_time() {
+    local app_id="$1"
+    local measured_time_ms="$2"
+    local function_name="db_set_launch_time"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$measured_time_ms" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "measured_time_ms"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get current data
+    local current_samples
+    local current_expected
+    current_samples=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    current_expected=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COALESCE(expected_launch_time_ms, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    # Calculate new expected time (rolling average with buffer)
+    local new_expected
+    if [[ "$current_samples" -eq 0 ]]; then
+        # First sample: use measured time + 50% buffer
+        new_expected=$(echo "scale=0; ($measured_time_ms * 3 / 2)" | bc)
+    else
+        # Rolling average: (current_avg * samples + new_measurement) / (samples + 1)
+        local avg=$(echo "scale=0; ($current_expected * $current_samples + $measured_time_ms) / ($current_samples + 1)" | bc)
+        # Add 25% buffer to average
+        new_expected=$(echo "scale=0; ($avg * 5 / 4)" | bc)
+    fi
+    
+    # Update database
+    local changes
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :measured '$measured_time_ms'" \
+        -cmd ".param set :expected '$new_expected'" \
+        "UPDATE applications 
+         SET last_measured_launch_time_ms = :measured,
+             expected_launch_time_ms = :expected,
+             launch_time_samples = launch_time_samples + 1
+         WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+    
+    if [[ "$changes" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Updated launch time: measured=${measured_time_ms}ms, expected=${new_expected}ms"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_get_expected_launch_time()
+# Get expected launch time for an application
+# Parameters:
+#   $1 - app_id
+# Returns: Expected launch time in milliseconds (default 5000 if not set)
+# ----------------------------------------------------------------------------
+db_get_expected_launch_time() {
+    local app_id="$1"
+    local expected_time=""
+    local function_name="db_get_expected_launch_time"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    expected_time=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COALESCE(expected_launch_time_ms, 5000) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Expected launch time for $app_id: ${expected_time}ms"
+    debug_function_exit "$function_name"
+    echo "$expected_time"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# db_get_launch_time_samples()
+# Get number of launch time samples collected for an application
+# Parameters:
+#   $1 - app_id
+# Returns: Number of samples (0 if none)
+# ----------------------------------------------------------------------------
+db_get_launch_time_samples() {
+    local app_id="$1"
+    local samples=""
+    local function_name="db_get_launch_time_samples"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    samples=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    debug_log "$function_name" "Launch time samples for $app_id: $samples"
+    debug_function_exit "$function_name"
+    echo "$samples"
+    return 0
+}

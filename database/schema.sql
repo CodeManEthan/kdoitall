@@ -43,7 +43,11 @@ CREATE TABLE applications (
     launch_mode TEXT,
     supports_pid_validation BOOLEAN DEFAULT FALSE,
     expected_executable_path TEXT,
-    expected_process_name TEXT
+    expected_process_name TEXT,
+    window_title_pattern TEXT,
+    expected_launch_time_ms INTEGER,
+    last_measured_launch_time_ms INTEGER,
+    launch_time_samples INTEGER DEFAULT 0
 );
 
 CREATE TABLE launch_options (

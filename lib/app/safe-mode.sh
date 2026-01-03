@@ -387,6 +387,115 @@ safe_mode_test_multi_instance() {
 }
 
 # ----------------------------------------------------------------------------
+# safe_mode_measure_launch_time()
+# Measure application launch time and detect window with extended timeout
+# 
+# This function measures how long an application takes to launch by:
+# 1. Recording start time in milliseconds
+# 2. Launching the application
+# 3. Waiting up to 30 seconds for window to appear
+# 4. Recording end time and calculating elapsed time
+# 5. Storing measurement in database for future launches
+# 
+# Parameters:
+#   $1 - app_id: Application identifier
+# 
+# Returns: UUID of detected window on success, empty on failure
+# ----------------------------------------------------------------------------
+safe_mode_measure_launch_time() {
+    local app_id="$1"
+    local function_name="safe_mode_measure_launch_time"
+    local start_time=""
+    local end_time=""
+    local elapsed_ms=0
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get display name
+    local display_name
+    display_name=$(db_get_app_display_name "$app_id")
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⏱️  LAUNCH TIME MEASUREMENT"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Application: $display_name ($app_id)"
+    echo "Measuring launch time with generous timeout (30 seconds)..."
+    echo ""
+    
+    # Record start time (milliseconds since epoch)
+    start_time=$(date +%s%3N)
+    
+    # Refresh database before launch
+    echo "Scanning existing windows..."
+    auto_detect_windows
+    
+    # Launch application
+    echo "Launching $display_name..."
+    gtk-launch "$app_id" &
+    
+    # Wait for window with extended timeout using retry function
+    echo "Waiting for window to appear (timeout: 30 seconds)..."
+    echo ""
+    
+    # Use get_uuid_by_process_of_elimination_with_retry with 30 second timeout
+    local uuid
+    uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
+    
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Launch time measurement failed - no window detected"
+        echo ""
+        echo "❌ Could not measure launch time - window not detected within 30 seconds"
+        echo ""
+        echo "This usually means:"
+        echo "  • Application failed to launch"
+        echo "  • Application takes longer than 30 seconds to start"
+        echo "  • Application is already running (single-instance)"
+        echo ""
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Record end time
+    end_time=$(date +%s%3N)
+    
+    # Calculate elapsed time in milliseconds
+    elapsed_ms=$((end_time - start_time))
+    
+    echo ""
+    echo "✓ Window detected after ${elapsed_ms}ms"
+    echo ""
+    
+    # Store measurement in database
+    db_set_launch_time "$app_id" "$elapsed_ms"
+    
+    # Get updated statistics
+    local expected_time
+    local sample_count
+    expected_time=$(db_get_expected_launch_time "$app_id")
+    sample_count=$(db_get_launch_time_samples "$app_id")
+    
+    echo "Launch Time Statistics:"
+    echo "  Measured time: ${elapsed_ms}ms"
+    echo "  Expected time: ${expected_time}ms (based on $sample_count sample(s))"
+    echo ""
+    echo "Future launches will wait up to ${expected_time}ms for this application."
+    echo ""
+    
+    debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms, expected: ${expected_time}ms"
+    debug_function_exit "$function_name"
+    echo "$uuid"  # Return detected UUID for continued safe mode flow
+    return 0
+}
+
+# ----------------------------------------------------------------------------
 # safe_mode_launch_and_detect()
 # Launch application in controlled environment and detect window
 # Parameters:
@@ -403,40 +512,13 @@ safe_mode_launch_and_detect() {
     local display_name
     display_name=$(db_get_app_display_name "$app_id")
     
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🚀 LAUNCHING APPLICATION"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Application: $display_name ($app_id)"
-    echo "Launch Command: gtk-launch $app_id"
-    echo ""
+    # Use launch time measurement for detection
+    local new_uuid
+    new_uuid=$(safe_mode_measure_launch_time "$app_id")
     
-    # Refresh database with current windows BEFORE launch
-    echo "Scanning existing windows..."
-    auto_detect_windows
-    
-    # Launch the application
-    echo "Launching now..."
-    gtk-launch "$app_id" &
-    
-    # Wait for window to appear
-    echo ""
-    echo "Waiting for window to appear..."
-    sleep "$LAUNCH_DELAY"
-    
-    # Prompt user to confirm window appeared
-    local window_appeared
-    read -r -p "Did a window for $display_name appear? [Y/n]: " window_appeared
-    window_appeared=$(echo "$window_appeared" | tr '[:upper:]' '[:lower:]')
-    
-    if [[ "$window_appeared" == "n" ]]; then
-        debug_error "$function_name" "$ERR_SAFE_MODE_NO_WINDOW" "User reports no window appeared"
-        echo ""
-        echo "❌ Window did not appear. Possible issues:"
-        echo "   • Application failed to launch"
-        echo "   • Application is already running (check for hidden windows)"
-        echo "   • Desktop file is incorrect"
+    # Check if measurement succeeded
+    if [[ -z "$new_uuid" ]]; then
+        # Launch time measurement failed - offer recovery options
         echo ""
         echo "Options:"
         echo "  [R] Retry launch"
@@ -458,30 +540,7 @@ safe_mode_launch_and_detect() {
         esac
     fi
     
-    # Detect new window by process of elimination
-    echo "Detecting new window..."
-    
-    # Refresh database again to get current state
-    auto_detect_windows
-    
-    local new_uuid
-    new_uuid=$(get_uuid_by_process_of_elimination "")
-    
-    if [[ -z "$new_uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "Process of elimination failed"
-        echo ""
-        echo "❌ Could not detect new window via process of elimination"
-        echo "   This usually means:"
-        echo "   • Multiple windows launched simultaneously"
-        echo "   • No new window actually appeared"
-        echo "   • Window closed immediately after launch"
-        echo ""
-        echo "Safe mode cannot continue. Aborting."
-        debug_function_exit "$function_name" "Failed"
-        return 1
-    fi
-    
-    debug_log "$function_name" "Detected UUID: $new_uuid"
+    debug_log "$function_name" "Detected UUID via launch time measurement: $new_uuid"
     
     # Verify detection with user
     if ! safe_mode_verify_window "$app_id" "$new_uuid"; then

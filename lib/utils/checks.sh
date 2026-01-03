@@ -16,6 +16,10 @@ check_dependencies() {
         missing+=("jq")
     fi
     
+    if ! command -v bc &> /dev/null; then
+        missing+=("bc")
+    fi
+    
     if ! command -v kscreen-doctor &> /dev/null; then
         missing+=("kscreen-doctor")
     fi
