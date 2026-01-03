@@ -309,16 +309,10 @@ safe_mode_test_multi_instance() {
     echo "Launching second instance of $display_name..."
     gtk-launch "$app_id" &
     
-    # Wait for window to appear
-    sleep "$LAUNCH_DELAY"
-    
-    # Refresh database after launch
-    echo "Checking for new window..."
-    auto_detect_windows
-    
-    # Detect new window using process of elimination
+    # Wait and detect new window using retry function
+    echo "Waiting for new window to appear..."
     local new_uuid=""
-    new_uuid=$(get_uuid_by_process_of_elimination "")
+    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
     
     local detected_mode=""
     if [[ -n "$new_uuid" ]]; then
@@ -345,6 +339,63 @@ safe_mode_test_multi_instance() {
         echo "DETERMINATION: Application supports SINGLE instance only"
         echo "  → Only one window of $display_name can run at a time"
         echo "  → Launching again will focus the existing window"
+    fi
+    
+    echo ""
+    
+    # PID Verification for Multi-Instance Apps
+    if [[ "$detected_mode" == "multi" ]]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🔬 PID VERIFICATION"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "Checking if PIDs can be used to distinguish between windows..."
+        echo ""
+        
+        # Get PID from first window (existing_uuid)
+        local first_pid=""
+        first_pid=$(get_window_pid_by_uuid "$existing_uuid" 2>/dev/null)
+        
+        # Get PID from second window (new_uuid)
+        local second_pid=""
+        second_pid=$(get_window_pid_by_uuid "$new_uuid" 2>/dev/null)
+        
+        # Check if both PIDs are available
+        if [[ -z "$first_pid" || -z "$second_pid" ]]; then
+            echo "⚠️  Could not retrieve PIDs for one or both windows"
+            echo "   First window PID:  ${first_pid:-<not available>}"
+            echo "   Second window PID: ${second_pid:-<not available>}"
+            echo ""
+            echo "→ PID validation will be marked as UNSUPPORTED for this app"
+            echo ""
+            
+            # Mark PID validation as unsupported
+            db_set_pid_validation_data "$app_id" "false" "" ""
+        elif [[ "$first_pid" == "$second_pid" ]]; then
+            # Same PID for both windows - cannot use PID for validation
+            echo "⚠️  Both windows share the SAME PID: $first_pid"
+            echo ""
+            echo "This is common for applications like:"
+            echo "  • VS Code (Electron-based apps)"
+            echo "  • Chrome/Chromium-based browsers"
+            echo "  • Some multi-window IDEs"
+            echo ""
+            echo "→ PID validation will be marked as UNSUPPORTED for this app"
+            echo "→ Window detection will rely on class and title patterns instead"
+            echo ""
+            
+            # Mark PID validation as unsupported
+            db_set_pid_validation_data "$app_id" "false" "" ""
+        else
+            # Different PIDs - can use PID for validation
+            echo "✓ Different PIDs detected:"
+            echo "   First window PID:  $first_pid"
+            echo "   Second window PID: $second_pid"
+            echo ""
+            echo "→ PID validation CAN be used for this application"
+            echo "→ The standard PID validation test will run later"
+            echo ""
+        fi
     fi
     
     echo ""
