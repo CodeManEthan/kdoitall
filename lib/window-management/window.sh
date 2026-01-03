@@ -229,6 +229,102 @@ get_window_class_by_uuid() {
     echo "$class"
 }
 
+get_window_pid_by_uuid() {
+    local uuid="$1" 
+    local pid=""
+    local function_name="get_window_pid_by_uuid"
+
+    debug_function_enter "$function_name" "$@"
+
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Get window pid
+    pid=$(kdotool getwindowpid "$uuid")
+
+    if [[ -z "$pid" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_PID_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "'$uuid' → '$pid'"
+
+    debug_function_exit "$function_name"
+    echo "$pid"
+}
+
+# ----------------------------------------------------------------------------
+# get_process_name_by_pid()
+# Get the process name from a PID
+# Returns: Short process name (e.g., "firefox", "gimp-2.10") or empty if unavailable
+# ----------------------------------------------------------------------------
+get_process_name_by_pid() {
+    local pid="$1"
+    local process_name=""
+    local function_name="get_process_name_by_pid"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$pid" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "pid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get process name using ps
+    process_name=$(ps -p "$pid" -o comm= 2>/dev/null)
+    
+    if [[ -z "$process_name" ]]; then
+        debug_error "$function_name" "Process name not found for PID: $pid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "PID '$pid' → '$process_name'"
+    
+    debug_function_exit "$function_name"
+    echo "$process_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
+# get_executable_path_by_pid()
+# Get the full executable path from a PID
+# Returns: Absolute path to executable (e.g., "/usr/lib/firefox/firefox") or empty
+# ----------------------------------------------------------------------------
+get_executable_path_by_pid() {
+    local pid="$1"
+    local executable_path=""
+    local function_name="get_executable_path_by_pid"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$pid" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "pid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get executable path from /proc
+    executable_path=$(readlink -f /proc/"$pid"/exe 2>/dev/null)
+    
+    if [[ -z "$executable_path" ]]; then
+        debug_error "$function_name" "Executable path not found for PID: $pid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "PID '$pid' → '$executable_path'"
+    
+    debug_function_exit "$function_name"
+    echo "$executable_path"
+    return 0
+}
+
 get_window_size_by_uuid() {
     local uuid="$1" 
     local window_size=""

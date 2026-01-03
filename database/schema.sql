@@ -13,6 +13,7 @@ CREATE TABLE app_windows (
     window_name TEXT PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     class TEXT NOT NULL,
+    pid INTEGER,
     window_title TEXT,
     is_tab BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (workspace_name) REFERENCES workspaces(workspace_name) ON DELETE CASCADE
@@ -39,7 +40,10 @@ CREATE TABLE applications (
     last_validated TIMESTAMP,
     safe_mode_completed BOOLEAN DEFAULT FALSE,
     safe_mode_timestamp TIMESTAMP,
-    launch_mode TEXT
+    launch_mode TEXT,
+    supports_pid_validation BOOLEAN DEFAULT FALSE,
+    expected_executable_path TEXT,
+    expected_process_name TEXT
 );
 
 CREATE TABLE launch_options (

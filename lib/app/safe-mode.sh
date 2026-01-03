@@ -525,3 +525,116 @@ safe_mode_launch_and_detect() {
     echo "$new_uuid"
     return 0
 }
+
+# ----------------------------------------------------------------------------
+# safe_mode_test_pid_validation()
+# Test if PID-based validation is available for an application
+# 
+# This function:
+# 1. Gets the PID from the window UUID
+# 2. If PID is available, extracts process name and executable path
+# 3. Displays the information to the user for verification
+# 4. Stores the validation data in the database
+# 
+# Parameters:
+#   $1 - app_id: Application identifier
+#   $2 - uuid: Window UUID to test
+# 
+# Returns: 0 on success (whether PID is available or not)
+# ----------------------------------------------------------------------------
+safe_mode_test_pid_validation() {
+    local app_id="$1"
+    local uuid="$2"
+    local function_name="safe_mode_test_pid_validation"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    if [[ -z "$app_id" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    if [[ -z "$uuid" ]]; then
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔬 PID VALIDATION TEST"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Testing if PID-based validation is available for this application..."
+    echo ""
+    
+    # Get PID from window
+    local pid
+    pid=$(get_window_pid_by_uuid "$uuid")
+    
+    if [[ -z "$pid" ]]; then
+        echo "✗ PID not available for this application"
+        echo ""
+        echo "This means the window manager doesn't provide PID information"
+        echo "for this application. PID-based validation will not be used."
+        
+        # Store that PID validation is not supported
+        db_set_pid_validation_data "$app_id" "false" "" ""
+        
+        echo ""
+        read -r -p "Press [Enter] to continue..."
+        
+        debug_log "$function_name" "PID validation not supported for $app_id"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+    
+    # Get process information
+    local process_name
+    local executable_path
+    
+    process_name=$(get_process_name_by_pid "$pid")
+    executable_path=$(get_executable_path_by_pid "$pid")
+    
+    # Display findings
+    echo "✓ PID available: $pid"
+    echo ""
+    echo "Process Information:"
+    echo "  Process Name: $process_name"
+    echo "  Executable:   $executable_path"
+    echo ""
+    echo "This information can be used in the future to verify that"
+    echo "detected windows belong to the correct application."
+    echo ""
+    
+    # Ask user to verify the information
+    local verified
+    read -r -p "Does this information look correct for $app_id? [Y/n]: " verified
+    verified=$(echo "$verified" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$verified" == "n" ]]; then
+        echo ""
+        echo "❌ PID validation data rejected by user"
+        echo ""
+        echo "PID validation will be marked as unsupported for this application."
+        
+        # Store that PID validation is not supported
+        db_set_pid_validation_data "$app_id" "false" "" ""
+        
+        debug_log "$function_name" "PID validation rejected by user for $app_id"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+    
+    # Store validation data
+    db_set_pid_validation_data "$app_id" "true" "$process_name" "$executable_path"
+    
+    echo ""
+    echo "✓ PID validation data stored successfully"
+    echo ""
+    
+    debug_log "$function_name" "PID validation enabled for $app_id: process='$process_name', path='$executable_path'"
+    debug_function_exit "$function_name"
+    return 0
+}
