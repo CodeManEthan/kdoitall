@@ -38,7 +38,8 @@ CREATE TABLE applications (
     terminal_command TEXT, 
     last_validated TIMESTAMP,
     safe_mode_completed BOOLEAN DEFAULT FALSE,
-    safe_mode_timestamp TIMESTAMP
+    safe_mode_timestamp TIMESTAMP,
+    launch_mode TEXT
 );
 
 CREATE TABLE launch_options (

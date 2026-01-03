@@ -135,6 +135,44 @@ get_uuid_by_process_of_elimination() {
     echo "$new_uuid"
 }
 
+get_uuid_by_process_of_elimination_with_retry() {
+    local class="$1"
+    local max_wait_seconds="${2:-5}"  # Default 5 seconds
+    local retry_interval="${3:-0.1}"  # Default 100ms
+    local function_name="get_uuid_by_process_of_elimination_with_retry"
+    local uuid=""
+    local elapsed=0
+    local attempt=0
+    
+    debug_function_enter "$function_name" "$@"
+    debug_log "$function_name" "Waiting up to ${max_wait_seconds}s for window (class: '$class')"
+    
+    while (( $(echo "$elapsed < $max_wait_seconds" | bc -l) )); do
+        ((attempt++))
+        
+        # Attempt to get UUID
+        uuid=$(get_uuid_by_process_of_elimination "$class")
+        
+        if [[ -n "$uuid" ]]; then
+            debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed}s (attempt #$attempt)"
+            debug_function_exit "$function_name"
+            echo "$uuid"
+            return 0
+        fi
+        
+        # Wait before next attempt
+        sleep "$retry_interval"
+        elapsed=$(echo "$elapsed + $retry_interval" | bc -l)
+        
+        debug_log "$function_name" "Attempt #$attempt: No UUID yet (elapsed: ${elapsed}s)"
+    done
+    
+    # Timeout reached
+    debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Timeout after ${max_wait_seconds}s waiting for window (class: '$class')"
+    debug_function_exit "$function_name"
+    return 1
+}
+
 get_window_title_by_uuid() {
     local uuid="$1" 
     local window_title=""

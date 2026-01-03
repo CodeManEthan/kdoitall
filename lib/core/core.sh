@@ -91,8 +91,7 @@ execute_launch_window() {
             launch_desktop_window "$app_id"
         fi
 
-        sleep "$LAUNCH_DELAY"
-        uuid=$(get_uuid_by_process_of_elimination "$class")
+        uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5 0.1)
 
         # Detect and store app_class if not already stored
         if [[ -n "$app_id" && -z "$class" ]]; then

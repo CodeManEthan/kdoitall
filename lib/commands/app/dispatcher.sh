@@ -27,7 +27,7 @@ app_command() {
     fi
     
     # Source app-registry module before dispatching
-    # shellcheck source=../app/registry.sh
+    # shellcheck source=../../app/registry.sh
     source "${LIB_DIR}/app/registry.sh"
     
     # Dispatch to appropriate handler
@@ -56,6 +56,11 @@ app_command() {
             # shellcheck source=options.sh
             source "${LIB_DIR}/commands/app/options.sh"
             app_options "$@"
+            ;;
+        safe-mode)
+            # shellcheck source=safe-mode.sh
+            source "${LIB_DIR}/commands/app/safe-mode.sh"
+            safe_mode "$@"
             ;;
         *)
             echo "Error: Unknown app subcommand: $subcommand"

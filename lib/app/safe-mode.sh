@@ -258,6 +258,135 @@ safe_mode_store_metadata() {
 }
 
 # ----------------------------------------------------------------------------
+# safe_mode_test_multi_instance()
+# Test if application supports multiple instances
+# Parameters:
+#   $1 - app_id
+#   $2 - existing_uuid (the UUID of the first instance)
+# Returns: 0 on success (test completed or skipped), 1 on error
+# ----------------------------------------------------------------------------
+safe_mode_test_multi_instance() {
+    local app_id="$1"
+    local existing_uuid="$2"
+    local function_name="safe_mode_test_multi_instance"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    # Get display name
+    local display_name
+    display_name=$(db_get_app_display_name "$app_id")
+    
+    # Prompt user
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔬 MULTI-INSTANCE TEST (Optional)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "This test determines if $display_name allows multiple windows."
+    echo ""
+    echo "The test will:"
+    echo "  1. Launch a second instance of the application"
+    echo "  2. Check if a new window appears"
+    echo "  3. Store the result for future launches"
+    echo ""
+    read -r -p "Run multi-instance test? [y/N]: " run_test
+    run_test=$(echo "$run_test" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$run_test" != "y" ]]; then
+        echo "Skipping multi-instance test."
+        debug_function_exit "$function_name" "Skipped"
+        return 0
+    fi
+    
+    echo ""
+    echo "Running multi-instance test..."
+    
+    # Refresh database before launch
+    echo "Scanning existing windows..."
+    auto_detect_windows
+    
+    # Launch second instance
+    echo "Launching second instance of $display_name..."
+    gtk-launch "$app_id" &
+    
+    # Wait for window to appear
+    sleep "$LAUNCH_DELAY"
+    
+    # Refresh database after launch
+    echo "Checking for new window..."
+    auto_detect_windows
+    
+    # Detect new window using process of elimination
+    local new_uuid=""
+    new_uuid=$(get_uuid_by_process_of_elimination "")
+    
+    local detected_mode=""
+    if [[ -n "$new_uuid" ]]; then
+        detected_mode="multi"
+    else
+        detected_mode="single"
+    fi
+    
+    # Display result to user
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📊 TEST RESULTS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    if [[ "$detected_mode" == "multi" ]]; then
+        echo "✓ New window detected: $new_uuid"
+        echo ""
+        echo "DETERMINATION: Application supports MULTIPLE instances"
+        echo "  → Multiple windows of $display_name can run simultaneously"
+    else
+        echo "✗ No new window detected"
+        echo ""
+        echo "DETERMINATION: Application supports SINGLE instance only"
+        echo "  → Only one window of $display_name can run at a time"
+        echo "  → Launching again will focus the existing window"
+    fi
+    
+    echo ""
+    
+    # Ask user to confirm the determination
+    local confirmed
+    read -r -p "Is this determination correct? [Y/n]: " confirmed
+    confirmed=$(echo "$confirmed" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$confirmed" == "n" ]]; then
+        echo ""
+        echo "User rejected the determination."
+        echo "Please manually set the launch mode later if needed."
+        
+        # Clean up second window if it exists
+        if [[ -n "$new_uuid" ]]; then
+            echo "Closing second window..."
+            close_window_by_uuid "$new_uuid"
+        fi
+        
+        debug_function_exit "$function_name" "Rejected"
+        return 0
+    fi
+    
+    # Store result in database
+    echo ""
+    echo "Storing launch mode: $detected_mode"
+    db_set_launch_mode "$app_id" "$detected_mode"
+    
+    # Close second window if multi-instance was detected
+    if [[ "$detected_mode" == "multi" && -n "$new_uuid" ]]; then
+        echo "Closing second window..."
+        close_window_by_uuid "$new_uuid"
+    fi
+    
+    echo "✓ Multi-instance test complete"
+    
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# ----------------------------------------------------------------------------
 # safe_mode_launch_and_detect()
 # Launch application in controlled environment and detect window
 # Parameters:
@@ -381,6 +510,9 @@ safe_mode_launch_and_detect() {
     
     # Store validated data
     safe_mode_store_metadata "$app_id" "$new_uuid"
+    
+    # Run multi-instance test (optional)
+    safe_mode_test_multi_instance "$app_id" "$new_uuid"
     
     # Mark safe mode as complete
     db_set_safe_mode_completed "$app_id"
