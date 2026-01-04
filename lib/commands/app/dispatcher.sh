@@ -60,7 +60,7 @@ app_command() {
         safe-mode)
             # shellcheck source=safe-mode.sh
             source "${LIB_DIR}/commands/app/safe-mode.sh"
-            safe_mode "$@"
+            app_safe_mode "$@"
             ;;
         *)
             echo "Error: Unknown app subcommand: $subcommand"

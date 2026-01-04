@@ -279,27 +279,16 @@ safe_mode_test_multi_instance() {
     # Prompt user
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔬 MULTI-INSTANCE TEST (Optional)"
+    echo "🔬 MULTI-INSTANCE TEST"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "This test determines if $display_name allows multiple windows."
+    echo "Testing if $display_name allows multiple windows..."
     echo ""
-    echo "The test will:"
+    echo "This test will:"
     echo "  1. Launch a second instance of the application"
     echo "  2. Check if a new window appears"
     echo "  3. Store the result for future launches"
     echo ""
-    read -r -p "Run multi-instance test? [y/N]: " run_test
-    run_test=$(echo "$run_test" | tr '[:upper:]' '[:lower:]')
-    
-    if [[ "$run_test" != "y" ]]; then
-        echo "Skipping multi-instance test."
-        debug_function_exit "$function_name" "Skipped"
-        return 0
-    fi
-    
-    echo ""
-    echo "Running multi-instance test..."
     
     # Refresh database before launch
     echo "Scanning existing windows..."
@@ -573,7 +562,7 @@ safe_mode_launch_and_detect() {
         echo ""
         echo "Options:"
         echo "  [R] Retry launch"
-        echo "  [A] Abort safe mode"
+        echo "  [S] Skip this application"
         echo ""
         read -r -p "Choice: " recovery
         recovery=$(echo "$recovery" | tr '[:upper:]' '[:lower:]')
@@ -583,6 +572,12 @@ safe_mode_launch_and_detect() {
                 debug_log "$function_name" "Retrying..."
                 safe_mode_launch_and_detect "$app_id"
                 return $?
+                ;;
+            s)
+                debug_log "$function_name" "Skipping - marking as completed"
+                db_set_safe_mode_completed "$app_id"
+                debug_function_exit "$function_name" "Skipped"
+                return 0
                 ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
@@ -598,7 +593,7 @@ safe_mode_launch_and_detect() {
         echo ""
         echo "Options:"
         echo "  [R] Retry launch"
-        echo "  [A] Abort safe mode"
+        echo "  [S] Skip this application"
         echo ""
         read -r -p "Choice: " recovery
         recovery=$(echo "$recovery" | tr '[:upper:]' '[:lower:]')
@@ -611,6 +606,12 @@ safe_mode_launch_and_detect() {
                 safe_mode_launch_and_detect "$app_id"
                 return $?
                 ;;
+            s)
+                debug_log "$function_name" "Skipping - marking as completed"
+                db_set_safe_mode_completed "$app_id"
+                debug_function_exit "$function_name" "Skipped"
+                return 0
+                ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
                 return 1
@@ -621,14 +622,26 @@ safe_mode_launch_and_detect() {
     # Store validated data
     safe_mode_store_metadata "$app_id" "$new_uuid"
     
-    # Get window title for advanced tests
+    # Run comprehensive validation to gather additional metadata
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📊 GATHERING METADATA"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # Test PID-based validation
+    safe_mode_test_pid_validation "$app_id" "$new_uuid"
+    
+    # Analyze window title pattern
     local title
     title=$(get_window_title_by_uuid "$new_uuid")
-    
-    # Run advanced validation tests (optional)
-    safe_mode_test_pid_validation "$app_id" "$new_uuid"
     safe_mode_analyze_title_pattern "$app_id" "$new_uuid" "$title"
+    
+    # Test multi-instance support
     safe_mode_test_multi_instance "$app_id" "$new_uuid"
+    
+    echo ""
+    echo "✓ Metadata collection complete"
     
     # Mark safe mode as complete
     db_set_safe_mode_completed "$app_id"
@@ -802,7 +815,7 @@ safe_mode_analyze_title_pattern() {
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📝 WINDOW TITLE PATTERN (Optional)"
+    echo "📝 WINDOW TITLE PATTERN"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Current window title: \"$current_title\""

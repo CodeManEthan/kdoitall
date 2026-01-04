@@ -99,6 +99,16 @@ export ERR_NO_APPLICATIONS="No applications configured for workspace"
 readonly ERR_WORKSPACE_EXISTS ERR_WORKSPACE_NOT_FOUND ERR_INVALID_WORKSPACE_NAME
 readonly ERR_SCRIPT_GENERATION_FAILED ERR_NO_APPLICATIONS
 
+# Safe mode errors
+export ERR_SAFE_MODE_CANCELLED=120
+export ERR_SAFE_MODE_FAILED=121
+export ERR_SAFE_MODE_NO_WINDOW=122
+export ERR_SAFE_MODE_MULTI_WINDOWS=123
+export ERR_SAFE_MODE_REJECTED=124
+
+readonly ERR_SAFE_MODE_CANCELLED ERR_SAFE_MODE_FAILED ERR_SAFE_MODE_NO_WINDOW 
+readonly ERR_SAFE_MODE_MULTI_WINDOWS ERR_SAFE_MODE_REJECTED
+
 
 # Error messages 
 declare -A ERROR_MESSAGES=(
@@ -169,6 +179,13 @@ declare -A ERROR_MESSAGES=(
     [ERR_INVALID_WORKSPACE_NAME]="Invalid workspace name"
     [ERR_SCRIPT_GENERATION_FAILED]="Failed to generate workspace scripts"
     [ERR_NO_APPLICATIONS]="No applications configured for workspace"
+
+    # Safe Mode
+    [$ERR_SAFE_MODE_CANCELLED]="Safe mode cancelled by user"
+    [$ERR_SAFE_MODE_FAILED]="Safe mode validation failed"
+    [$ERR_SAFE_MODE_NO_WINDOW]="No window appeared after launch"
+    [$ERR_SAFE_MODE_MULTI_WINDOWS]="Multiple windows detected"
+    [$ERR_SAFE_MODE_REJECTED]="User rejected detected window"
 )
 
 export ERROR_MESSAGES
