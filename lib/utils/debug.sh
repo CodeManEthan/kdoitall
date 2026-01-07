@@ -1,15 +1,10 @@
 #!/bin/bash
 
-# Check for debug mode in arguments or environment
-DEBUG_MODE=false
 VERBOSE_MODE=false
 
 # Check command line args
 for arg in "$@"; do
-    if [[ "$arg" == "--debug" ]]; then
-        DEBUG_MODE=true
-    elif [[ "$arg" == "--verbose" ]]; then
-        DEBUG_MODE=true
+    if [[ "$arg" == "--verbose" ]]; then
         VERBOSE_MODE=true
     fi
 done
@@ -38,13 +33,19 @@ debug_error() {
     local error_code="$2"
     local additional_info="${3:-}"
     
-    if [ "$DEBUG_MODE" = "true" ]; then
-        local error_message="${ERROR_MESSAGES[$error_code]}"
-        
+    local error_message="${ERROR_MESSAGES[$error_code]}"
+    
+    if [ "$VERBOSE_MODE" = "true" ]; then
         if [[ -n "$additional_info" ]]; then
             echo -e "${COLOR_GRAY}[DEBUG $(date +%H:%M:%S.%3N)]${COLOR_RESET} ${COLOR_CYAN}$function_name:${COLOR_RESET} ${COLOR_RED}ERROR: $error_message - $additional_info${COLOR_RESET}" >&2
         else
             echo -e "${COLOR_GRAY}[DEBUG $(date +%H:%M:%S.%3N)]${COLOR_RESET} ${COLOR_CYAN}$function_name:${COLOR_RESET} ${COLOR_RED}ERROR: $error_message${COLOR_RESET}" >&2
+        fi
+    else
+        if [[ -n "$additional_info" ]]; then
+            echo -e "${COLOR_RED}Error:${COLOR_RESET} $error_message - $additional_info" >&2
+        else
+            echo -e "${COLOR_RED}Error:${COLOR_RESET} $error_message" >&2
         fi
     fi
 }
@@ -66,7 +67,6 @@ debug_function_enter() {
         fi
     fi
 }
-
 
 debug_function_exit() {
     local function_name="$1"
@@ -143,7 +143,7 @@ debug_chord() {
     fi
 }
 
-export DEBUG_MODE VERBOSE_MODE
+export VERBOSE_MODE
 export -f debug_log
 export -f debug_error
 export -f debug_function_enter

@@ -21,20 +21,27 @@ declare -A LAUNCH_OPTIONS=(
 )
 
 # ============================================================================
+# Script-Global Variables
+# ============================================================================
+
+# Launch configuration variables (script-global, not exported)
+launch_mode="$LAUNCH_MODE_UNIQUE"
+launch_type="$LAUNCH_TYPE_TERMINAL"
+class="code"
+app_id="code"
+
+# ============================================================================
 # Launch Functions
 # ============================================================================
 
 launch_vscode_window() {
     local workspace_name="$1"
     local window_name="$2"
-    local app_id="$3"
-    local desktop="$4"
-    local screen="$5"
-    local position="$6"
-    local directory_path="$7"
+    local desktop="$3"
+    local screen="$4"
+    local position="$5"
+    local directory_path="$6"
     
-    local launch_mode=""
-    local launch_type=""
     local launch_command=""
     local window_title=""
     local function_name="launch_vscode_window"
@@ -52,7 +59,9 @@ launch_vscode_window() {
     window_title="$directory - Visual Studio Code"
     window_title=$(safe_name "$window_title")
 
-    execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" --window-title "$window_title"
+    execute_launch_window \
+    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
+    --window-title "$window_title"
 
     debug_function_exit "$function_name"
 }
@@ -60,14 +69,11 @@ launch_vscode_window() {
 launch_vscode_workspace_window() {
     local workspace_name="$1"
     local window_name="$2"
-    local app_id="$3"
-    local desktop="$4"
-    local screen="$5"
-    local position="$6"
-    local workspace_path="$7"
+    local desktop="$3"
+    local screen="$4"
+    local position="$5"
+    local workspace_path="$6"
 
-    local launch_mode=""
-    local launch_type=""
     local launch_command=""
     local window_title=""
     local function_name="launch_vscode_workspace_window"
@@ -76,8 +82,6 @@ launch_vscode_workspace_window() {
 
     workspace_path=$(safe_file "$workspace_path") || return 1
 
-    launch_mode="$LAUNCH_MODE_UNIQUE"
-    launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="code --new-window \"$workspace_path\" &"
 
     local workspace=""
@@ -85,7 +89,9 @@ launch_vscode_workspace_window() {
     window_title="$workspace (Workspace) - Visual Studio Code"
     window_title=$(safe_name "$window_title")
 
-    execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" --window-title "$window_title"
+    execute_launch_window \
+    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
+    --window-title "$window_title"
 
     debug_function_exit "$function_name"
 }

@@ -2,16 +2,6 @@
 
 check_and_set_guard "_KDOITALL_DB_APP_LOADED" || return 0
 
-# ============================================================================
-# Application Metadata Database Functions
-# ============================================================================
-# These functions handle application metadata queries and updates
-
-# ----------------------------------------------------------------------------
-# db_get_app_display_name()
-# Get the display name for an application
-# Returns: display name or empty if not found
-# ----------------------------------------------------------------------------
 db_get_app_display_name() {
     local app_id="$1"
     local function_name="db_get_app_display_name"
@@ -36,11 +26,6 @@ db_get_app_display_name() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_app_has_desktop_launch()
-# Check if an application supports desktop launch
-# Returns: "1" if supports, "0" if not, empty if app doesn't exist
-# ----------------------------------------------------------------------------
 db_get_app_has_desktop_launch() {
     local app_id="$1"
     local function_name="db_get_app_has_desktop_launch"
@@ -65,11 +50,6 @@ db_get_app_has_desktop_launch() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_app_class()
-# Get the stored window class for an application
-# Returns: window class or empty if not set
-# ----------------------------------------------------------------------------
 db_get_app_class() {
     local app_id="$1"
     local function_name="db_get_app_class"
@@ -94,10 +74,6 @@ db_get_app_class() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_app_class()
-# Update the window class for an application
-# ----------------------------------------------------------------------------
 db_set_app_class() {
     local app_id="$1"
     local class="$2"

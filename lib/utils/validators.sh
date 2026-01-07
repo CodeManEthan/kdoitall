@@ -35,8 +35,10 @@ safe_file() {
         if [[ -s "$file_path" ]]; then
             safe_file_path=$(safe_name "$file_path")
 
-            # Pass Safe File Path
-            debug_log "$function_name" "Renamed $file_path to $safe_file_path"
+            # Pass Safe File Path (only log if path actually changed)
+            if [[ "$file_path" != "$safe_file_path" ]]; then
+                debug_log "$function_name" "Renamed $file_path to $safe_file_path"
+            fi
 
             debug_function_exit "$function_name"
             echo "$safe_file_path"
@@ -64,8 +66,10 @@ safe_directory() {
     if [[ -d "$directory_path" ]]; then
         safe_directory_path=$(safe_name "$directory_path")
 
-        # Pass Safe Directory Path
-        debug_log "$function_name" "Renamed $directory_path to $safe_directory_path"
+        # Pass Safe Directory Path (only log if path actually changed)
+        if [[ "$directory_path" != "$safe_directory_path" ]]; then
+            debug_log "$function_name" "Renamed $directory_path to $safe_directory_path"
+        fi
 
         debug_function_exit "$function_name"
         echo "$safe_directory_path"
@@ -77,7 +81,54 @@ safe_directory() {
     return 1
 }
 
+validate_parameter_pass() {
+    local parameter="$1"
+    
+    if [[ -z "$parameter" ]]; then
+        local function_name="validate_parameter_pass"
+        local parameter_name=""
+        parameter_name="${parameter#\$}" 
 
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "$parameter_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
 
+validate_file_exists() {
+    local path="$2"
 
+    if [[ ! -f "$path" ]]; then
+        local function_name="validate_file_exists"
 
+        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+validate_directory_exists() {
+    local path="$1"
+
+    if [[ ! -d "$path" ]]; then
+        local function_name="validate_directory_exists"
+
+        debug_error "$function_name" "$ERR_DIRECTORY_NOT_FOUND" "$path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+validate_app_metadata() {
+    local app_file_path="$1"
+    local metadata="$2"
+    local metadata_name="$3"
+
+    if [[ -z "$metadata" ]]; then
+        function_name="validate_app_metadata"
+
+        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$metadata_name missing in $app_file_path"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}

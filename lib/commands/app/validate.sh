@@ -1,17 +1,10 @@
 #!/bin/bash
 
-# ============================================================================
-# App Validate Command
-# ============================================================================
-# Validates all application files in lib/applications/
-
 check_and_set_guard "_KDOITALL_APP_VALIDATE_COMMAND_LOADED" || return 0
 
-# ----------------------------------------------------------------------------
-# app_validate()
-# Validate all application definition files
-# Parameters: none
-# ----------------------------------------------------------------------------
+# shellcheck source=../../app/registry.sh
+source "${LIB_DIR}/app/registry.sh"
+
 app_validate() {
     local function_name="app_validate"
     
@@ -19,14 +12,6 @@ app_validate() {
     
     echo "Validating application definition files..."
     echo ""
-    
-    # Source the app-registry module (should already be loaded, but ensure it)
-    if [[ ! -f "${LIB_DIR}/core/app-registry.sh" ]]; then
-        echo "Error: app-registry.sh not found" >&2
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "app-registry.sh"
-        debug_function_exit "$function_name"
-        return 1
-    fi
     
     # Call the registry validation function
     if registry_validate_all_app_files; then

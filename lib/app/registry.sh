@@ -1,19 +1,11 @@
 #!/bin/bash
 
-# lib/app/registry.sh
-# Application registry management - scanning, validation, and query functions
-#
-# This module scans the system for available applications, validates their 
-# launch capabilities, and provides query functions for the application registry.
-# 
-# Database operations are handled by calling functions in lib/core/database.sh
-#
-# Dependencies:
-# - lib/core/common.sh (LAUNCH_TYPE_* constants)
-# - lib/core/database.sh (db_* functions)
-# - lib/utils/debug.sh (debug logging)
-
 check_and_set_guard "_KDOITALL_APPLICATION_REGISTRY_LOADED" || return 0
+
+# shellcheck source=../db/app-registry.sh
+source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=../db/app-registry.sh
+source "${LIB_DIR}/db/launch-options.sh"
 
 # Standard .desktop file locations
 readonly DESKTOP_FILE_LOCATIONS=(
@@ -22,10 +14,6 @@ readonly DESKTOP_FILE_LOCATIONS=(
     "$HOME/.local/share/applications"
 )
 
-# ============================================================================
-# Metadata Validation
-# ============================================================================
-
 registry_validate_app_metadata() {
     local app_file_path="$1"
     local function_name="registry_validate_app_metadata"
@@ -33,20 +21,9 @@ registry_validate_app_metadata() {
     local errors=0
     
     debug_function_enter "$function_name" "$@"
-    
-    # Validate parameter
-    if [[ -z "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Verify file exists
-    if [[ ! -f "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_file_path" | return 1
+    validate_file_exists "$app_file_path" | return 1
     
     # Extract app_id from filename for display
     local app_id=""
@@ -60,7 +37,7 @@ registry_validate_app_metadata() {
             # shellcheck disable=SC1090
             source "$app_file_path" 2>/dev/null || exit 1
             
-            # Check for required variables (APP_ID and APP_CLASS no longer required)
+            # Check for required variables
             [[ -z "${TERMINAL_COMMAND:-}" ]] && echo "ERROR:TERMINAL_COMMAND is missing"
             
             # Check if LAUNCH_OPTIONS exists and is not empty
@@ -98,20 +75,14 @@ registry_validate_app_metadata() {
 
 registry_validate_all_app_files() {
     local function_name="registry_validate_all_app_files"
-    local app_dir="${LIB_DIR}/applications"
+    local app_dir="${LIB_DIR}/launchers"
     local total_files=0
     local valid_files=0
     local invalid_files=0
     
     debug_function_enter "$function_name"
-    
-    # Check if applications directory exists
-    if [[ ! -d "$app_dir" ]]; then
-        echo "Error: Applications directory not found: $app_dir"
-        debug_error "$function_name" "$ERR_DIRECTORY_NOT_FOUND" "$app_dir"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_directory_exists "$app_dir" | return 1
     
     echo "Validating application files in: $app_dir"
     echo ""
@@ -155,10 +126,6 @@ registry_validate_all_app_files() {
         return 1
     fi
 }
-
-# ============================================================================
-# Main Scanning Function
-# ============================================================================
 
 registry_scan_applications() {
     local function_name="registry_scan_applications"
@@ -267,26 +234,16 @@ registry_scan_applications() {
     return 0
 }
 
-# ============================================================================
-# App File Path Construction
-# ============================================================================
-
 registry_get_app_file_path() {
     local app_id="$1"
     
-    # Validate parameter
     if [[ -z "$app_id" ]]; then
         return 1
     fi
     
-    # Construct and return the path
-    echo "${LIB_DIR}/applications/${app_id}.sh"
+    echo "${LIB_DIR}/launchers/${app_id}.sh"
     return 0
 }
-
-# ============================================================================
-# App File Detection
-# ============================================================================
 
 registry_check_app_file() {
     local app_id="$1"
@@ -294,15 +251,9 @@ registry_check_app_file() {
     local app_file_path=""
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
     
-    # Validate parameter
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Construct expected path using LIB_DIR
     app_file_path=$(registry_get_app_file_path "$app_id")
     
     # Check if file exists and is readable
@@ -318,10 +269,6 @@ registry_check_app_file() {
     fi
 }
 
-# ============================================================================
-# Terminal Command Validation
-# ============================================================================
-
 registry_validate_terminal_command() {
     local app_id="$1"
     local terminal_command="$2"
@@ -329,18 +276,8 @@ registry_validate_terminal_command() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameters
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$terminal_command" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "terminal_command"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$terminal_command" | return 1
     
     debug_log "$function_name" "Checking command availability: $terminal_command"
     
@@ -356,15 +293,6 @@ registry_validate_terminal_command() {
     fi
 }
 
-# ============================================================================
-# Helper Functions for Scanning
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# registry_extract_terminal_command()
-# Extract TERMINAL_COMMAND from app file
-# Returns: terminal command string (empty if not found)
-# ----------------------------------------------------------------------------
 registry_extract_terminal_command() {
     local app_file_path="$1"
     local function_name="registry_extract_terminal_command"
@@ -372,17 +300,8 @@ registry_extract_terminal_command() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ ! -f "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_file_path" | return 1
+    validate_file_exists "$app_file_path" | return 1
     
     # Source file in subshell and extract TERMINAL_COMMAND
     terminal_command=$(
@@ -400,10 +319,6 @@ registry_extract_terminal_command() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# registry_store_launch_options()
-# Parse app file and store launch options in database
-# ----------------------------------------------------------------------------
 registry_store_launch_options() {
     local app_id="$1"
     local app_file_path="$2"
@@ -411,24 +326,10 @@ registry_store_launch_options() {
     local parse_output=""
     
     debug_function_enter "$function_name" "$@"
-    
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ ! -f "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$app_file_path" | return 1
+    validate_file_exists "$app_file_path" | return 1
     
     # Clear existing launch options for this app
     db_delete_launch_options_for_app "$app_id"
@@ -473,10 +374,6 @@ registry_store_launch_options() {
     return 0
 }
 
-# ============================================================================
-# App File Parsing
-# ============================================================================
-
 registry_parse_app_file() {
     local app_file_path="$1"
     local function_name="registry_parse_app_file"
@@ -486,20 +383,9 @@ registry_parse_app_file() {
     local parse_output=""
     
     debug_function_enter "$function_name" "$@"
-    
-    # Validate parameter
-    if [[ -z "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Verify file exists
-    if [[ ! -f "$app_file_path" ]]; then
-        debug_error "$function_name" "$ERR_APP_FILE_NOT_FOUND" "$app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_file_path" | return 1
+    validate_file_exists "$app_file_path" | return 1
     
     debug_log "$function_name" "Parsing app file: $app_file_path"
     
@@ -553,24 +439,9 @@ registry_parse_app_file() {
         fi
     done <<< "$parse_output"
     
-    # Validate that required metadata was found
-    if [[ -z "$parsed_app_id" ]]; then
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "APP_ID missing in $app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$parsed_app_class" ]]; then
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "APP_CLASS missing in $app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$parsed_terminal_command" ]]; then
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "TERMINAL_COMMAND missing in $app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_app_metadata "$app_file_path" "$parsed_app_id" "APP_ID" | return 1
+    validate_app_metadata "$app_file_path" "$parsed_app_class" "APP_CLASS" | return 1
+    validate_app_metadata "$app_file_path" "$parsed_terminal_command" "TERMINAL_COMMAND" | return 1
     
     debug_log "$function_name" "Successfully parsed: APP_ID=$parsed_app_id, APP_CLASS=$parsed_app_class"
     debug_log "$function_name" "TERMINAL_COMMAND=$parsed_terminal_command"
@@ -579,27 +450,14 @@ registry_parse_app_file() {
     return 0
 }
 
-# ============================================================================
-# Query Functions
-# ============================================================================
-
-# ============================================================================
-# Fixed registry_get_application_info() function
-# ============================================================================
-
 registry_get_application_info() {
     local app_id="$1"
     local function_name="registry_get_application_info"
     local app_info=""
     
     debug_function_enter "$function_name" "$@"
-    
-    # Validate parameter
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" | return 1
     
     debug_log "$function_name" "Retrieving info for: $app_id"
     
@@ -673,13 +531,12 @@ registry_list_applications() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate filter parameter
     case "$filter" in
-        all|terminal|desktop|both)
+        all|terminal|desktop)
             debug_log "$function_name" "Filter: $filter"
             ;;
         *)
-            echo "Error: Invalid filter: $filter (must be: all, terminal, desktop, both)"
+            echo "Error: Invalid filter: $filter (must be: all, terminal, desktop)"
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
             debug_function_exit "$function_name"
             return 1
@@ -689,7 +546,6 @@ registry_list_applications() {
     # Get filtered application list from database
     app_list=$(db_list_applications "$filter")
     if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to retrieve application list"
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to list applications"
         debug_function_exit "$function_name"
         return 1
@@ -697,7 +553,6 @@ registry_list_applications() {
     
     # Check if we have any results
     if [[ -z "$app_list" ]]; then
-        echo "No applications found matching filter: $filter"
         debug_log "$function_name" "No applications found for filter: $filter"
         debug_function_exit "$function_name"
         return 0
@@ -749,29 +604,18 @@ registry_list_applications() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# registry_get_launch_options()
-# Query launch options from database (no file parsing needed)
-# ----------------------------------------------------------------------------
 registry_get_launch_options() {
     local app_id="$1"
     local function_name="registry_get_launch_options"
     local options=""
     
     debug_function_enter "$function_name" "$@"
-    
-    # Validate parameter
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" | return 1
     
     debug_log "$function_name" "Retrieving launch options for: $app_id"
     
-    # Check if app exists in database
     if ! db_application_exists "$app_id"; then
-        echo "Error: Application not found: $app_id"
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
         debug_function_exit "$function_name"
         return 1

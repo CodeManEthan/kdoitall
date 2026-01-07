@@ -2,16 +2,6 @@
 
 check_and_set_guard "_KDOITALL_DB_APP_REGISTRY_LOADED" || return 0
 
-
-# ============================================================================
-# Application Registry Database Functions
-# ============================================================================
-# These functions handle CRUD operations for the application registry tables
-
-# ----------------------------------------------------------------------------
-# db_add_application()
-# Insert or update an application in the database with all metadata
-# ----------------------------------------------------------------------------
 db_add_application() {
     local app_id="$1"
     local display_name="$2"
@@ -25,7 +15,6 @@ db_add_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate required parameters
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$function_name"
@@ -38,13 +27,9 @@ db_add_application() {
         return 1
     fi
     
-    # Convert boolean strings to SQLite format (TRUE/FALSE)
-    local terminal_bool="FALSE"
-    [[ "$has_terminal_launch" == "true" || "$has_terminal_launch" == "TRUE" || "$has_terminal_launch" == "1" ]] && terminal_bool="TRUE"
-    
-    local desktop_bool="FALSE"
-    [[ "$has_desktop_launch" == "true" || "$has_desktop_launch" == "TRUE" || "$has_desktop_launch" == "1" ]] && desktop_bool="TRUE"
-    
+    has_terminal_launch=$(normailize_boolean "$has_terminal_launch")
+    has_desktop_launch=$(normailize_boolean "$has_desktop_launch")
+
     # Execute INSERT OR REPLACE
     sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -54,8 +39,8 @@ db_add_application() {
         -cmd ".param set :app_file '$app_file_path'" \
         -cmd ".param set :terminal_cmd '$terminal_command'" \
         -cmd ".param set :app_class '$app_class'" \
-        -cmd ".param set :has_terminal '$terminal_bool'" \
-        -cmd ".param set :has_desktop '$desktop_bool'" \
+        -cmd ".param set :has_terminal '$has_terminal_launch'" \
+        -cmd ".param set :has_desktop '$has_desktop_launch'" \
         "INSERT OR REPLACE INTO applications (
             app_id, display_name, desktop_file_path,
             app_file_path, terminal_command, app_class,
@@ -79,11 +64,6 @@ db_add_application() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_application()
-# Retrieve complete information for a single application
-# Returns: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal_launch|has_desktop_launch|last_validated
-# ----------------------------------------------------------------------------
 db_get_application() {
     local app_id="$1"
     local function_name="db_get_application"
@@ -91,7 +71,6 @@ db_get_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameter
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$function_name"
@@ -121,13 +100,6 @@ db_get_application() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_list_applications()
-# List applications with optional filtering
-# Parameters: filter = "all", "terminal", "desktop", "both" (default: "all")
-# Returns: Multi-line output, one app per line:
-#          app_id|display_name|has_terminal_launch|has_desktop_launch
-# ----------------------------------------------------------------------------
 db_list_applications() {
     local filter="${1:-all}"
     local function_name="db_list_applications"
@@ -158,13 +130,6 @@ db_list_applications() {
                    WHERE has_desktop_launch = TRUE
                    ORDER BY display_name;"
             ;;
-        both)
-            query="SELECT app_id, display_name, has_terminal_launch,
-                          has_desktop_launch
-                   FROM applications
-                   WHERE has_terminal_launch = TRUE AND has_desktop_launch = TRUE
-                   ORDER BY display_name;"
-            ;;
         *)
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
             debug_function_exit "$function_name"
@@ -182,11 +147,6 @@ db_list_applications() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_application_exists()
-# Check if an application exists in the database
-# Returns: 0 if exists, 1 if not exists
-# ----------------------------------------------------------------------------
 db_application_exists() {
     local app_id="$1"
     local function_name="db_application_exists"
@@ -194,7 +154,6 @@ db_application_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameter
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$function_name"
@@ -218,11 +177,6 @@ db_application_exists() {
     fi
 }
 
-# ----------------------------------------------------------------------------
-# db_delete_application()
-# Remove an application from the database
-# Returns: 0 on success, 1 if app_id not found
-# ----------------------------------------------------------------------------
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"
@@ -230,14 +184,12 @@ db_delete_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameter
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$function_name"
         return 1
     fi
-    
-    # Check if exists before deleting
+
     if ! db_application_exists "$app_id"; then
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
         debug_function_exit "$function_name"
@@ -262,11 +214,6 @@ db_delete_application() {
     fi
 }
 
-# ----------------------------------------------------------------------------
-# db_update_validation_timestamp()
-# Update the last_validated timestamp for an application
-# Returns: 0 on success, 1 if app_id not found
-# ----------------------------------------------------------------------------
 db_update_validation_timestamp() {
     local app_id="$1"
     local function_name="db_update_validation_timestamp"
@@ -274,7 +221,6 @@ db_update_validation_timestamp() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameter
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$function_name"
@@ -301,20 +247,13 @@ db_update_validation_timestamp() {
     fi
 }
 
-# ----------------------------------------------------------------------------
-# db_get_applications_needing_validation()
-# Find applications that haven't been validated recently
-# Parameters: days = number of days (optional, default: 7)
-# Returns: List of app_ids that need validation (one per line)
-# ----------------------------------------------------------------------------
 db_get_applications_needing_validation() {
-    local days="${1:-7}"
+    local days="${1:-90}"
     local function_name="db_get_applications_needing_validation"
     local result=""
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameter is a number
     if ! [[ "$days" =~ ^[0-9]+$ ]]; then
         debug_error "$function_name" "$ERR_INVALID_PARAMETER" "days must be a number: $days"
         debug_function_exit "$function_name"
@@ -338,15 +277,6 @@ db_get_applications_needing_validation() {
     return 0
 }
 
-# ============================================================================
-# Getter/Setter Functions for Individual Application Fields
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# db_get_app_class()
-# Get the window class for an application
-# Returns: app_class value (may be empty if not yet detected)
-# ----------------------------------------------------------------------------
 db_get_app_class() {
     local app_id="$1"
     local function_name="db_get_app_class"
@@ -371,10 +301,6 @@ db_get_app_class() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_app_class()
-# Store the detected window class for an application
-# ----------------------------------------------------------------------------
 db_set_app_class() {
     local app_id="$1"
     local app_class="$2"
@@ -413,11 +339,6 @@ db_set_app_class() {
     fi
 }
 
-# ----------------------------------------------------------------------------
-# db_get_terminal_command()
-# Get the terminal command for an application
-# Returns: terminal_command value (may be empty)
-# ----------------------------------------------------------------------------
 db_get_terminal_command() {
     local app_id="$1"
     local function_name="db_get_terminal_command"
@@ -442,11 +363,6 @@ db_get_terminal_command() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_app_file_path()
-# Get the app file path for an application
-# Returns: app_file_path value (may be empty)
-# ----------------------------------------------------------------------------
 db_get_app_file_path() {
     local app_id="$1"
     local function_name="db_get_app_file_path"

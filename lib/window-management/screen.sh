@@ -11,6 +11,8 @@ check_and_set_guard "_KDOITALL_SCREEN_LOADED" || return 0
 
 # shellcheck source=../core/screen-detection.sh
 source "${LIB_DIR}/core/screen-detection.sh"
+# shellcheck source=window.sh
+source "${LIB_DIR}/window-management/window.sh"
 
 validate_screen_number() {
     local screen="$1"

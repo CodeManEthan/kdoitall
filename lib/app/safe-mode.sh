@@ -2,11 +2,6 @@
 
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_LOADED" || return 0
 
-# ============================================================================
-# Safe Mode Core Functions
-# ============================================================================
-# Core safe mode logic for guided first-time application launches
-
 # Source required modules
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
@@ -19,35 +14,25 @@ source "${LIB_DIR}/core/core.sh"
 # shellcheck source=../window-management/window.sh
 source "${LIB_DIR}/window-management/window.sh"
 
-# ----------------------------------------------------------------------------
-# detect_safe_mode_apps()
-# Scan workspace script to find apps needing safe mode validation
-# Parameters:
-#   $1 - workspace_name
-# Returns: Newline-separated list of app_ids needing safe mode
-# ----------------------------------------------------------------------------
 detect_safe_mode_apps() {
     local workspace_name="$1"
-    local script_path="$WORKSPACE_DIR/${workspace_name}-open.sh"
+    local script_path="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
     local function_name="detect_safe_mode_apps"
     local -a safe_mode_apps=()
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ ! -f "$script_path" ]]; then
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "Workspace script not found: $script_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" | return 1
+    validate_file_exists "$script_path" | return 1
     
     # Parse workspace script to find all launch_by_app_id calls
     while IFS= read -r line; do
-        if [[ "$line" =~ launch_by_app_id.*[[:space:]]\"([^\"]+)\" ]]; then
+        if [[ "$line" =~ launch_by_app_id[[:space:]]+\"[^\"]+\"[[:space:]]+\"[^\"]+\"[[:space:]]+\"([^\"]+)\" ]]; then
             local app_id="${BASH_REMATCH[1]}"
             
             # Check if app has custom file
             local has_custom_file=false
-            if [[ -f "$LIB_DIR/applications/${app_id}.sh" ]]; then
+            if [[ -f "$LIB_DIR/launchers/${app_id}.sh" ]]; then
                 has_custom_file=true
             fi
             
@@ -70,13 +55,6 @@ detect_safe_mode_apps() {
     printf '%s\n' "${safe_mode_apps[@]}"
 }
 
-# ----------------------------------------------------------------------------
-# prompt_safe_mode()
-# Display safe mode prompt and get user choice
-# Parameters:
-#   $@ - Array of app_ids needing safe mode
-# Returns: User choice (e/o/s/n)
-# ----------------------------------------------------------------------------
 prompt_safe_mode() {
     local -a apps=("$@")
     local function_name="prompt_safe_mode"
@@ -125,11 +103,6 @@ prompt_safe_mode() {
     echo "$choice"
 }
 
-# ----------------------------------------------------------------------------
-# prepare_safe_mode_environment()
-# Guide user through environment preparation for safe mode
-# Returns: 0 if ready, 1 if cancelled
-# ----------------------------------------------------------------------------
 prepare_safe_mode_environment() {
     local function_name="prepare_safe_mode_environment"
     
@@ -172,20 +145,15 @@ prepare_safe_mode_environment() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_verify_window()
-# Verify detected window with user
-# Parameters:
-#   $1 - app_id
-#   $2 - uuid
-# Returns: 0 if confirmed, 1 if rejected
-# ----------------------------------------------------------------------------
 safe_mode_verify_window() {
     local app_id="$1"
     local uuid="$2"
     local function_name="safe_mode_verify_window"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$uuid" | return 1
     
     # Get window metadata
     local class
@@ -226,19 +194,15 @@ safe_mode_verify_window() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_store_metadata()
-# Store validated metadata for application
-# Parameters:
-#   $1 - app_id
-#   $2 - uuid
-# ----------------------------------------------------------------------------
 safe_mode_store_metadata() {
     local app_id="$1"
     local uuid="$2"
     local function_name="safe_mode_store_metadata"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$uuid" | return 1
     
     # Extract metadata
     local class
@@ -257,20 +221,15 @@ safe_mode_store_metadata() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_test_multi_instance()
-# Test if application supports multiple instances
-# Parameters:
-#   $1 - app_id
-#   $2 - existing_uuid (the UUID of the first instance)
-# Returns: 0 on success (test completed or skipped), 1 on error
-# ----------------------------------------------------------------------------
 safe_mode_test_multi_instance() {
     local app_id="$1"
     local existing_uuid="$2"
     local function_name="safe_mode_test_multi_instance"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$existing_uuid" | return 1
     
     # Get display name
     local display_name
@@ -426,22 +385,6 @@ safe_mode_test_multi_instance() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_measure_launch_time()
-# Measure application launch time and detect window with extended timeout
-# 
-# This function measures how long an application takes to launch by:
-# 1. Recording start time in milliseconds
-# 2. Launching the application
-# 3. Waiting up to 30 seconds for window to appear
-# 4. Recording end time and calculating elapsed time
-# 5. Storing measurement in database for future launches
-# 
-# Parameters:
-#   $1 - app_id: Application identifier
-# 
-# Returns: UUID of detected window on success, empty on failure
-# ----------------------------------------------------------------------------
 safe_mode_measure_launch_time() {
     local app_id="$1"
     local function_name="safe_mode_measure_launch_time"
@@ -450,6 +393,8 @@ safe_mode_measure_launch_time() {
     local elapsed_ms=0
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
     
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
@@ -470,12 +415,12 @@ safe_mode_measure_launch_time() {
     echo "Measuring launch time with generous timeout (30 seconds)..."
     echo ""
     
-    # Record start time (milliseconds since epoch)
-    start_time=$(date +%s%3N)
-    
     # Refresh database before launch
     echo "Scanning existing windows..."
     auto_detect_windows
+
+    # Record start time (milliseconds since epoch)
+    start_time=$(date +%s%3N)
     
     # Launch application
     echo "Launching $display_name..."
@@ -535,18 +480,13 @@ safe_mode_measure_launch_time() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_launch_and_detect()
-# Launch application in controlled environment and detect window
-# Parameters:
-#   $1 - app_id
-# Returns: UUID on success, exits with error on failure
-# ----------------------------------------------------------------------------
 safe_mode_launch_and_detect() {
     local app_id="$1"
     local function_name="safe_mode_launch_and_detect"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" | return 1
     
     # Get display name
     local display_name
@@ -655,40 +595,15 @@ safe_mode_launch_and_detect() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_test_pid_validation()
-# Test if PID-based validation is available for an application
-# 
-# This function:
-# 1. Gets the PID from the window UUID
-# 2. If PID is available, extracts process name and executable path
-# 3. Displays the information to the user for verification
-# 4. Stores the validation data in the database
-# 
-# Parameters:
-#   $1 - app_id: Application identifier
-#   $2 - uuid: Window UUID to test
-# 
-# Returns: 0 on success (whether PID is available or not)
-# ----------------------------------------------------------------------------
 safe_mode_test_pid_validation() {
     local app_id="$1"
     local uuid="$2"
     local function_name="safe_mode_test_pid_validation"
     
     debug_function_enter "$function_name" "$@"
-    
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "uuid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$uuid" | return 1
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -768,21 +683,6 @@ safe_mode_test_pid_validation() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# safe_mode_analyze_title_pattern()
-# Analyze window title and prompt user to select a unique pattern
-# 
-# This function parses the current window title to identify potential unique
-# patterns based on separators (" - " and " — "). It presents suggestions to
-# the user (starting with rightmost segments) and allows custom input.
-# 
-# Parameters:
-#   $1 - app_id: Application identifier
-#   $2 - uuid: Window UUID
-#   $3 - title: Current window title
-# 
-# Returns: 0 on success (pattern stored or skipped), 1 on error
-# ----------------------------------------------------------------------------
 safe_mode_analyze_title_pattern() {
     local app_id="$1"
     local uuid="$2"
@@ -790,24 +690,10 @@ safe_mode_analyze_title_pattern() {
     local function_name="safe_mode_analyze_title_pattern"
     
     debug_function_enter "$function_name" "$@"
-    
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "uuid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$current_title" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "current_title"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" | return 1
+    validate_parameter_pass "$uuid" | return 1
+    validate_parameter_pass "$current_title" | return 1
     
     # Get display name
     local display_name

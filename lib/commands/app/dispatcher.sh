@@ -1,20 +1,7 @@
 #!/bin/bash
 
-# ============================================================================
-# App Command Dispatcher
-# ============================================================================
-# Main entry point for app subcommands
-# Routes to appropriate app-*.sh command files
-
 check_and_set_guard "_KDOITALL_APP_COMMAND_LOADED" || return 0
 
-# ----------------------------------------------------------------------------
-# app_command()
-# Dispatch app subcommands to appropriate handlers
-# Parameters:
-#   $1 - subcommand (scan, list, info, validate, options)
-#   $@ - additional arguments passed to subcommand
-# ----------------------------------------------------------------------------
 app_command() {
     local subcommand="$1"
     shift
@@ -25,10 +12,6 @@ app_command() {
         app_show_help
         return 1
     fi
-    
-    # Source app-registry module before dispatching
-    # shellcheck source=../../app/registry.sh
-    source "${LIB_DIR}/app/registry.sh"
     
     # Dispatch to appropriate handler
     case "$subcommand" in
@@ -70,10 +53,6 @@ app_command() {
     esac
 }
 
-# ----------------------------------------------------------------------------
-# app_show_help()
-# Display usage information for app commands
-# ----------------------------------------------------------------------------
 app_show_help() {
     cat << 'EOF'
 Usage: kdoitall app <subcommand> [options]

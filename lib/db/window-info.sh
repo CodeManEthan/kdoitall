@@ -2,16 +2,6 @@
 
 check_and_set_guard "_KDOITALL_DB_WINDOW_INFO_LOADED" || return 0
 
-# ============================================================================
-# Extended Window Information Database Functions
-# ============================================================================
-# These functions provide richer window data queries beyond basic tracking
-
-# ----------------------------------------------------------------------------
-# db_get_existing_window_uuids()
-# Get all window UUIDs currently tracked in app_windows table
-# Returns: Newline-separated list of UUIDs
-# ----------------------------------------------------------------------------
 db_get_existing_window_uuids() {
     local function_name="db_get_existing_window_uuids"
     local result=""
@@ -27,11 +17,6 @@ db_get_existing_window_uuids() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_existing_window_classes()
-# Get all window classes currently tracked in app_windows table
-# Returns: Newline-separated list of classes (in same order as UUIDs)
-# ----------------------------------------------------------------------------
 db_get_existing_window_classes() {
     local function_name="db_get_existing_window_classes"
     local result=""
@@ -47,11 +32,6 @@ db_get_existing_window_classes() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_existing_window_titles()
-# Get all window titles currently tracked in app_windows table
-# Returns: Newline-separated list of titles (in same order as UUIDs)
-# ----------------------------------------------------------------------------
 db_get_existing_window_titles() {
     local function_name="db_get_existing_window_titles"
     local result=""
@@ -67,11 +47,6 @@ db_get_existing_window_titles() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_window_info_by_uuid()
-# Get class and title for a specific window UUID
-# Returns: "class|title" format
-# ----------------------------------------------------------------------------
 db_get_window_info_by_uuid() {
     local uuid="$1"
     local function_name="db_get_window_info_by_uuid"

@@ -20,6 +20,8 @@ source "${LIB_DIR}/window-management/screen.sh"
 source "${LIB_DIR}/window-management/window.sh"
 # shellcheck source=../window-management/tab.sh
 source "${LIB_DIR}/window-management/tab.sh"
+# shellcheck source=../db/app.sh
+source "${LIB_DIR}/db/app.sh"
 
 execute_launch_window() {
     local workspace_name="$1"
@@ -75,7 +77,7 @@ execute_launch_window() {
         uuid=$(check_window_exists_by_window_title_and_class "$window_title" "$class")
     fi
 
-    # Launch Window
+    # Detect if Window exists
     if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ) ]]; then
         debug_log "$function_name" "Window already exists - $uuid."
 
@@ -85,12 +87,9 @@ execute_launch_window() {
     else
         debug_log "$function_name" "Launch Window"
 
-        if [[ -n "$launch_command" && "$launch_type" == "$LAUNCH_TYPE_TERMINAL" ]]; then
-            eval "$launch_command"
-        elif [[ "$launch_type" == "$LAUNCH_TYPE_DESKTOP" ]]; then
-            launch_desktop_window "$app_id"
-        fi
-
+        # Launch Window
+        eval "$launch_command"
+        
         uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5 0.1)
 
         # Detect and store app_class if not already stored
@@ -218,7 +217,7 @@ launch_by_app_id() {
     launch_mode="$LAUNCH_MODE_UNKNOWN"
     launch_type="$LAUNCH_TYPE_DESKTOP"
 
-    launch_command="gtk-launch $app_id"
+    launch_command="gtk-launch $app_id &"
 
      execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
 }

@@ -26,8 +26,6 @@ source "${LIB_DIR}/utils/debug.sh"
 # ============================================================================
 # Command Parsing
 # ============================================================================
-# Save original arguments for potential re-execution
-ORIGINAL_ARGS=("$@")
 
 COMMAND=""
 while [[ $# -gt 0 ]]; do
@@ -46,35 +44,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ============================================================================
-# AUTO-DETACH FROM TERMINAL (unless debug/verbose mode or info commands)
-# ============================================================================
-# Skip auto-detach for informational commands
-SKIP_DETACH=false
-case "$COMMAND" in
-    --help|-h|--version|-v)
-        SKIP_DETACH=true
-        ;;
-    app)
-        # All app commands are informational/interactive
-        SKIP_DETACH=true
-        ;;
-    workspace)
-        # Check subcommand - list and create are interactive/informational
-        # open/close should still detach to background
-        if [[ "${1:-}" == "list" || "${1:-}" == "create" ]]; then
-            SKIP_DETACH=true
-        fi
-        ;;
-esac
-
-# If running interactively and not in debug/verbose mode, detach to background
-if [ -t 0 ] && [ "$DEBUG_MODE" != "true" ] && [ "$VERBOSE_MODE" != "true" ] && [ "$SKIP_DETACH" != "true" ]; then
-    # Re-run in background with ORIGINAL arguments
-    nohup "$0" "${ORIGINAL_ARGS[@]}" > /dev/null 2>&1 &
-    exit 0
-fi
-
-# ============================================================================
 # LAYER 2 - Core Utilities (depend only on foundation)
 # ============================================================================
 # shellcheck source=../lib/core/common.sh
@@ -91,6 +60,22 @@ source "${LIB_DIR}/utils/validators.sh"
 source "${LIB_DIR}/core/database.sh"
 # shellcheck source=../lib/core/ydotool.sh
 source "${LIB_DIR}/core/ydotool.sh"
+
+# Set up Ctrl+C handler
+cleanup_on_exit() {
+    local exit_code=$?
+    if [[ $exit_code -eq 130 ]]; then  # 130 = interrupted by Ctrl+C
+        echo ""
+        echo "⚠️  Operation interrupted by user"
+    fi
+    
+    # Kill background jobs
+    jobs -p | xargs -r kill 2>/dev/null
+    
+    exit $exit_code
+}
+
+trap cleanup_on_exit SIGINT SIGTERM EXIT
 
 # ============================================================================
 # LAYER 4 - Screen and Desktop Detection (depends on core services)

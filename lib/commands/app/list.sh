@@ -1,18 +1,10 @@
 #!/bin/bash
 
-# ============================================================================
-# App List Command
-# ============================================================================
-# Lists applications from the registry with optional filtering
-
 check_and_set_guard "_KDOITALL_APP_LIST_COMMAND_LOADED" || return 0
 
-# ----------------------------------------------------------------------------
-# app_list()
-# List applications from registry
-# Parameters:
-#   $1 - filter (optional: all, terminal, desktop, both) - default: all
-# ----------------------------------------------------------------------------
+# shellcheck source=../../app/registry.sh
+source "${LIB_DIR}/app/registry.sh"
+
 app_list() {
     local function_name="app_list"
     local filter="${1:-all}"
@@ -21,13 +13,12 @@ app_list() {
     
     # Validate filter parameter
     case "$filter" in
-        all|terminal|desktop|both)
+        all|terminal|desktop)
             debug_log "$function_name" "Listing applications with filter: $filter"
             ;;
         *)
-            echo "Error: Invalid filter: $filter"
-            echo "Valid filters: all, terminal, desktop, both"
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
+            echo "Valid filters: all, terminal, desktop"
             debug_function_exit "$function_name"
             return 1
             ;;

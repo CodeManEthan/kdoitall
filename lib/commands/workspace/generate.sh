@@ -8,6 +8,11 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_GENERATE_LOADED" || return 0
 
+# shellcheck source=../../core/core.sh
+source "${LIB_DIR}/core/core.sh"
+# shellcheck source=../../db/app-registry.sh
+source "${LIB_DIR}/db/app-registry.sh"
+
 # ============================================================================
 # generate_workspace_scripts()
 # Main entry point for script generation
@@ -149,10 +154,18 @@ EOF_HEADER
 
         # Generate the function call
         # Note: Position needs to be prefixed with $ and quoted
-        cat >> "$script_path" << EOF
+        # launch_by_app_id needs app_id parameter, custom launchers don't
+        if [[ "$launch_function" == "launch_by_app_id" ]]; then
+            cat >> "$script_path" << EOF
 $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"$params_str
 
 EOF
+        else
+            cat >> "$script_path" << EOF
+$launch_function "$workspace_name" "$window_name" "$desktop" "$screen" "\$$position"$params_str
+
+EOF
+        fi
     done
 
     debug_log "$function_name" "Generated open script: $script_path"
@@ -197,6 +210,9 @@ generate_close_script() {
 #!/bin/bash
 
 check_and_set_guard "GUARD_NAME" || return 0
+
+# shellcheck disable=SC1091
+source "${LIB_DIR}/core/core.sh"
 
 debug_log "Closing workspace: WORKSPACE_NAME"
 

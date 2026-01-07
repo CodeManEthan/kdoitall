@@ -15,6 +15,7 @@ check_and_set_guard "_KDOITALL_WORKSPACE_COMMAND_LOADED" || return 0
 #   $1 - subcommand (create, list, open, close, delete)
 #   $@ - additional arguments passed to subcommand
 # ----------------------------------------------------------------------------
+
 workspace_command() {
     local subcommand="$1"
     shift

@@ -90,14 +90,16 @@ readonly ERR_NO_DESKTOP_FILES_FOUND ERR_APP_ID_INVALID
 readonly ERR_DATABASE_ERROR
 
 # Workspace-related errors
-export ERR_WORKSPACE_EXISTS="Workspace already exists"
-export ERR_WORKSPACE_NOT_FOUND="Workspace not found"
-export ERR_INVALID_WORKSPACE_NAME="Invalid workspace name"
-export ERR_SCRIPT_GENERATION_FAILED="Failed to generate workspace scripts"
-export ERR_NO_APPLICATIONS="No applications configured for workspace"
+export ERR_WORKSPACE_EXISTS=90
+export ERR_WORKSPACE_NOT_FOUND=91
+export ERR_INVALID_WORKSPACE_NAME=92
+export ERR_INVALID_WINDOW_NAME=93
+export ERR_WORKSPACE_INSERT_FAILED=94
+export ERR_SCRIPT_GENERATION_FAILED=95
+export ERR_NO_APPLICATIONS=96
 
-readonly ERR_WORKSPACE_EXISTS ERR_WORKSPACE_NOT_FOUND ERR_INVALID_WORKSPACE_NAME
-readonly ERR_SCRIPT_GENERATION_FAILED ERR_NO_APPLICATIONS
+readonly ERR_WORKSPACE_EXISTS ERR_WORKSPACE_NOT_FOUND ERR_INVALID_WORKSPACE_NAME ERR_INVALID_WINDOW_NAME
+readonly ERR_WORKSPACE_INSERT_FAILED ERR_SCRIPT_GENERATION_FAILED ERR_NO_APPLICATIONS
 
 # Safe mode errors
 export ERR_SAFE_MODE_CANCELLED=120
@@ -161,8 +163,8 @@ declare -A ERROR_MESSAGES=(
     [$ERR_PERMISSION_DENIED]="ERROR: Permission denied"
 
     # Ydotool
-    [$ERR_YDOTOOL_NOT_RUNNING]="ydotool daemon not running"
-    [$ERR_UNKNOWN_KEY]="Unknown key"
+    [$ERR_YDOTOOL_NOT_RUNNING]="ERROR: ydotool daemon not running"
+    [$ERR_UNKNOWN_KEY]="ERROR: Unknown key"
 
     # Application Registry
     [$ERR_APP_FILE_NOT_FOUND]="ERROR: Application file not found"
@@ -174,15 +176,17 @@ declare -A ERROR_MESSAGES=(
     [$ERR_DATABASE_ERROR]="ERROR: Database operation failed"
 
     # Workspace
-    [ERR_WORKSPACE_EXISTS]="Workspace already exists"
-    [ERR_WORKSPACE_NOT_FOUND]="Workspace not found"
-    [ERR_INVALID_WORKSPACE_NAME]="Invalid workspace name"
-    [ERR_SCRIPT_GENERATION_FAILED]="Failed to generate workspace scripts"
-    [ERR_NO_APPLICATIONS]="No applications configured for workspace"
+    [ERR_WORKSPACE_EXISTS]="ERROR: Workspace already exists"
+    [ERR_WORKSPACE_NOT_FOUND]="ERROR: Workspace not found"
+    [ERR_INVALID_WORKSPACE_NAME]="ERROR: Invalid workspace name"
+    [ERR_INVALID_WINDOW_NAME]="ERROR: Invalid window name"
+    [ERR_WORKSPACE_INSERT_FAILED]="Error: Failed to create workspace in database"
+    [ERR_SCRIPT_GENERATION_FAILED]="ERROR: Failed to generate workspace scripts"
+    [ERR_NO_APPLICATIONS]="ERROR: No applications configured for workspace"
 
     # Safe Mode
     [$ERR_SAFE_MODE_CANCELLED]="Safe mode cancelled by user"
-    [$ERR_SAFE_MODE_FAILED]="Safe mode validation failed"
+    [$ERR_SAFE_MODE_FAILED]="ERROR: Safe mode validation failed"
     [$ERR_SAFE_MODE_NO_WINDOW]="No window appeared after launch"
     [$ERR_SAFE_MODE_MULTI_WINDOWS]="Multiple windows detected"
     [$ERR_SAFE_MODE_REJECTED]="User rejected detected window"

@@ -2,16 +2,6 @@
 
 check_and_set_guard "_KDOITALL_DB_SAFE_MODE_LOADED" || return 0
 
-# ============================================================================
-# Safe Mode Database Functions
-# ============================================================================
-# These functions manage safe mode validation status and metadata
-
-# ----------------------------------------------------------------------------
-# db_get_safe_mode_completed()
-# Check if an application has completed safe mode
-# Returns: "1" if completed, "0" if not, empty if app doesn't exist
-# ----------------------------------------------------------------------------
 db_get_safe_mode_completed() {
     local app_id="$1"
     local function_name="db_get_safe_mode_completed"
@@ -36,10 +26,6 @@ db_get_safe_mode_completed() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_safe_mode_completed()
-# Mark an application as having completed safe mode
-# ----------------------------------------------------------------------------
 db_set_safe_mode_completed() {
     local app_id="$1"
     local function_name="db_set_safe_mode_completed"
@@ -73,10 +59,6 @@ db_set_safe_mode_completed() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_clear_safe_mode_data()
-# Clear safe mode validation data for an application (for re-validation)
-# ----------------------------------------------------------------------------
 db_clear_safe_mode_data() {
     local app_id="$1"
     local function_name="db_clear_safe_mode_data"
@@ -111,13 +93,6 @@ db_clear_safe_mode_data() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_launch_mode()
-# Set the launch mode for an application (multi or single instance)
-# Parameters:
-#   $1 - app_id
-#   $2 - launch_mode ('multi' or 'single')
-# ----------------------------------------------------------------------------
 db_set_launch_mode() {
     local app_id="$1"
     local launch_mode="$2"
@@ -165,13 +140,6 @@ db_set_launch_mode() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_launch_mode()
-# Get the launch mode for an application
-# Parameters:
-#   $1 - app_id
-# Returns: 'multi', 'single', or empty if not set
-# ----------------------------------------------------------------------------
 db_get_launch_mode() {
     local app_id="$1"
     local function_name="db_get_launch_mode"
@@ -196,15 +164,6 @@ db_get_launch_mode() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_pid_validation_data()
-# Store PID validation metadata for an application
-# Parameters:
-#   $1 - app_id
-#   $2 - supports_pid ('true' or 'false')
-#   $3 - process_name (expected process name from ps)
-#   $4 - executable_path (expected executable path)
-# ----------------------------------------------------------------------------
 db_set_pid_validation_data() {
     local app_id="$1"
     local supports_pid="$2"
@@ -262,15 +221,6 @@ db_set_pid_validation_data() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_pid_validation_data()
-# Get PID validation metadata for an application
-# Parameters:
-#   $1 - app_id
-# Returns: Pipe-separated string: supports|process_name|executable_path
-#          Example: "true|firefox|/usr/lib/firefox/firefox"
-#          Returns "false||" if PID validation not supported
-# ----------------------------------------------------------------------------
 db_get_pid_validation_data() {
     local app_id="$1"
     local function_name="db_get_pid_validation_data"
@@ -300,13 +250,6 @@ db_get_pid_validation_data() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_supports_pid_validation()
-# Check if PID validation is supported for an application
-# Parameters:
-#   $1 - app_id
-# Returns: "1" if supported, "0" if not, empty if never tested
-# ----------------------------------------------------------------------------
 db_get_supports_pid_validation() {
     local app_id="$1"
     local function_name="db_get_supports_pid_validation"
@@ -331,13 +274,6 @@ db_get_supports_pid_validation() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_title_pattern()
-# Store window title pattern for an application
-# Parameters:
-#   $1 - app_id
-#   $2 - pattern (the unique part of the window title to match)
-# ----------------------------------------------------------------------------
 db_set_title_pattern() {
     local app_id="$1"
     local pattern="$2"
@@ -378,13 +314,6 @@ db_set_title_pattern() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_title_pattern()
-# Get stored window title pattern for an application
-# Parameters:
-#   $1 - app_id
-# Returns: Pattern string or empty if not set
-# ----------------------------------------------------------------------------
 db_get_title_pattern() {
     local app_id="$1"
     local function_name="db_get_title_pattern"
@@ -409,14 +338,6 @@ db_get_title_pattern() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_set_launch_time()
-# Store launch time measurement and update expected launch time
-# Uses rolling average algorithm with buffer
-# Parameters:
-#   $1 - app_id
-#   $2 - measured_time_ms (measured launch time in milliseconds)
-# ----------------------------------------------------------------------------
 db_set_launch_time() {
     local app_id="$1"
     local measured_time_ms="$2"
@@ -455,7 +376,8 @@ db_set_launch_time() {
         new_expected=$(echo "scale=0; ($measured_time_ms * 3 / 2)" | bc)
     else
         # Rolling average: (current_avg * samples + new_measurement) / (samples + 1)
-        local avg=$(echo "scale=0; ($current_expected * $current_samples + $measured_time_ms) / ($current_samples + 1)" | bc)
+        local avg=""
+        avg=$(echo "scale=0; ($current_expected * $current_samples + $measured_time_ms) / ($current_samples + 1)" | bc)
         # Add 25% buffer to average
         new_expected=$(echo "scale=0; ($avg * 5 / 4)" | bc)
     fi
@@ -485,13 +407,6 @@ db_set_launch_time() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_expected_launch_time()
-# Get expected launch time for an application
-# Parameters:
-#   $1 - app_id
-# Returns: Expected launch time in milliseconds (default 5000 if not set)
-# ----------------------------------------------------------------------------
 db_get_expected_launch_time() {
     local app_id="$1"
     local expected_time=""
@@ -516,13 +431,6 @@ db_get_expected_launch_time() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_launch_time_samples()
-# Get number of launch time samples collected for an application
-# Parameters:
-#   $1 - app_id
-# Returns: Number of samples (0 if none)
-# ----------------------------------------------------------------------------
 db_get_launch_time_samples() {
     local app_id="$1"
     local samples=""

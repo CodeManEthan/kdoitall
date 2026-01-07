@@ -1,20 +1,10 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Close Command
-# ============================================================================
-# Closes a workspace by executing its close script
-
 check_and_set_guard "_KDOITALL_WORKSPACE_CLOSE_LOADED" || return 0
 
-# ============================================================================
-# workspace_close()
-# Close a workspace by executing its close script
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name (required)
-# Returns: 0 on success, 1 on error
-# ============================================================================
+# shellcheck source=../../db/workspace.sh
+source "${LIB_DIR}/db/workspace.sh"
+
 workspace_close() {
     local workspace_name="$1"
     local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
@@ -24,16 +14,14 @@ workspace_close() {
     
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
-        echo "Error: Workspace name required"
-        echo "Usage: kdoitall workspace close <workspace-name>"
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
+        echo "Usage: kdoitall workspace close <workspace-name>"
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Check if workspace exists in database
     if ! db_workspace_exists "$workspace_name"; then
-        echo "Error: Workspace '$workspace_name' not found"
         debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
         debug_function_exit "$function_name"
         return 1
@@ -41,10 +29,10 @@ workspace_close() {
     
     # Check if close script file exists
     if [[ ! -f "$close_script" ]]; then
+        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$close_script"
         echo "Error: Close script not found: $close_script"
         echo "The workspace exists in database but script file is missing."
         echo "Try recreating the workspace."
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$close_script"
         debug_function_exit "$function_name"
         return 1
     fi

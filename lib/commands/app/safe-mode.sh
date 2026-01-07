@@ -2,21 +2,17 @@
 
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_COMMAND_LOADED" || return 0
 
-# ============================================================================
-# App Safe Mode Command
-# ============================================================================
-# Command handler for running safe mode validation on individual applications
-
-# Source required modules
 # shellcheck source=../../app/safe-mode.sh
 source "${LIB_DIR}/app/safe-mode.sh"
+# shellcheck source=../../app/registry.sh
+source "${LIB_DIR}/app/registry.sh"
+# shellcheck source=../../db/app-registry.sh
+source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=../../db/app.sh
+source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../../db/safe-mode.sh
+source "${LIB_DIR}/db/safe-mode.sh"
 
-# ----------------------------------------------------------------------------
-# app_safe_mode()
-# Run safe mode validation for a specific application
-# Parameters:
-#   $1 - app_id
-# ----------------------------------------------------------------------------
 app_safe_mode() {
     local app_id="$1"
     local function_name="app_safe_mode"
@@ -25,7 +21,7 @@ app_safe_mode() {
     
     # Validate app_id provided
     if [[ -z "$app_id" ]]; then
-        echo "Error: Application ID required"
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
         echo "Usage: kdoitall app safe-mode <app_id>"
         debug_function_exit "$function_name"
         return 1

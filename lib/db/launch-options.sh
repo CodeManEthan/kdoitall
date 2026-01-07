@@ -2,14 +2,6 @@
 
 check_and_set_guard "_KDOITALL_DB_LAUNCH_OPTIONS_LOADED" || return 0
 
-# ============================================================================
-# Launch Options Database Functions
-# ============================================================================
-
-# ----------------------------------------------------------------------------
-# db_add_launch_option()
-# Add or update a launch option for an application
-# ----------------------------------------------------------------------------
 db_add_launch_option() {
     local app_id="$1"
     local function_name="$2"
@@ -19,7 +11,6 @@ db_add_launch_option() {
     
     debug_function_enter "$func_name" "$@"
     
-    # Validate required parameters
     if [[ -z "$app_id" ]]; then
         debug_error "$func_name" "$ERR_MISSING_PARAMETER" "app_id"
         debug_function_exit "$func_name"
@@ -62,11 +53,6 @@ db_add_launch_option() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_get_launch_options()
-# Get all launch options for an application
-# Returns: function_name|description (one per line, ordered)
-# ----------------------------------------------------------------------------
 db_get_launch_options() {
     local app_id="$1"
     local function_name="db_get_launch_options"
@@ -94,11 +80,6 @@ db_get_launch_options() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_delete_launch_options_for_app()
-# Delete all launch options for an application
-# Used during re-scanning to clear old options before adding new ones
-# ----------------------------------------------------------------------------
 db_delete_launch_options_for_app() {
     local app_id="$1"
     local function_name="db_delete_launch_options_for_app"
@@ -123,11 +104,6 @@ db_delete_launch_options_for_app() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# db_app_has_launch_options()
-# Check if an application has any launch options defined
-# Returns: 0 if has options, 1 if no options
-# ----------------------------------------------------------------------------
 db_app_has_launch_options() {
     local app_id="$1"
     local function_name="db_app_has_launch_options"

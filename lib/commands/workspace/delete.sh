@@ -7,6 +7,9 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_DELETE_LOADED" || return 0
 
+# shellcheck source=../../db/workspace.sh
+source "${LIB_DIR}/db/workspace.sh"
+
 # ============================================================================
 # workspace_delete()
 # Delete a workspace and its associated script files

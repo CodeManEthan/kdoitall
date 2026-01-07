@@ -7,6 +7,13 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_OPEN_LOADED" || return 0
 
+# shellcheck source=../../app/safe-mode.sh
+source "${LIB_DIR}/app/safe-mode.sh"
+# shellcheck source=../../db/safe-mode.sh
+source "${LIB_DIR}/db/safe-mode.sh"
+# shellcheck source=../../db/workspace.sh
+source "${LIB_DIR}/db/workspace.sh"
+
 # ============================================================================
 # workspace_open()
 # Open a workspace by executing its open script
@@ -94,6 +101,41 @@ workspace_open() {
                 return 1
                 ;;
         esac
+    fi
+
+    # Only detach if:
+    # - We're running in a terminal (interactive)
+    # - Not in debug or verbose mode (user wants to see output)
+    # - Haven't already detached (prevent recursive detachment)
+    if [ -t 0 ] && 
+       [ "$DEBUG_MODE" != "true" ] && 
+       [ "$VERBOSE_MODE" != "true" ] && 
+       [ -z "$_KDOITALL_DETACHED" ]; then
+        
+        debug_log "$function_name" "Detaching to background for workspace launch"
+        
+        # Mark as detached to prevent recursive backgrounding
+        export _KDOITALL_DETACHED=true
+        
+        echo "Opening workspace: $workspace_name"
+        echo "Launching applications in background..."
+        
+        # Execute workspace script in background with nohup
+        # This allows the terminal to be closed without killing the processes
+        nohup bash -c "
+            # Re-source the kdoitall environment
+            source '$KDOITALL_INSTALL_DIR/lib/init.sh'
+            
+            # Source and execute the workspace script
+            source '$open_script'
+            
+            # Update database metadata
+            sqlite3 '$KDOITALL_DB' \"UPDATE workspaces SET is_active = 'TRUE', last_opened = datetime('now') WHERE name = '$workspace_name'\"
+        " > /dev/null 2>&1 &
+        
+        debug_log "$function_name" "Workspace script backgrounded (PID: $!)"
+        debug_function_exit "$function_name"
+        return 0
     fi
     
     echo "Opening workspace: $workspace_name"

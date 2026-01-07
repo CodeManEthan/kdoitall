@@ -1,65 +1,40 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Create Command
-# ============================================================================
-# Interactive workspace creation with application configuration
-
 check_and_set_guard "_KDOITALL_WORKSPACE_CREATE_LOADED" || return 0
 
+# shellcheck source=generate.sh
+source "${LIB_DIR}/commands/workspace/generate.sh"
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
+# shellcheck source=../../db/app-registry.sh
+source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=../../db/launch-options.sh
+source "${LIB_DIR}/db/launch-options.sh"
+# shellcheck source=../../utils/workspace-validators.sh
+source "${LIB_DIR}/utils/workspace-validators.sh"
 
-# ----------------------------------------------------------------------------
-# workspace_create()
-# Main function for interactive workspace creation
-# Parameters:
-#   $1 - workspace_name (required)
-# ----------------------------------------------------------------------------
 workspace_create() {
     local workspace_name="$1"
     local description=""
     local display_order=1
     local function_name="workspace_create"
     
-    # Array to hold workspace configuration during creation
     # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
     declare -a WORKSPACE_APPS=()
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate workspace name provided
-    if [[ -z "$workspace_name" ]]; then
-        echo "Error: Workspace name required"
-        echo "Usage: kdoitall workspace create <workspace-name>"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Validate workspace name format
-    if ! db_validate_workspace_name "$workspace_name"; then
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Check if workspace exists
-    if db_workspace_exists "$workspace_name"; then
-        echo "Error: Workspace '$workspace_name' already exists"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Prompt for description
+    validate_workspace_name "$workspace_name" | return 1
+    db_workspace_exists "$workspace_name" | return 1
+
+    # 1. Prompt for description
     echo ""
     echo "Creating workspace: $workspace_name"
     echo "Enter workspace description (optional, press Enter to skip):"
     read -r description
-    
-    # Note: We validate workspace doesn't exist, but don't create it yet
-    # Database entry will be created at the end, after all apps are configured
     echo ""
     
-    # Application addition loop
+    # 2. Application addition loop
     while true; do
         echo "=== Add Application to Workspace ==="
         echo ""
@@ -84,10 +59,7 @@ workspace_create() {
     
     # Check if any applications were added - must have at least one app
     if [[ ${#WORKSPACE_APPS[@]} -eq 0 ]]; then
-        echo ""
-        echo "Error: No applications added to workspace"
-        echo "A workspace must have at least one application"
-        echo "Workspace creation cancelled"
+        debug_error "$function_name" "$ERR_NO_APPLICATIONS" "Workspace creation cancelled"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -108,11 +80,10 @@ workspace_create() {
         return 0
     fi
     
-    # Now create workspace in database (after user confirmation)
+    # Create workspace in database
     echo ""
     echo "Creating workspace in database..."
     if ! db_create_workspace "$workspace_name" "$description"; then
-        echo "Error: Failed to create workspace in database"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -122,11 +93,8 @@ workspace_create() {
     echo ""
     echo "Generating workspace scripts..."
     
-    # shellcheck source=generate.sh
-    source "${LIB_DIR}/commands/workspace/generate.sh"
-    
     if ! generate_workspace_scripts "$workspace_name" WORKSPACE_APPS; then
-        echo "Error: Failed to generate workspace scripts"
+        debug_error "$function_name" "$ERR_SCRIPT_GENERATION_FAILED"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -189,12 +157,6 @@ add_application_to_workspace() {
     echo "Enter a unique window name for this instance:"
     echo "  (alphanumeric, hyphens, and underscores only)"
     read -r window_name
-    
-    if [[ -z "$window_name" ]]; then
-        echo "Error: Window name cannot be empty"
-        debug_function_exit "$function_name"
-        return 1
-    fi
     
     if ! validate_window_name "$window_name"; then
         debug_function_exit "$function_name"
