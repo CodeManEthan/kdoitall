@@ -15,17 +15,14 @@ db_add_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$display_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "display_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$display_name" || return 1
+    validate_parameter_pass "$desktop_file_path" || return 1
+    validate_parameter_pass "$app_file_path" || return 1
+    validate_parameter_pass "$terminal_command" || return 1
+    validate_parameter_pass "$app_class" || return 1
+    validate_parameter_pass "$has_terminal_launch" || return 1
+    validate_parameter_pass "$has_desktop_launch" || return 1
     
     has_terminal_launch=$(normailize_boolean "$has_terminal_launch")
     has_desktop_launch=$(normailize_boolean "$has_desktop_launch")
@@ -71,11 +68,7 @@ db_get_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     # Query database with all fields
     result=$(sqlite3 "$KDOITALL_DB" \
@@ -154,11 +147,7 @@ db_application_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -184,17 +173,8 @@ db_delete_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    if ! db_application_exists "$app_id"; then
-        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
+    db_application_exists "$app_id" || return 1
     
     # Delete application
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -221,11 +201,7 @@ db_update_validation_timestamp() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     # Update timestamp
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -284,11 +260,7 @@ db_get_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -309,17 +281,8 @@ db_set_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$app_class" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_class"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_class" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -345,12 +308,8 @@ db_get_terminal_command() {
     local result=""
     
     debug_function_enter "$function_name" "$@"
-    
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -370,11 +329,7 @@ db_get_app_file_path() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

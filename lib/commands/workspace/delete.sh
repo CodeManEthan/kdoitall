@@ -1,23 +1,10 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Delete Command
-# ============================================================================
-# Deletes a workspace from database and removes its script files
-
 check_and_set_guard "_KDOITALL_WORKSPACE_DELETE_LOADED" || return 0
 
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
 
-# ============================================================================
-# workspace_delete()
-# Delete a workspace and its associated script files
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name (required)
-# Returns: 0 on success, 1 on error or cancellation
-# ============================================================================
 workspace_delete() {
     local workspace_name="$1"
     local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
@@ -29,16 +16,14 @@ workspace_delete() {
     
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
-        echo "Error: Workspace name required"
-        echo "Usage: kdoitall workspace delete <workspace-name>"
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
+        echo "Usage: kdoitall workspace delete <workspace-name>"
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Check if workspace exists in database
     if ! db_workspace_exists "$workspace_name"; then
-        echo "Error: Workspace '$workspace_name' not found"
         debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
         debug_function_exit "$function_name"
         return 1
@@ -59,7 +44,6 @@ workspace_delete() {
     
     # Delete from database
     if ! db_delete_workspace "$workspace_name"; then
-        echo "Error: Failed to delete workspace from database"
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete workspace: $workspace_name"
         debug_function_exit "$function_name"
         return 1

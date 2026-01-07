@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Open Command
-# ============================================================================
-# Opens a workspace by executing its open script
-
 check_and_set_guard "_KDOITALL_WORKSPACE_OPEN_LOADED" || return 0
 
 # shellcheck source=../../app/safe-mode.sh
@@ -14,14 +9,6 @@ source "${LIB_DIR}/db/safe-mode.sh"
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
 
-# ============================================================================
-# workspace_open()
-# Open a workspace by executing its open script
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name (required)
-# Returns: 0 on success, 1 on error
-# ============================================================================
 workspace_open() {
     local workspace_name="$1"
     local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
@@ -31,16 +18,14 @@ workspace_open() {
     
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
-        echo "Error: Workspace name required"
-        echo "Usage: kdoitall workspace open <workspace-name>"
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
+        echo "Usage: kdoitall workspace open <workspace-name>"
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Check if workspace exists in database
     if ! db_workspace_exists "$workspace_name"; then
-        echo "Error: Workspace '$workspace_name' not found"
         debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
         debug_function_exit "$function_name"
         return 1
@@ -48,10 +33,9 @@ workspace_open() {
     
     # Check if open script file exists
     if [[ ! -f "$open_script" ]]; then
-        echo "Error: Open script not found: $open_script"
+        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$open_script"
         echo "The workspace exists in database but script file is missing."
         echo "Try recreating the workspace."
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$open_script"
         debug_function_exit "$function_name"
         return 1
     fi

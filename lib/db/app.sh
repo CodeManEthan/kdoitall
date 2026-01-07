@@ -9,11 +9,7 @@ db_get_app_display_name() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -33,11 +29,7 @@ db_get_app_has_desktop_launch() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -57,11 +49,7 @@ db_get_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -82,17 +70,9 @@ db_set_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
-    if [[ -z "$class" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "class"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$class" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

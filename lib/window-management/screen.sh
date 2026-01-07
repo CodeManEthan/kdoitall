@@ -54,7 +54,6 @@ validate_screen_number() {
 
     debug_log "$function_name" "Screen Number Validation Passed"
     debug_function_exit "$function_name"
-    echo "$screen"
 }
 
 # Validate and resolve a screen reference (number, name, or alias)
@@ -66,12 +65,7 @@ validate_screen_reference() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Check if screen reference was provided
-    if [[ -z "$screen_ref" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "No screen reference provided"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$screen_ref" || return 1
     
     # Resolve the screen reference to an output number
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -97,6 +91,8 @@ calculate_screen_origin() {
     local screen_y=""
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$screen_ref" || return 1
     
     # Resolve screen reference to output number
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -135,12 +131,8 @@ move_window_to_screen_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
     
-    # Validate UUID parameter
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$screen_ref" || return 1
     
     # Resolve screen reference (supports output numbers, names, aliases)
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -189,11 +181,9 @@ move_window_to_position_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$screen_ref" || return 1
+    validate_parameter_pass "$position_mode" || return 1
     
     # Resolve screen reference (supports output numbers, names, aliases)
     output_num=$(resolve_screen_reference "$screen_ref")

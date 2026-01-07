@@ -1,19 +1,7 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace List Command
-# ============================================================================
-# Lists all defined workspaces with metadata and status information
-
 check_and_set_guard "_KDOITALL_WORKSPACE_LIST_LOADED" || return 0
 
-# ============================================================================
-# workspace_list()
-# List all defined workspaces with their metadata
-# ============================================================================
-# Parameters: None
-# Returns: 0 (always succeeds, even if no workspaces)
-# ============================================================================
 workspace_list() {
     local workspaces=""
     local function_name="workspace_list"

@@ -95,6 +95,19 @@ validate_parameter_pass() {
     fi
 }
 
+validate_name_ref_parameter_pass() {
+    local parameter="$1"
+    local parameter_name="$2"
+    
+    if [[ -z "$parameter" ]]; then
+        local function_name="validate_name_ref_parameter_pass"
+
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "$parameter_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
 validate_file_exists() {
     local path="$2"
 

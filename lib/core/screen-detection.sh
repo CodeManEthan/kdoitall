@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/error_codes.sh
-
 check_and_set_guard "_KDOITALL_SCREEN_DETECTION_LOADED" || return 0
 
 # Global variable to store detected desktop count
@@ -12,8 +8,6 @@ declare -g DETECTED_DESKTOP_COUNT=0
 declare -g -A SCREEN_INFO
 declare -g DETECTED_SCREEN_COUNT=0
 
-# Detect the number of virtual desktops from kdotool
-# Returns: 0 on success, 1 on failure
 detect_desktops() {
     local function_name="detect_desktops"
     local desktop_count=""
@@ -23,25 +17,7 @@ detect_desktops() {
     # Get desktop count from kdotool
     desktop_count=$(kdotool get_num_desktops 2>/dev/null)
     
-    if [[ -z "$desktop_count" ]]; then
-        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "No output from kdotool get_num_desktops"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Validate it's a number
-    if ! [[ "$desktop_count" =~ ^[0-9]+$ ]]; then
-        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "Invalid output: $desktop_count"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Validate at least 1 desktop exists
-    if [[ "$desktop_count" -lt 1 ]]; then
-        debug_error "$function_name" "$ERR_NO_DESKTOPS_DETECTED" "Desktop count: $desktop_count"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_desktop_count "$desktop_count" || return 1
     
     DETECTED_DESKTOP_COUNT="$desktop_count"
     
@@ -50,9 +26,6 @@ detect_desktops() {
     return 0
 }
 
-# Detect and parse screen configuration from kscreen-doctor
-# Populates SCREEN_INFO associative array with screen data
-# Returns: 0 on success, 1 on failure
 detect_screens() {
     local function_name="detect_screens"
     local kscreen_json=""
@@ -126,31 +99,30 @@ detect_screens() {
     return 0
 }
 
-# Get screen information by output number and property
-# Usage: get_screen_info OUTPUT_NUM PROPERTY
-# Properties: NAME, UUID, ENABLED, X, Y, WIDTH, HEIGHT
-# Returns: property value or empty string if not found
 get_screen_info() {
     local output_num="$1"
     local property="$2"
     local key="${output_num}_${property}"
     local value="${SCREEN_INFO[$key]}"
     
+    # Properties: NAME, UUID, ENABLED, X, Y, WIDTH, HEIGHT
     echo "$value"
 }
 
-# Resolve a screen reference to an output number
-# Supports three tiers:
-#   1. Direct output numbers (1, 2, 3...)
-#   2. Screen names (eDP-1, HDMI-A-1, DP-1, etc.)
-#   3. User-defined aliases (primary, laptop, vertical, etc.)
-# Returns: output number on success, empty on failure
+
 resolve_screen_reference() {
     local screen_ref="$1"
     local function_name="resolve_screen_reference"
     local out=""
     
     debug_function_enter "$function_name" "$@"
+
+    # Resolve a screen reference to an output number
+    # Supports three tiers:
+    #   1. Direct output numbers (1, 2, 3...)
+    #   2. Screen names (eDP-1, HDMI-A-1, DP-1, etc.)
+    #   3. User-defined aliases (primary, laptop, vertical, etc.)
+    # Returns: output number on success, empty on failure
     
     # Tier 1: Check if it's a direct output number
     if [[ "$screen_ref" =~ ^[0-9]+$ ]]; then
@@ -200,8 +172,6 @@ resolve_screen_reference() {
     return 1
 }
 
-# Refresh screen configuration (useful after monitor hotplug)
-# Returns: 0 on success, 1 on failure
 refresh_screens() {
     local function_name="refresh_screens"
     
@@ -218,8 +188,6 @@ refresh_screens() {
     fi
 }
 
-# List all detected screens with their properties
-# Useful for debugging and user information
 list_detected_screens() {
     local function_name="list_detected_screens"
     local out=""

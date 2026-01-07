@@ -1,19 +1,7 @@
 #!/bin/bash
 
-# ============================================================================
-# Help Command
-# ============================================================================
-# Displays usage information and available commands
-
 check_and_set_guard "_KDOITALL_HELP_LOADED" || return 0
 
-# ============================================================================
-# show_help()
-# Display usage information and command list
-# ============================================================================
-# Parameters: None
-# Returns: 0
-# ============================================================================
 show_help() {
     cat << 'EOF'
 kdoitall - KDE Desktop Automation Tool
@@ -54,7 +42,7 @@ EXAMPLES:
     # Close a workspace
     kdoitall workspace close my-dev-workspace
 
-For more information, visit: https://github.com/yourusername/kdoitall
+For more information, visit: https://github.com/j-ethan-plunk/kdoitall
 
 EOF
 }

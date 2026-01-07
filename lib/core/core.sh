@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/debug.sh
-# core/error_codes.sh
-# core/database.sh
-# window_management/desktop.sh
-# window_management/screen.sh
-# window_management/window.sh
-# window_management/tab.sh
-
 check_and_set_guard "_KDOITALL_CORE_LOADED" || return 0
 
 # shellcheck source=../window-management/desktop.sh
@@ -56,6 +46,16 @@ execute_launch_window() {
         esac
     done
 
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$desktop" || return 1
+    validate_parameter_pass "$screen" || return 1
+    validate_parameter_pass "$position" || return 1
+    validate_parameter_pass "$launch_mode" || return 1
+    validate_parameter_pass "$launch_type" || return 1
+    validate_parameter_pass "$launch_command" || return 1
+
     # Try to retrieve stored app_class from database
     if [[ -n "$app_id" ]]; then
         class=$(db_get_app_class "$app_id")
@@ -83,7 +83,7 @@ execute_launch_window() {
 
         # Claim Window in Database
         debug_log "$function_name" "Claim Window in app_windows table."
-        db_claim_window "$window_name" "$workspace_name" "$uuid"
+        db_claim_window "$workspace_name" "$window_name" "$uuid"
     else
         debug_log "$function_name" "Launch Window"
 
@@ -115,7 +115,7 @@ execute_launch_window() {
 
         # Add Window to Database
         debug_log "$function_name" "Add Window to app_windows table."
-        db_add_window "$window_name" "$workspace_name" "$uuid" "$class" 
+        db_add_window "$workspace_name" "$window_name" "$uuid" "$class" 
     fi
 
     # Move Window to Desktop
@@ -139,6 +139,8 @@ execute_close_window() {
     local function_name="close-window"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$window_name" || return 1
 
     uuid=$(db_get_uuid_by_window_name "$window_name")
 
@@ -208,11 +210,12 @@ launch_by_app_id() {
     local launch_command=""
     local function_name="launch_by_app_id"
 
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$desktop" || return 1
+    validate_parameter_pass "$screen" || return 1
+    validate_parameter_pass "$position" || return 1
 
     launch_mode="$LAUNCH_MODE_UNKNOWN"
     launch_type="$LAUNCH_TYPE_DESKTOP"

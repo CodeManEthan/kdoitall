@@ -49,7 +49,6 @@ validate_desktop_number() {
     debug_log "$function_name" "Desktop Number Validation Passed"
 
     debug_function_exit "$function_name"
-    echo "$desktop"
 }
 
 get_desktop_for_window_by_uuid() {
@@ -59,11 +58,7 @@ get_desktop_for_window_by_uuid() {
     
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get Desktop for Window
     desktop=$(kdotool get_desktop_for_window "$uuid")
@@ -87,14 +82,7 @@ set_current_desktop() {
 
     debug_function_enter "$function_name" "$@"
 
-    # Validate Desktop number
-    desktop=$(validate_desktop_number "$desktop")
-
-    if [[ -z "$desktop" ]]; then
-        debug_error "$function_name" "$ERR_DESKTOP_VALIDATION_FAILED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_desktop_number "$desktop" || return 1
 
     # Set Current Desktop
     kdotool set_desktop "$desktop"
@@ -112,20 +100,9 @@ move_window_to_desktop_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Validate Desktop number
-    desktop=$(validate_desktop_number "$desktop")
-
-    if [[ -z "$desktop" ]]; then
-        debug_error "$function_name" "$ERR_DESKTOP_VALIDATION_FAILED" "$uuid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$desktop" || return 1
+    validate_desktop_number "$desktop" || return 1
 
     # Move Window to Desktop
     kdotool set_desktop_for_window "$uuid" "$desktop"

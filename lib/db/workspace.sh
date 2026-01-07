@@ -9,11 +9,8 @@ db_create_workspace() {
     
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$description" || return 1
     
     # Execute INSERT
     sqlite3 "$KDOITALL_DB" \
@@ -44,11 +41,7 @@ db_workspace_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -93,11 +86,7 @@ db_get_workspace() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
     
     # Query workspace metadata
     result=$(sqlite3 "$KDOITALL_DB" \
@@ -126,17 +115,8 @@ db_delete_workspace() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if ! db_workspace_exists "$workspace_name"; then
-        debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
+    db_workspace_exists "$workspace_name" || return 1
     
     # Delete workspace
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -163,11 +143,7 @@ db_update_workspace_last_opened() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
     
     # Update timestamp
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -197,17 +173,8 @@ db_set_workspace_active() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$workspace_name" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    if [[ -z "$is_active" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "is_active"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$is_active" || return 1
     
     is_active=$(normalize_boolean "$is_active")
     

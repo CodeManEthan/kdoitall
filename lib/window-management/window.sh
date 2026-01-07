@@ -14,6 +14,8 @@ get_last_launched_uuid_by_class() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$class" || return 1
+
     # Get last UUID by class
     uuid=$(kdotool search --classname "$class" | tail -1)
 
@@ -59,6 +61,8 @@ get_uuid_by_window_title() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_title" || return 1
+
     uuid=$(kdotool search --name "$window_title")
 
     if [[ -z "$uuid" ]]; then
@@ -82,6 +86,8 @@ get_uuid_by_process_of_elimination() {
     local function_name="get_uuid_by_process_of_elimination"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$class" || return 1
 
     # Get all current window UUIDs from kdotool
     mapfile -t current_uuids < <(get_existing_windows_uuid)
@@ -145,6 +151,9 @@ get_uuid_by_process_of_elimination_with_retry() {
     local attempt=0
     
     debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$class" || return 1
+    
     debug_log "$function_name" "Waiting up to ${max_wait_seconds}s for window (class: '$class')"
     
     while (( $(echo "$elapsed < $max_wait_seconds" | bc -l) )); do
@@ -180,11 +189,7 @@ get_window_title_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get window title
     window_title=$(kdotool getwindowname "$uuid")
@@ -208,11 +213,7 @@ get_window_class_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get window class
     class=$(kdotool getwindowclassname "$uuid")
@@ -236,11 +237,7 @@ get_window_pid_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get window pid
     pid=$(kdotool getwindowpid "$uuid")
@@ -257,11 +254,6 @@ get_window_pid_by_uuid() {
     echo "$pid"
 }
 
-# ----------------------------------------------------------------------------
-# get_process_name_by_pid()
-# Get the process name from a PID
-# Returns: Short process name (e.g., "firefox", "gimp-2.10") or empty if unavailable
-# ----------------------------------------------------------------------------
 get_process_name_by_pid() {
     local pid="$1"
     local process_name=""
@@ -269,11 +261,7 @@ get_process_name_by_pid() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$pid" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "pid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$pid" || return 1
     
     # Get process name using ps
     process_name=$(ps -p "$pid" -o comm= 2>/dev/null)
@@ -291,11 +279,6 @@ get_process_name_by_pid() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# get_executable_path_by_pid()
-# Get the full executable path from a PID
-# Returns: Absolute path to executable (e.g., "/usr/lib/firefox/firefox") or empty
-# ----------------------------------------------------------------------------
 get_executable_path_by_pid() {
     local pid="$1"
     local executable_path=""
@@ -303,11 +286,7 @@ get_executable_path_by_pid() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$pid" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "pid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$pid" || return 1
     
     # Get executable path from /proc
     executable_path=$(readlink -f /proc/"$pid"/exe 2>/dev/null)
@@ -332,11 +311,7 @@ get_window_size_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get window size
     window_size=$(kdotool getwindowgeometry "$uuid" | grep "Geometry:" | awk '{print $2}')
@@ -360,11 +335,7 @@ get_window_position_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Get window position
     window_position=$(kdotool getwindowgeometry "$uuid" | grep "Position:" | awk '{print $2}')
@@ -428,6 +399,8 @@ check_window_exists_by_window_title_and_class() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_title" || return 1
+
     # Search for window by title
     uuid=$(kdotool search --name "$window_title" | head -1)
 
@@ -468,11 +441,7 @@ activate_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Activate window
     kdotool windowactivate "$uuid"
@@ -488,11 +457,7 @@ raise_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Raise window
     kdotool windowraise "$uuid"
@@ -510,11 +475,7 @@ move_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Move window
     kdotool windowmove "$uuid" "$x" "$y"
@@ -532,11 +493,7 @@ size_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Size window
     kdotool windowsize "$uuid" "$width" "$height"
@@ -552,11 +509,7 @@ minimize_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     #Minimize window
     kdotool windowminimize "$uuid"
@@ -572,11 +525,7 @@ close_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_IS_REQUIRED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$uuid" || return 1
 
     # Close window
     kdotool windowclose "$uuid"

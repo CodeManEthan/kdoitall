@@ -1,20 +1,6 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Command Dispatcher
-# ============================================================================
-# Main entry point for workspace subcommands
-# Routes to appropriate workspace-*.sh command files
-
 check_and_set_guard "_KDOITALL_WORKSPACE_COMMAND_LOADED" || return 0
-
-# ----------------------------------------------------------------------------
-# workspace_command()
-# Dispatch workspace subcommands to appropriate handlers
-# Parameters:
-#   $1 - subcommand (create, list, open, close, delete)
-#   $@ - additional arguments passed to subcommand
-# ----------------------------------------------------------------------------
 
 workspace_command() {
     local subcommand="$1"
@@ -62,10 +48,6 @@ workspace_command() {
     esac
 }
 
-# ----------------------------------------------------------------------------
-# workspace_show_help()
-# Display usage information for workspace commands
-# ----------------------------------------------------------------------------
 workspace_show_help() {
     cat << 'EOF'
 Usage: kdoitall workspace <subcommand> [options]

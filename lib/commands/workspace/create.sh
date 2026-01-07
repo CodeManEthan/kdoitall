@@ -24,8 +24,8 @@ workspace_create() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_workspace_name "$workspace_name" | return 1
-    db_workspace_exists "$workspace_name" | return 1
+    validate_workspace_name "$workspace_name" || return 1
+    db_workspace_exists "$workspace_name" || return 1
 
     # 1. Prompt for description
     echo ""
@@ -117,19 +117,10 @@ workspace_create() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# add_application_to_workspace()
-# Interactive function to add a single application to workspace configuration
-# Parameters:
-#   $1 - workspace_name
-#   $2 - display_order
-#   $3 - reference to WORKSPACE_APPS array
-# Returns: 0 on success, 1 on failure
-# ----------------------------------------------------------------------------
 add_application_to_workspace() {
     local workspace_name="$1"
     local display_order="$2"
-    local -n apps_array_ref="$3"
+    # apps_array_ref="$3"
     local app_id=""
     local window_name=""
     local launch_type=""
@@ -141,6 +132,12 @@ add_application_to_workspace() {
     local function_name="add_application_to_workspace"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_name_ref_parameter_pass "$3" "apps_array_ref" || return 1
+    local -n apps_array_ref="$3"
+
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$display_order" || return 1
     
     # Step 1: Select application
     echo "Step 1: Select Application"
@@ -158,10 +155,7 @@ add_application_to_workspace() {
     echo "  (alphanumeric, hyphens, and underscores only)"
     read -r window_name
     
-    if ! validate_window_name "$window_name"; then
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_window_name "$window_name" || return 1
     
     # Step 3: Choose launch type (to determine launch function)
     echo ""
@@ -210,9 +204,6 @@ add_application_to_workspace() {
     
     # Store in array for script generation
     # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
-    # Note: launch_type, launch_mode, and launch_command are NOT stored:
-    #   - launch_type is only used during creation to determine the launch_function
-    #   - launch_mode and launch_command are set internally by the launch functions
     apps_array_ref+=("$app_id|$window_name|$launch_function|$desktop_number|$screen_number|$position|$parameters")
     
     echo ""
@@ -222,11 +213,6 @@ add_application_to_workspace() {
     return 0
 }
 
-# ----------------------------------------------------------------------------
-# select_application()
-# Interactive application selection from registry
-# Returns: app_id on success, exits with error on failure
-# ----------------------------------------------------------------------------
 select_application() {
     local apps=""
     local app_list=()
@@ -283,13 +269,6 @@ select_application() {
     echo "$selected_app_id"
 }
 
-# ----------------------------------------------------------------------------
-# choose_launch_type()
-# Determine launch type based on application capabilities
-# Parameters:
-#   $1 - app_id
-# Returns: "terminal" or "desktop"
-# ----------------------------------------------------------------------------
 choose_launch_type() {
     local app_id="$1"
     local app_info=""
@@ -298,6 +277,8 @@ choose_launch_type() {
     local function_name="choose_launch_type"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" || return 1
     
     app_info=$(db_get_application "$app_id")
     has_terminal=$(echo "$app_info" | cut -d'|' -f7)
@@ -341,14 +322,6 @@ choose_launch_type() {
     esac
 }
 
-
-# ----------------------------------------------------------------------------
-# select_launch_function()
-# Interactive selection of launch function for terminal launch
-# Parameters:
-#   $1 - app_id
-# Returns: function_name on success
-# ----------------------------------------------------------------------------
 select_launch_function() {
     local app_id="$1"
     local options=""
@@ -356,6 +329,8 @@ select_launch_function() {
     local function_name="select_launch_function"
     
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" || return 1
     
     options=$(db_get_launch_options "$app_id")
     
@@ -396,20 +371,18 @@ select_launch_function() {
     echo "$selected_function"
 }
 
-# ----------------------------------------------------------------------------
-# configure_positioning()
-# Interactive configuration of window positioning
-# Parameters (passed by reference):
-#   $1 - desktop_ref
-#   $2 - screen_ref
-#   $3 - position_ref
-# Returns: 0 on success, 1 on failure
-# ----------------------------------------------------------------------------
 configure_positioning() {
+    # desktop_ref="$1"
+    # screen_ref="$2"
+    # position_ref="$3"
+    local function_name="configure_positioning"
+
+    validate_name_ref_parameter_pass "$1" "desktop_ref" || return 1
+    validate_name_ref_parameter_pass "$2" "screen_ref" || return 1
+    validate_name_ref_parameter_pass "$3" "position_ref" || return 1
     local -n desktop_ref="$1"
     local -n screen_ref="$2"
     local -n position_ref="$3"
-    local function_name="configure_positioning"
     
     debug_function_enter "$function_name" "$@"
     

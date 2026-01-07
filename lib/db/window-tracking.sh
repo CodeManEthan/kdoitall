@@ -9,6 +9,8 @@ db_get_uuid_by_window_name() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_name" || return 1
+
     # Get UUID for Window Name from 'windows' table
     uuid=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -34,6 +36,8 @@ db_get_window_name_by_uuid() {
     local function_name="get_window_by_uuid"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$uuid" || return 1
 
     # Get Window Name for UUID from 'windows' table
     window_name=$(sqlite3 "$KDOITALL_DB" \
@@ -62,6 +66,9 @@ db_get_tab_by_tab_name() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$tab_name" || return 1
+
     # Get Tab Number for Window Name & Tab Name from 'tabs' table
     tab_number=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -89,6 +96,8 @@ db_check_window_exists_by_window_name() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_name" || return 1
+
     # Get UUID by Window Name
     uuid=$(db_get_uuid_by_window_name "$window_name")
 
@@ -107,13 +116,18 @@ db_check_window_exists_by_window_name() {
 
 
 db_add_window() {
-    local window_name="$1"
-    local workspace_name="$2"
+    local workspace_name="$1"
+    local window_name="$2"
     local uuid="$3"
     local class="$4"
     local function_name="db_add_window"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$class" || return 1
     
     # Add entry to 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
@@ -135,6 +149,8 @@ db_delete_window() {
 
     debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$window_name" || return 1
+
     # Delete entry from 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -146,12 +162,16 @@ db_delete_window() {
 }
 
 db_claim_window() {
-    local new_window_name="$1"
-    local new_workspace_name="$2"
+    local new_workspace_name="$1"
+    local new_window_name="$2"
     local uuid="$3"
     local function_name="db_claim_window"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$new_workspace_name" || return 1
+    validate_parameter_pass "$new_window_name" || return 1
+    validate_parameter_pass "$uuid" || return 1
 
     sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -168,8 +188,8 @@ db_claim_window() {
 }
 
 db_add_existing_windows() {
-    local -n uuids_ref="$1"
-    local -n classes_ref="$2"
+    # uuids_ref="$1"
+    # classes_ref="$2"
     local window_name=""
     local workspace_name="~auto:workspace"
     local function_name="db_add_existing_windows"
@@ -178,6 +198,11 @@ db_add_existing_windows() {
     declare -A class_counts
 
     debug_function_enter "$function_name" "$1" "$2"
+
+    validate_name_ref_parameter_pass "$1" "uuids_ref" || return 1
+    validate_name_ref_parameter_pass "$2" "classes_ref" || return 1
+    local -n uuids_ref="$1"
+    local -n classes_ref="$2"
     
     debug_log "$function_name" "===== ARRAYS FROM KDOTOOL ====="
     debug_array "$1"
@@ -233,16 +258,20 @@ db_add_existing_windows() {
 }
 
 db_delete_stale_windows() {
-    local -n existing_uuids_ref="$1"
-    local -n db_uuids_ref="$2"
+    # existing_uuids_ref="$1"
+    # db_uuids_ref="$2"
     local -A existing_lookup=()
     local uuid_to_delete=""
     local function_name="db_delete_stale_windows"
 
     debug_function_enter "$function_name" "$1" "$2"
-    
     debug_array "$1" 
     debug_array "$2"
+
+    local -n existing_uuids_ref="$1"
+    local -n db_uuids_ref="$2"
+    validate_name_ref_parameter_pass "$1" "uuids_ref" || return 1
+    validate_name_ref_parameter_pass "$2" "classes_ref" || return 1
 
     # Build lookup table for O(1) checking
     for uuid in "${existing_uuids_ref[@]}"; do

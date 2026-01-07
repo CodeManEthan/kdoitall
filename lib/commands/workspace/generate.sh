@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# ============================================================================
-# Workspace Script Generation
-# ============================================================================
-# Generates executable open/close scripts for workspaces
-# Scripts are the primary source of truth for workspace configuration
-
 check_and_set_guard "_KDOITALL_WORKSPACE_GENERATE_LOADED" || return 0
 
 # shellcheck source=../../core/core.sh
@@ -13,25 +7,21 @@ source "${LIB_DIR}/core/core.sh"
 # shellcheck source=../../db/app-registry.sh
 source "${LIB_DIR}/db/app-registry.sh"
 
-# ============================================================================
-# generate_workspace_scripts()
-# Main entry point for script generation
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name: Name of the workspace
-#   $2 - apps_array_ref: Reference to WORKSPACE_APPS array
-# Returns:
-#   0 on success, 1 on failure
-# ============================================================================
 generate_workspace_scripts() {
     local workspace_name="$1"
-    # shellcheck disable=SC2034
-    local -n apps_array_ref="$2"
-    local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-    local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
+    # apps_array_ref="$2"
     local function_name="generate_workspace_scripts"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_name_ref_parameter_pass "$2" "apps_array_ref" || return 1
+    # shellcheck disable=SC2034
+    local -n apps_array_ref="$2"
+
+    validate_parameter_pass "$workspace_name" || return 1
+
+    local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
+    local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
 
     # Ensure workspace scripts directory exists
     if ! mkdir -p "$WORKSPACE_SCRIPTS_DIR"; then
@@ -63,25 +53,20 @@ generate_workspace_scripts() {
     return 0
 }
 
-# ============================================================================
-# generate_open_script()
-# Generates the workspace-open.sh script
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name: Name of the workspace
-#   $2 - script_path: Full path to the output script file
-#   $3 - apps_ref: Reference to WORKSPACE_APPS array
-# Returns:
-#   0 on success, 1 on failure
-# ============================================================================
 generate_open_script() {
     local workspace_name="$1"
     local script_path="$2"
-    local -n apps_ref="$3"
+    # apps_ref="$3"
     local guard_name=""
     local function_name="generate_open_script"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
+    local -n apps_ref="$3"
+
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$script_path" || return 1
 
     # Generate guard name from workspace name
     # Convert to uppercase and replace hyphens with underscores
@@ -173,25 +158,20 @@ EOF
     return 0
 }
 
-# ============================================================================
-# generate_close_script()
-# Generates the workspace-close.sh script
-# ============================================================================
-# Parameters:
-#   $1 - workspace_name: Name of the workspace
-#   $2 - script_path: Full path to the output script file
-#   $3 - apps_ref: Reference to WORKSPACE_APPS array
-# Returns:
-#   0 on success, 1 on failure
-# ============================================================================
 generate_close_script() {
     local workspace_name="$1"
     local script_path="$2"
-    local -n apps_ref="$3"
+    # apps_ref="$3"
     local guard_name=""
     local function_name="generate_close_script"
 
     debug_function_enter "$function_name" "$@"
+
+    validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
+    local -n apps_ref="$3"
+
+    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$script_path" || return 1    
 
     # Generate guard name from workspace name
     # Convert to uppercase and replace hyphens with underscores

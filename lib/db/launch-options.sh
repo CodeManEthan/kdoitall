@@ -11,23 +11,9 @@ db_add_launch_option() {
     
     debug_function_enter "$func_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$func_name"
-        return 1
-    fi
-    
-    if [[ -z "$function_name" ]]; then
-        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "function_name"
-        debug_function_exit "$func_name"
-        return 1
-    fi
-    
-    if [[ -z "$description" ]]; then
-        debug_error "$func_name" "$ERR_MISSING_PARAMETER" "description"
-        debug_function_exit "$func_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$function_name" || return 1
+    validate_parameter_pass "$description" || return 1
     
     # Execute INSERT OR REPLACE
     sqlite3 "$KDOITALL_DB" \
@@ -60,11 +46,7 @@ db_get_launch_options() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -87,11 +69,7 @@ db_delete_launch_options_for_app() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -111,11 +89,7 @@ db_app_has_launch_options() {
     
     debug_function_enter "$function_name" "$@"
     
-    if [[ -z "$app_id" ]]; then
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
+    validate_parameter_pass "$app_id" || return 1
     
     count=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
