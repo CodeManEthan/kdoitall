@@ -15,7 +15,7 @@ workspace_close() {
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        echo "Usage: kdoitall workspace close <workspace-name>"
+        echo "Usage: kdoitall workspace close <workspace-name>" >&3
         debug_function_exit "$function_name"
         return 1
     fi
@@ -30,14 +30,14 @@ workspace_close() {
     # Check if close script file exists
     if [[ ! -f "$close_script" ]]; then
         debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$close_script"
-        echo "Error: Close script not found: $close_script"
-        echo "The workspace exists in database but script file is missing."
-        echo "Try recreating the workspace."
+        echo "Error: Close script not found: $close_script" >&2
+        echo "The workspace exists in database but script file is missing." >&3
+        echo "Try recreating the workspace." >&3
         debug_function_exit "$function_name"
         return 1
     fi
     
-    echo "Closing workspace: $workspace_name"
+    echo "Closing workspace: $workspace_name" >&3
     debug_log "$function_name" "Executing close script: $close_script"
     
     # Source and execute the script
@@ -47,7 +47,7 @@ workspace_close() {
     # Update database metadata to mark workspace as inactive
     db_set_workspace_active "$workspace_name" "FALSE"
     
-    echo "Workspace '$workspace_name' closed successfully"
+    echo "Workspace '$workspace_name' closed successfully" >&3
     debug_log "$function_name" "Workspace closed and database updated"
     debug_function_exit "$function_name"
     return 0

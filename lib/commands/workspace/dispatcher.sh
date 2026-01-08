@@ -8,7 +8,7 @@ workspace_command() {
     
     # Validate subcommand provided
     if [[ -z "$subcommand" ]]; then
-        echo "Error: Workspace subcommand required"
+        echo "Error: Workspace subcommand required" >&2
         workspace_show_help
         return 1
     fi
@@ -41,7 +41,7 @@ workspace_command() {
             workspace_delete "$@"
             ;;
         *)
-            echo "Error: Unknown workspace subcommand: $subcommand"
+            echo "Error: Unknown workspace subcommand: $subcommand" >&2
             workspace_show_help
             return 1
             ;;
@@ -49,7 +49,7 @@ workspace_command() {
 }
 
 workspace_show_help() {
-    cat << 'EOF'
+    cat << 'EOF' >&3
 Usage: kdoitall workspace <subcommand> [options]
 
 Workspace Subcommands:

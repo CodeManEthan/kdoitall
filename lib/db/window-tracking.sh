@@ -205,8 +205,6 @@ db_add_existing_windows() {
     local -n classes_ref="$2"
     
     debug_log "$function_name" "===== ARRAYS FROM KDOTOOL ====="
-    debug_array "$1"
-    debug_array "$2"
 
     for i in "${!uuids_ref[@]}"; do
         local class="${classes_ref[$i]}"
@@ -222,7 +220,7 @@ db_add_existing_windows() {
         # Create unique window name with counter
         window_name="~auto:${class}:${class_counts[$class]}"
 
-        debug_log "$function_name" "Attempting INSERT: window_name='$window_name', uuid='$uuid', class='$class'"
+        # debug_log "$function_name" "Attempting INSERT: window_name='$window_name', uuid='$uuid', class='$class'"
 
         # Check if UUID already exists first
         local existing_check=""
@@ -232,7 +230,7 @@ db_add_existing_windows() {
             "SELECT window_name FROM app_windows WHERE uuid = :uuid;" 2>/dev/null)
         
         if [[ -n "$existing_check" ]]; then
-            debug_log "$function_name" "UUID ALREADY IN DB: uuid='$uuid' exists as window_name='$existing_check'"
+            # debug_log "$function_name" "UUID ALREADY IN DB: uuid='$uuid' exists as window_name='$existing_check'"
             continue
         fi
 
@@ -265,8 +263,6 @@ db_delete_stale_windows() {
     local function_name="db_delete_stale_windows"
 
     debug_function_enter "$function_name" "$1" "$2"
-    debug_array "$1" 
-    debug_array "$2"
 
     local -n existing_uuids_ref="$1"
     local -n db_uuids_ref="$2"

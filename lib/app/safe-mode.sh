@@ -63,44 +63,41 @@ prompt_safe_mode() {
     debug_function_enter "$function_name" "App count: $app_count"
     
     # Display header
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "⚠️  SAFE MODE RECOMMENDED"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "The following applications have not been validated yet:"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "⚠️  SAFE MODE RECOMMENDED" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "The following applications have not been validated yet:" >&3
+    echo "" >&3
     
     # List applications with display names and commands
     for app_id in "${apps[@]}"; do
         local display_name
         display_name=$(db_get_app_display_name "$app_id")
-        echo "  • $app_id ($display_name)"
-        echo "    Command: kdoitall app safe-mode $app_id"
+        echo "  • $app_id ($display_name)" >&3
+        echo "    Command: kdoitall app safe-mode $app_id" >&3
     done
     
-    echo ""
-    echo "Safe mode guides you through a controlled launch to ensure"
-    echo "reliable window detection. This only needs to be done ONCE"
-    echo "per application."
-    echo ""
-    echo "You can run safe mode for each app using the commands above,"
-    echo "or choose one of these options:"
-    echo ""
-    echo "Options:"
-    echo "  [E] End workspace open (recommended - run safe mode first)"
-    echo "  [O] Open workspace anyway (will ask again next time)"
-    echo "  [S] Skip these apps (don't ask again for these specific apps)"
-    echo "  [N] Never ask for safe mode again (disable for all apps)"
-    echo ""
+    echo "" >&3
+    echo "Safe mode guides you through a controlled launch to ensure" >&3
+    echo "reliable window detection. This only needs to be done ONCE" >&3
+    echo "per application." >&3
+    echo "" >&3
+    echo "You can run safe mode for each app using the commands above," >&3
+    echo "or choose one of these options:" >&3
+    echo "" >&3
+    echo "Options:" >&3
+    echo "  [E] End workspace open (recommended - run safe mode first)" >&3
+    echo "  [O] Open workspace anyway (will ask again next time)" >&3
+    echo "  [S] Skip these apps (don't ask again for these specific apps)" >&3
+    echo "  [N] Never ask for safe mode again (disable for all apps)" >&3
+    echo "" >&3
     
     # Get user choice
     local choice
     read -r -p "Choice: " choice
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
-    
-    debug_function_exit "$function_name" "User chose: $choice"
-    echo "$choice"
 }
 
 prepare_safe_mode_environment() {
@@ -108,30 +105,30 @@ prepare_safe_mode_environment() {
     
     debug_function_enter "$function_name"
     
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📋 SAFE MODE PREPARATION"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "For best results (but not required):"
-    echo ""
-    echo "1. Close other applications, especially any that match"
-    echo "   the app being launched"
-    echo ""
-    echo "2. Use a standalone terminal application, NOT a terminal"
-    echo "   embedded in another app (like VS Code's integrated terminal)"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "📋 SAFE MODE PREPARATION" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "For best results (but not required):" >&3
+    echo "" >&3
+    echo "1. Close other applications, especially any that match" >&3
+    echo "   the app being launched" >&3
+    echo "" >&3
+    echo "2. Use a standalone terminal application, NOT a terminal" >&3
+    echo "   embedded in another app (like VS Code's integrated terminal)" >&3
+    echo "" >&3
     
     # Show current windows using auto_detect_windows and display function
-    echo "Current windows on your system:"
-    echo ""
+    echo "Current windows on your system:" >&3
+    echo "" >&3
     auto_detect_windows
     display_tracked_windows
     
-    echo ""
-    echo "TIP: You can note which window is your current terminal"
-    echo "     to help with verification later."
-    echo ""
+    echo "" >&3
+    echo "TIP: You can note which window is your current terminal" >&3
+    echo "     to help with verification later." >&3
+    echo "" >&3
     
     read -r -p "Press [Enter] when ready, or [C] to cancel: " ready
     ready=$(echo "$ready" | tr '[:upper:]' '[:lower:]')
@@ -164,16 +161,16 @@ safe_mode_verify_window() {
     display_name=$(db_get_app_display_name "$app_id")
     
     # Display detection results
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ WINDOW DETECTED"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Application: $display_name ($app_id)"
-    echo "Window UUID: $uuid"
-    echo "Window Class: $class"
-    echo "Window Title: $title"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "✅ WINDOW DETECTED" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Application: $display_name ($app_id)" >&3
+    echo "Window UUID: $uuid" >&3
+    echo "Window Class: $class" >&3
+    echo "Window Title: $title" >&3
+    echo "" >&3
     
     # Ask for confirmation
     local confirmed
@@ -181,14 +178,14 @@ safe_mode_verify_window() {
     confirmed=$(echo "$confirmed" | tr '[:upper:]' '[:lower:]')
     
     if [[ "$confirmed" == "n" ]]; then
-        echo ""
-        echo "❌ Window rejected by user"
+        echo "" >&3
+        echo "❌ Window rejected by user" >&3
         debug_function_exit "$function_name" "Rejected"
         return 1
     fi
     
-    echo ""
-    echo "✓ Window confirmed"
+    echo "" >&3
+    echo "✓ Window confirmed" >&3
     
     debug_function_exit "$function_name" "Confirmed"
     return 0
@@ -213,9 +210,9 @@ safe_mode_store_metadata() {
     
     debug_log "$function_name" "Stored: class=$class"
     
-    echo ""
-    echo "✓ Metadata stored successfully:"
-    echo "  • Class: $class"
+    echo "" >&3
+    echo "✓ Metadata stored successfully:" >&3
+    echo "  • Class: $class" >&3
     
     debug_function_exit "$function_name"
     return 0
@@ -236,29 +233,29 @@ safe_mode_test_multi_instance() {
     display_name=$(db_get_app_display_name "$app_id")
     
     # Prompt user
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔬 MULTI-INSTANCE TEST"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Testing if $display_name allows multiple windows..."
-    echo ""
-    echo "This test will:"
-    echo "  1. Launch a second instance of the application"
-    echo "  2. Check if a new window appears"
-    echo "  3. Store the result for future launches"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "🔬 MULTI-INSTANCE TEST" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Testing if $display_name allows multiple windows..." >&3
+    echo "" >&3
+    echo "This test will:" >&3
+    echo "  1. Launch a second instance of the application" >&3
+    echo "  2. Check if a new window appears" >&3
+    echo "  3. Store the result for future launches" >&3
+    echo "" >&3
     
     # Refresh database before launch
-    echo "Scanning existing windows..."
+    echo "Scanning existing windows..." >&3
     auto_detect_windows
     
     # Launch second instance
-    echo "Launching second instance of $display_name..."
+    echo "Launching second instance of $display_name..." >&3
     gtk-launch "$app_id" &
     
     # Wait and detect new window using retry function
-    echo "Waiting for new window to appear..."
+    echo "Waiting for new window to appear..." >&3
     local new_uuid=""
     new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
     
@@ -270,35 +267,35 @@ safe_mode_test_multi_instance() {
     fi
     
     # Display result to user
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📊 TEST RESULTS"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "📊 TEST RESULTS" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
     
     if [[ "$detected_mode" == "multi" ]]; then
-        echo "✓ New window detected: $new_uuid"
-        echo ""
-        echo "DETERMINATION: Application supports MULTIPLE instances"
-        echo "  → Multiple windows of $display_name can run simultaneously"
+        echo "✓ New window detected: $new_uuid" >&3
+        echo "" >&3
+        echo "DETERMINATION: Application supports MULTIPLE instances" >&3
+        echo "  → Multiple windows of $display_name can run simultaneously" >&3
     else
-        echo "✗ No new window detected"
-        echo ""
-        echo "DETERMINATION: Application supports SINGLE instance only"
-        echo "  → Only one window of $display_name can run at a time"
-        echo "  → Launching again will focus the existing window"
+        echo "✗ No new window detected" >&3
+        echo "" >&3
+        echo "DETERMINATION: Application supports SINGLE instance only" >&3
+        echo "  → Only one window of $display_name can run at a time" >&3
+        echo "  → Launching again will focus the existing window" >&3
     fi
     
-    echo ""
+    echo "" >&3
     
     # PID Verification for Multi-Instance Apps
     if [[ "$detected_mode" == "multi" ]]; then
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "🔬 PID VERIFICATION"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        echo "Checking if PIDs can be used to distinguish between windows..."
-        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "🔬 PID VERIFICATION" >&3
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "" >&3
+        echo "Checking if PIDs can be used to distinguish between windows..." >&3
+        echo "" >&3
         
         # Get PID from first window (existing_uuid)
         local first_pid=""
@@ -310,39 +307,39 @@ safe_mode_test_multi_instance() {
         
         # Check if both PIDs are available
         if [[ -z "$first_pid" || -z "$second_pid" ]]; then
-            echo "⚠️  Could not retrieve PIDs for one or both windows"
-            echo "   First window PID:  ${first_pid:-<not available>}"
-            echo "   Second window PID: ${second_pid:-<not available>}"
-            echo ""
-            echo "→ PID validation will be marked as UNSUPPORTED for this app"
-            echo ""
+            echo "⚠️  Could not retrieve PIDs for one or both windows" >&3
+            echo "   First window PID:  ${first_pid:-<not available>}" >&3
+            echo "   Second window PID: ${second_pid:-<not available>}" >&3
+            echo "" >&3
+            echo "→ PID validation will be marked as UNSUPPORTED for this app" >&3
+            echo "" >&3
             
             # Mark PID validation as unsupported
             db_set_pid_validation_data "$app_id" "false" "" ""
         elif [[ "$first_pid" == "$second_pid" ]]; then
             # Same PID for both windows - cannot use PID for validation
-            echo "⚠️  Both windows share the SAME PID: $first_pid"
-            echo ""
-            echo "This is common for applications like:"
-            echo "  • VS Code (Electron-based apps)"
-            echo "  • Chrome/Chromium-based browsers"
-            echo "  • Some multi-window IDEs"
-            echo ""
-            echo "→ PID validation will be marked as UNSUPPORTED for this app"
-            echo "→ Window detection will rely on class and title patterns instead"
-            echo ""
+            echo "⚠️  Both windows share the SAME PID: $first_pid" >&3
+            echo "" >&3
+            echo "This is common for applications like:" >&3
+            echo "  • VS Code (Electron-based apps)" >&3
+            echo "  • Chrome/Chromium-based browsers" >&3
+            echo "  • Some multi-window IDEs" >&3
+            echo "" >&3
+            echo "→ PID validation will be marked as UNSUPPORTED for this app" >&3
+            echo "→ Window detection will rely on class and title patterns instead" >&3
+            echo "" >&3
             
             # Mark PID validation as unsupported
             db_set_pid_validation_data "$app_id" "false" "" ""
         else
             # Different PIDs - can use PID for validation
-            echo "✓ Different PIDs detected:"
-            echo "   First window PID:  $first_pid"
-            echo "   Second window PID: $second_pid"
-            echo ""
-            echo "→ PID validation CAN be used for this application"
-            echo "→ The standard PID validation test will run later"
-            echo ""
+            echo "✓ Different PIDs detected:" >&3
+            echo "   First window PID:  $first_pid" >&3
+            echo "   Second window PID: $second_pid" >&3
+            echo "" >&3
+            echo "→ PID validation CAN be used for this application" >&3
+            echo "→ The standard PID validation test will run later" >&3
+            echo "" >&3
         fi
     fi
     
@@ -354,13 +351,13 @@ safe_mode_test_multi_instance() {
     confirmed=$(echo "$confirmed" | tr '[:upper:]' '[:lower:]')
     
     if [[ "$confirmed" == "n" ]]; then
-        echo ""
-        echo "User rejected the determination."
-        echo "Please manually set the launch mode later if needed."
+        echo "" >&3
+        echo "User rejected the determination." >&3
+        echo "Please manually set the launch mode later if needed." >&3
         
         # Clean up second window if it exists
         if [[ -n "$new_uuid" ]]; then
-            echo "Closing second window..."
+            echo "Closing second window..." >&3
             close_window_by_uuid "$new_uuid"
         fi
         
@@ -369,17 +366,17 @@ safe_mode_test_multi_instance() {
     fi
     
     # Store result in database
-    echo ""
-    echo "Storing launch mode: $detected_mode"
+    echo "" >&3
+    echo "Storing launch mode: $detected_mode" >&3
     db_set_launch_mode "$app_id" "$detected_mode"
     
     # Close second window if multi-instance was detected
     if [[ "$detected_mode" == "multi" && -n "$new_uuid" ]]; then
-        echo "Closing second window..."
+        echo "Closing second window..." >&3
         close_window_by_uuid "$new_uuid"
     fi
     
-    echo "✓ Multi-instance test complete"
+    echo "✓ Multi-instance test complete" >&3
     
     debug_function_exit "$function_name"
     return 0
@@ -406,29 +403,29 @@ safe_mode_measure_launch_time() {
     local display_name
     display_name=$(db_get_app_display_name "$app_id")
     
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "⏱️  LAUNCH TIME MEASUREMENT"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Application: $display_name ($app_id)"
-    echo "Measuring launch time with generous timeout (30 seconds)..."
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "⏱️  LAUNCH TIME MEASUREMENT" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Application: $display_name ($app_id)" >&3
+    echo "Measuring launch time with generous timeout (30 seconds)..." >&3
+    echo "" >&3
     
     # Refresh database before launch
-    echo "Scanning existing windows..."
+    echo "Scanning existing windows..." >&3
     auto_detect_windows
 
     # Record start time (milliseconds since epoch)
     start_time=$(date +%s%3N)
     
     # Launch application
-    echo "Launching $display_name..."
+    echo "Launching $display_name..." >&3
     gtk-launch "$app_id" &
     
     # Wait for window with extended timeout using retry function
-    echo "Waiting for window to appear (timeout: 30 seconds)..."
-    echo ""
+    echo "Waiting for window to appear (timeout: 30 seconds)..." >&3
+    echo "" >&3
     
     # Use get_uuid_by_process_of_elimination_with_retry with 30 second timeout
     local uuid
@@ -436,14 +433,14 @@ safe_mode_measure_launch_time() {
     
     if [[ -z "$uuid" ]]; then
         debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Launch time measurement failed - no window detected"
-        echo ""
-        echo "❌ Could not measure launch time - window not detected within 30 seconds"
-        echo ""
-        echo "This usually means:"
-        echo "  • Application failed to launch"
-        echo "  • Application takes longer than 30 seconds to start"
-        echo "  • Application is already running (single-instance)"
-        echo ""
+        echo "" >&3
+        echo "❌ Could not measure launch time - window not detected within 30 seconds" >&2
+        echo "" >&2
+        echo "This usually means:" >&2
+        echo "  • Application failed to launch" >&2
+        echo "  • Application takes longer than 30 seconds to start" >&2
+        echo "  • Application is already running (single-instance)" >&2
+        echo "" >&2
         debug_function_exit "$function_name"
         return 1
     fi
@@ -454,9 +451,9 @@ safe_mode_measure_launch_time() {
     # Calculate elapsed time in milliseconds
     elapsed_ms=$((end_time - start_time))
     
-    echo ""
-    echo "✓ Window detected after ${elapsed_ms}ms"
-    echo ""
+    echo "" >&3
+    echo "✓ Window detected after ${elapsed_ms}ms" >&3
+    echo "" >&3
     
     # Store measurement in database
     db_set_launch_time "$app_id" "$elapsed_ms"
@@ -467,12 +464,12 @@ safe_mode_measure_launch_time() {
     expected_time=$(db_get_expected_launch_time "$app_id")
     sample_count=$(db_get_launch_time_samples "$app_id")
     
-    echo "Launch Time Statistics:"
-    echo "  Measured time: ${elapsed_ms}ms"
-    echo "  Expected time: ${expected_time}ms (based on $sample_count sample(s))"
-    echo ""
-    echo "Future launches will wait up to ${expected_time}ms for this application."
-    echo ""
+    echo "Launch Time Statistics:" >&3
+    echo "  Measured time: ${elapsed_ms}ms" >&3
+    echo "  Expected time: ${expected_time}ms (based on $sample_count sample(s))" >&3
+    echo "" >&3
+    echo "Future launches will wait up to ${expected_time}ms for this application." >&3
+    echo "" >&3
     
     debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms, expected: ${expected_time}ms"
     debug_function_exit "$function_name"
@@ -482,11 +479,16 @@ safe_mode_measure_launch_time() {
 
 safe_mode_launch_and_detect() {
     local app_id="$1"
+    local is_recursive="${2:-false}"
     local function_name="safe_mode_launch_and_detect"
     
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$app_id" || return 1
+
+    if [[ "$is_recursive" != "true" ]]; then
+        exec 3>&1
+    fi
     
     # Get display name
     local display_name
@@ -499,11 +501,11 @@ safe_mode_launch_and_detect() {
     # Check if measurement succeeded
     if [[ -z "$new_uuid" ]]; then
         # Launch time measurement failed - offer recovery options
-        echo ""
-        echo "Options:"
-        echo "  [R] Retry launch"
-        echo "  [S] Skip this application"
-        echo ""
+        echo "" >&3
+        echo "Options:" >&3
+        echo "  [R] Retry launch" >&3
+        echo "  [S] Skip this application" >&3
+        echo "" >&3
         read -r -p "Choice: " recovery
         recovery=$(echo "$recovery" | tr '[:upper:]' '[:lower:]')
         
@@ -511,16 +513,19 @@ safe_mode_launch_and_detect() {
             r)
                 debug_log "$function_name" "Retrying..."
                 safe_mode_launch_and_detect "$app_id"
+                exec 3>&-
                 return $?
                 ;;
             s)
                 debug_log "$function_name" "Skipping - marking as completed"
                 db_set_safe_mode_completed "$app_id"
                 debug_function_exit "$function_name" "Skipped"
+                exec 3>&-
                 return 0
                 ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
+                exec 3>&-
                 return 1
                 ;;
         esac
@@ -530,11 +535,11 @@ safe_mode_launch_and_detect() {
     
     # Verify detection with user
     if ! safe_mode_verify_window "$app_id" "$new_uuid"; then
-        echo ""
-        echo "Options:"
-        echo "  [R] Retry launch"
-        echo "  [S] Skip this application"
-        echo ""
+        echo "" >&3
+        echo "Options:" >&3
+        echo "  [R] Retry launch" >&3
+        echo "  [S] Skip this application" >&3
+        echo "" >&3
         read -r -p "Choice: " recovery
         recovery=$(echo "$recovery" | tr '[:upper:]' '[:lower:]')
         
@@ -544,16 +549,19 @@ safe_mode_launch_and_detect() {
                 close_window_by_uuid "$new_uuid"
                 debug_log "$function_name" "Retrying..."
                 safe_mode_launch_and_detect "$app_id"
+                exec 3>&-
                 return $?
                 ;;
             s)
                 debug_log "$function_name" "Skipping - marking as completed"
                 db_set_safe_mode_completed "$app_id"
                 debug_function_exit "$function_name" "Skipped"
+                exec 3>&-
                 return 0
                 ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
+                exec 3>&-
                 return 1
                 ;;
         esac
@@ -563,11 +571,11 @@ safe_mode_launch_and_detect() {
     safe_mode_store_metadata "$app_id" "$new_uuid"
     
     # Run comprehensive validation to gather additional metadata
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📊 GATHERING METADATA"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "📊 GATHERING METADATA" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
     
     # Test PID-based validation
     safe_mode_test_pid_validation "$app_id" "$new_uuid"
@@ -580,18 +588,19 @@ safe_mode_launch_and_detect() {
     # Test multi-instance support
     safe_mode_test_multi_instance "$app_id" "$new_uuid"
     
-    echo ""
-    echo "✓ Metadata collection complete"
+    echo "" >&3
+    echo "✓ Metadata collection complete" >&3
     
     # Mark safe mode as complete
     db_set_safe_mode_completed "$app_id"
     
-    echo ""
-    echo "✅ Safe mode validation complete for $display_name"
-    echo ""
+    echo "" >&3
+    echo "✅ Safe mode validation complete for $display_name" >&3
+    echo "" >&3
     
     debug_function_exit "$function_name" "Success"
     echo "$new_uuid"
+    exec 3>&-
     return 0
 }
 
@@ -605,28 +614,28 @@ safe_mode_test_pid_validation() {
     validate_parameter_pass "$app_id" || return 1
     validate_parameter_pass "$uuid" || return 1
     
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🔬 PID VALIDATION TEST"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Testing if PID-based validation is available for this application..."
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "🔬 PID VALIDATION TEST" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Testing if PID-based validation is available for this application..." >&3
+    echo "" >&3
     
     # Get PID from window
     local pid
     pid=$(get_window_pid_by_uuid "$uuid")
     
     if [[ -z "$pid" ]]; then
-        echo "✗ PID not available for this application"
-        echo ""
-        echo "This means the window manager doesn't provide PID information"
-        echo "for this application. PID-based validation will not be used."
+        echo "✗ PID not available for this application" >&3
+        echo "" >&3
+        echo "This means the window manager doesn't provide PID information" >&3
+        echo "for this application. PID-based validation will not be used." >&3
         
         # Store that PID validation is not supported
         db_set_pid_validation_data "$app_id" "false" "" ""
         
-        echo ""
+        echo "" >&3
         read -r -p "Press [Enter] to continue..."
         
         debug_log "$function_name" "PID validation not supported for $app_id"
@@ -642,15 +651,15 @@ safe_mode_test_pid_validation() {
     executable_path=$(get_executable_path_by_pid "$pid")
     
     # Display findings
-    echo "✓ PID available: $pid"
-    echo ""
-    echo "Process Information:"
-    echo "  Process Name: $process_name"
-    echo "  Executable:   $executable_path"
-    echo ""
-    echo "This information can be used in the future to verify that"
-    echo "detected windows belong to the correct application."
-    echo ""
+    echo "✓ PID available: $pid" >&3
+    echo "" >&3
+    echo "Process Information:" >&3
+    echo "  Process Name: $process_name" >&3
+    echo "  Executable:   $executable_path" >&3
+    echo "" >&3
+    echo "This information can be used in the future to verify that" >&3
+    echo "detected windows belong to the correct application." >&3
+    echo "" >&3
     
     # Ask user to verify the information
     local verified
@@ -658,10 +667,10 @@ safe_mode_test_pid_validation() {
     verified=$(echo "$verified" | tr '[:upper:]' '[:lower:]')
     
     if [[ "$verified" == "n" ]]; then
-        echo ""
-        echo "❌ PID validation data rejected by user"
-        echo ""
-        echo "PID validation will be marked as unsupported for this application."
+        echo "" >&3
+        echo "❌ PID validation data rejected by user" >&3
+        echo "" >&3
+        echo "PID validation will be marked as unsupported for this application." >&3
         
         # Store that PID validation is not supported
         db_set_pid_validation_data "$app_id" "false" "" ""
@@ -674,9 +683,9 @@ safe_mode_test_pid_validation() {
     # Store validation data
     db_set_pid_validation_data "$app_id" "true" "$process_name" "$executable_path"
     
-    echo ""
-    echo "✓ PID validation data stored successfully"
-    echo ""
+    echo "" >&3
+    echo "✓ PID validation data stored successfully" >&3
+    echo "" >&3
     
     debug_log "$function_name" "PID validation enabled for $app_id: process='$process_name', path='$executable_path'"
     debug_function_exit "$function_name"
@@ -699,41 +708,41 @@ safe_mode_analyze_title_pattern() {
     local display_name
     display_name=$(db_get_app_display_name "$app_id")
     
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📝 WINDOW TITLE PATTERN"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "Current window title: \"$current_title\""
-    echo ""
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "📝 WINDOW TITLE PATTERN" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Current window title: \"$current_title\"" >&3
+    echo "" >&3
     
     # Parse title to get suggestions
     local -a suggestions=()
     mapfile -t suggestions < <(parse_window_title_segments "$current_title")
     
     if [[ ${#suggestions[@]} -eq 0 ]]; then
-        echo "No separators found in the window title."
-        echo "The title doesn't contain ' - ' or ' — ' separators."
-        echo ""
-        echo "You can still enter a custom pattern if you want."
-        echo ""
+        echo "No separators found in the window title." >&3
+        echo "The title doesn't contain ' - ' or ' — ' separators." >&3
+        echo "" >&3
+        echo "You can still enter a custom pattern if you want." >&3
+        echo "" >&3
         read -r -p "Enter a unique pattern (or press Enter to skip): " pattern
         
         if [[ -z "$pattern" ]]; then
-            echo "Skipping title pattern."
+            echo "Skipping title pattern." >&3
             debug_function_exit "$function_name" "Skipped - no pattern entered"
             return 0
         fi
         
         # Validate custom pattern exists in title
         if [[ ! "$current_title" =~ $pattern ]]; then
-            echo ""
-            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!"
+            echo "" >&3
+            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!" >&3
             read -r -p "Save anyway? [y/N]: " save_anyway
             save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
             
             if [[ "$save_anyway" != "y" ]]; then
-                echo "Pattern not saved."
+                echo "Pattern not saved." >&3
                 debug_function_exit "$function_name" "Rejected - pattern not in title"
                 return 0
             fi
@@ -741,9 +750,9 @@ safe_mode_analyze_title_pattern() {
         
         # Save the pattern
         db_set_title_pattern "$app_id" "$pattern"
-        echo ""
-        echo "✓ Title pattern saved: \"$pattern\""
-        echo "  This pattern will match any window title containing: $pattern"
+        echo "" >&3
+        echo "✓ Title pattern saved: \"$pattern\"" >&3
+        echo "  This pattern will match any window title containing: $pattern" >&3
         
         debug_log "$function_name" "Custom pattern saved: $pattern"
         debug_function_exit "$function_name"
@@ -751,22 +760,22 @@ safe_mode_analyze_title_pattern() {
     fi
     
     # We have suggestions - display them
-    echo "Based on the window title structure, here are suggested patterns:"
-    echo ""
-    echo "Suggestions (starting with rightmost):"
+    echo "Based on the window title structure, here are suggested patterns:" >&3
+    echo "" >&3
+    echo "Suggestions (starting with rightmost):" >&3
     
     local i=1
     for suggestion in "${suggestions[@]}"; do
-        echo "  [$i] \"$suggestion\""
+        echo "  [$i] \"$suggestion\"" >&3
         ((i++))
     done
     
-    echo "  [$i] Custom pattern (enter your own)"
+    echo "  [$i] Custom pattern (enter your own)" >&3
     local custom_option=$i
-    echo ""
-    echo "These patterns help kdoitall identify this application's windows"
-    echo "by matching unique parts of the window title."
-    echo ""
+    echo "" >&3
+    echo "These patterns help kdoitall identify this application's windows" >&3
+    echo "by matching unique parts of the window title." >&3
+    echo "" >&3
     
     # Get user choice
     local choice
@@ -774,38 +783,38 @@ safe_mode_analyze_title_pattern() {
     
     # If user pressed Enter, skip
     if [[ -z "$choice" ]]; then
-        echo "Skipping title pattern."
+        echo "Skipping title pattern." >&3
         debug_function_exit "$function_name" "Skipped by user"
         return 0
     fi
     
     # Validate choice is a number
     if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-        echo "Invalid choice. Skipping title pattern."
+        echo "Invalid choice. Skipping title pattern." >&3
         debug_function_exit "$function_name" "Invalid input"
         return 0
     fi
     
     # Check if custom option was selected
     if [[ "$choice" -eq "$custom_option" ]]; then
-        echo ""
+        echo "" >&3
         read -r -p "Enter custom pattern: " pattern
         
         if [[ -z "$pattern" ]]; then
-            echo "No pattern entered. Skipping."
+            echo "No pattern entered. Skipping." >&3
             debug_function_exit "$function_name" "No custom pattern entered"
             return 0
         fi
         
         # Validate custom pattern exists in title
         if [[ ! "$current_title" =~ $pattern ]]; then
-            echo ""
-            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!"
+            echo "" >&3
+            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!" >&3
             read -r -p "Save anyway? [y/N]: " save_anyway
             save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
             
             if [[ "$save_anyway" != "y" ]]; then
-                echo "Pattern not saved."
+                echo "Pattern not saved." >&3
                 debug_function_exit "$function_name" "Custom pattern rejected"
                 return 0
             fi
@@ -816,7 +825,7 @@ safe_mode_analyze_title_pattern() {
         
         # Validate index is in range
         if [[ "$suggestion_index" -lt 0 || "$suggestion_index" -ge "${#suggestions[@]}" ]]; then
-            echo "Invalid choice. Skipping title pattern."
+            echo "Invalid choice. Skipping title pattern." >&3
             debug_function_exit "$function_name" "Choice out of range"
             return 0
         fi
@@ -827,9 +836,9 @@ safe_mode_analyze_title_pattern() {
     # Save the pattern
     db_set_title_pattern "$app_id" "$pattern"
     
-    echo ""
-    echo "✓ Title pattern saved: \"$pattern\""
-    echo "  This pattern will match any window title containing: $pattern"
+    echo "" >&3
+    echo "✓ Title pattern saved: \"$pattern\"" >&3
+    echo "  This pattern will match any window title containing: $pattern" >&3
     
     debug_log "$function_name" "Title pattern saved: $pattern"
     debug_function_exit "$function_name"

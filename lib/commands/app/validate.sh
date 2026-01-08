@@ -10,19 +10,19 @@ app_validate() {
     
     debug_function_enter "$function_name" "$@"
     
-    echo "Validating application definition files..."
-    echo ""
+    echo "Validating application definition files..." >&3
+    echo "" >&3
     
     # Call the registry validation function
     if registry_validate_all_app_files; then
-        echo ""
-        echo "✓ All application files are valid"
+        echo "" >&3
+        echo "✓ All application files are valid" >&3
         debug_log "$function_name" "Validation completed successfully"
         debug_function_exit "$function_name"
         return 0
     else
-        echo ""
-        echo "✗ Some application files have validation errors"
+        echo "" >&3
+        echo "✗ Some application files have validation errors" >&2
         debug_error "$function_name" "$ERR_UNKNOWN" "registry_validate_all_app_files failed"
         debug_function_exit "$function_name"
         return 1

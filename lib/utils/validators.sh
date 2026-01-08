@@ -109,7 +109,7 @@ validate_name_ref_parameter_pass() {
 }
 
 validate_file_exists() {
-    local path="$2"
+    local path="$1"
 
     if [[ ! -f "$path" ]]; then
         local function_name="validate_file_exists"

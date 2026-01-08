@@ -16,6 +16,14 @@ LIB_DIR="${SCRIPT_DIR}/../lib"
 export KDOITALL_ROOT="${SCRIPT_DIR}/.."
 
 # ============================================================================
+# Set up file descriptor 3 for display output
+# ============================================================================
+# fd 3 is used throughout kdoitall for user-facing display output
+# This allows functions to return values via stdout while still showing
+# prompts and messages to the user
+exec 3>&1
+
+# ============================================================================
 # LAYER 1 - Foundation (no dependencies)
 # ============================================================================
 # shellcheck source=../lib/core/error-codes.sh

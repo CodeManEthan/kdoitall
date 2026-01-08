@@ -28,19 +28,19 @@ workspace_create() {
     db_workspace_exists "$workspace_name" || return 1
 
     # 1. Prompt for description
-    echo ""
-    echo "Creating workspace: $workspace_name"
-    echo "Enter workspace description (optional, press Enter to skip):"
+    echo "" >&3
+    echo "Creating workspace: $workspace_name" >&3
+    echo "Enter workspace description (optional, press Enter to skip):" >&3
     read -r description
-    echo ""
+    echo "" >&3
     
     # 2. Application addition loop
     while true; do
-        echo "=== Add Application to Workspace ==="
-        echo ""
+        echo "=== Add Application to Workspace ===" >&3
+        echo "" >&3
         
         if ! add_application_to_workspace "$workspace_name" "$display_order" WORKSPACE_APPS; then
-            echo "Error adding application. Try again? (y/n)"
+            echo "Error adding application. Try again? (y/n)" >&3
             read -r retry
             if [[ "$retry" == "y" ]]; then
                 continue
@@ -51,8 +51,8 @@ workspace_create() {
         
         ((display_order++))
         
-        echo ""
-        echo "Add another application? (y/n)"
+        echo "" >&3
+        echo "Add another application? (y/n)" >&3
         read -r continue_adding
         [[ "$continue_adding" != "y" ]] && break
     done
@@ -65,33 +65,33 @@ workspace_create() {
     fi
     
     # Final confirmation before committing to database
-    echo ""
-    echo "=== Workspace Configuration Summary ==="
-    echo "Workspace: $workspace_name"
-    echo "Description: ${description:-<none>}"
-    echo "Applications configured: ${#WORKSPACE_APPS[@]}"
-    echo ""
-    echo "Proceed with workspace creation? (y/n)"
+    echo "" >&3
+    echo "=== Workspace Configuration Summary ===" >&3
+    echo "Workspace: $workspace_name" >&3
+    echo "Description: ${description:-<none>}" >&3
+    echo "Applications configured: ${#WORKSPACE_APPS[@]}" >&3
+    echo "" >&3
+    echo "Proceed with workspace creation? (y/n)" >&3
     read -r confirm_create
     
     if [[ "$confirm_create" != "y" ]]; then
-        echo "Workspace creation cancelled"
+        echo "Workspace creation cancelled" >&3
         debug_function_exit "$function_name"
         return 0
     fi
     
     # Create workspace in database
-    echo ""
-    echo "Creating workspace in database..."
+    echo "" >&3
+    echo "Creating workspace in database..." >&3
     if ! db_create_workspace "$workspace_name" "$description"; then
         debug_function_exit "$function_name"
         return 1
     fi
-    echo "✓ Workspace created in database"
+    echo "✓ Workspace created in database" >&3
     
     # Generate scripts (passing the configuration array)
-    echo ""
-    echo "Generating workspace scripts..."
+    echo "" >&3
+    echo "Generating workspace scripts..." >&3
     
     if ! generate_workspace_scripts "$workspace_name" WORKSPACE_APPS; then
         debug_error "$function_name" "$ERR_SCRIPT_GENERATION_FAILED"
@@ -99,19 +99,19 @@ workspace_create() {
         return 1
     fi
     
-    echo "✓ Scripts generated successfully"
-    echo ""
-    echo "================================================================"
-    echo "Workspace '$workspace_name' created successfully!"
-    echo "================================================================"
-    echo ""
-    echo "Open with:  kdoitall workspace open $workspace_name"
-    echo "Close with: kdoitall workspace close $workspace_name"
-    echo ""
-    echo "Script files:"
-    echo "  Open:  ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-    echo "  Close: ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
-    echo ""
+    echo "✓ Scripts generated successfully" >&3
+    echo "" >&3
+    echo "================================================================" >&3
+    echo "Workspace '$workspace_name' created successfully!" >&3
+    echo "================================================================" >&3
+    echo "" >&3
+    echo "Open with:  kdoitall workspace open $workspace_name" >&3
+    echo "Close with: kdoitall workspace close $workspace_name" >&3
+    echo "" >&3
+    echo "Script files:" >&3
+    echo "  Open:  ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh" >&3
+    echo "  Close: ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh" >&3
+    echo "" >&3
     
     debug_function_exit "$function_name"
     return 0
@@ -140,27 +140,27 @@ add_application_to_workspace() {
     validate_parameter_pass "$display_order" || return 1
     
     # Step 1: Select application
-    echo "Step 1: Select Application"
-    echo "--------------------------"
+    echo "Step 1: Select Application" >&3
+    echo "--------------------------" >&3
     if ! app_id=$(select_application); then
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Step 2: Prompt for window name
-    echo ""
-    echo "Step 2: Window Name"
-    echo "-------------------"
-    echo "Enter a unique window name for this instance:"
-    echo "  (alphanumeric, hyphens, and underscores only)"
+    echo "" >&3
+    echo "Step 2: Window Name" >&3
+    echo "-------------------" >&3
+    echo "Enter a unique window name for this instance:" >&3
+    echo "  (alphanumeric, hyphens, and underscores only)" >&3
     read -r window_name
     
     validate_window_name "$window_name" || return 1
     
     # Step 3: Choose launch type (to determine launch function)
-    echo ""
-    echo "Step 3: Launch Type"
-    echo "-------------------"
+    echo "" >&3
+    echo "Step 3: Launch Type" >&3
+    echo "-------------------" >&3
     if ! launch_type=$(choose_launch_type "$app_id"); then
         debug_function_exit "$function_name"
         return 1
@@ -172,9 +172,9 @@ add_application_to_workspace() {
         launch_function="launch_by_app_id"
     else
         # For terminal launches, user selects from app-specific launch options
-        echo ""
-        echo "Step 4: Launch Function"
-        echo "-----------------------"
+        echo "" >&3
+        echo "Step 4: Launch Function" >&3
+        echo "-----------------------" >&3
         if ! launch_function=$(select_launch_function "$app_id"); then
             debug_function_exit "$function_name"
             return 1
@@ -182,9 +182,9 @@ add_application_to_workspace() {
     fi
     
     # Step 5: Configure positioning
-    echo ""
-    echo "Step 5: Window Positioning"
-    echo "--------------------------"
+    echo "" >&3
+    echo "Step 5: Window Positioning" >&3
+    echo "--------------------------" >&3
     if ! configure_positioning desktop_number screen_number position; then
         debug_function_exit "$function_name"
         return 1
@@ -193,12 +193,12 @@ add_application_to_workspace() {
     # Step 6: Terminal-specific parameters
     if [[ "$launch_type" == "terminal" ]]; then
         # Prompt for parameters
-        echo ""
-        echo "Step 6: Function Parameters"
-        echo "---------------------------"
-        echo "Enter parameters for this function (space-separated):"
-        echo "  Example: /path/to/project"
-        echo "  (press Enter to skip if no parameters needed)"
+        echo "" >&3
+        echo "Step 6: Function Parameters" >&3
+        echo "---------------------------" >&3
+        echo "Enter parameters for this function (space-separated):" >&3
+        echo "  Example: /path/to/project" >&3
+        echo "  (press Enter to skip if no parameters needed)" >&3
         read -r parameters
     fi
     
@@ -206,8 +206,8 @@ add_application_to_workspace() {
     # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
     apps_array_ref+=("$app_id|$window_name|$launch_function|$desktop_number|$screen_number|$position|$parameters")
     
-    echo ""
-    echo "✓ Added: $window_name ($app_id)"
+    echo "" >&3
+    echo "✓ Added: $window_name ($app_id)" >&3
     
     debug_function_exit "$function_name"
     return 0
@@ -232,10 +232,10 @@ select_application() {
     fi
     
     # Display applications
-    echo "" >&2
-    echo "Available Applications:" >&2
-    echo "======================" >&2
-    echo "" >&2
+    echo "" >&3
+    echo "Available Applications:" >&3
+    echo "======================" >&3
+    echo "" >&3
     
     local counter=1
     while IFS='|' read -r app_id display_name has_terminal has_desktop; do
@@ -245,14 +245,14 @@ select_application() {
         [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && types+="T"
         [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && types+="D"
         
-        printf "%3d) %-40s [%s]\n" "$counter" "$display_name" "$types" >&2
+        printf "%3d) %-40s [%s]\n" "$counter" "$display_name" "$types" >&3
         ((counter++))
     done <<< "$apps"
     
-    echo "" >&2
-    echo "Legend: [T] = Terminal launch available, [D] = Desktop launch available" >&2
-    echo "" >&2
-    echo "Select application (1-$((counter-1))):" >&2
+    echo "" >&3
+    echo "Legend: [T] = Terminal launch available, [D] = Desktop launch available" >&3
+    echo "" >&3
+    echo "Select application (1-$((counter-1))):" >&3
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
@@ -297,10 +297,9 @@ choose_launch_type() {
         return 0
     fi
     
-    # Both available, let user choose
-    echo "This application supports both launch types:" >&2
-    echo "  1) Desktop  - Simple GTK launch (uses .desktop file)" >&2
-    echo "  2) Terminal - Advanced launch with custom options" >&2
+    echo "This application supports both launch types:" >&3
+    echo "  1) Desktop  - Simple GTK launch (uses .desktop file)" >&3
+    echo "  2) Terminal - Advanced launch with custom options" >&3
     read -r type_choice
     
     case "$type_choice" in
@@ -340,21 +339,21 @@ select_launch_function() {
         return 1
     fi
     
-    echo "" >&2
-    echo "Available Launch Functions:" >&2
-    echo "===========================" >&2
-    echo "" >&2
+    echo "" >&3
+    echo "Available Launch Functions:" >&3
+    echo "===========================" >&3
+    echo "" >&3
     
     local counter=1
     while IFS='|' read -r function_name description; do
         option_list+=("$function_name")
-        printf "%3d) %-40s\n" "$counter" "$function_name" >&2
-        printf "     %s\n" "$description" >&2
-        echo "" >&2
+        printf "%3d) %-40s\n" "$counter" "$function_name" >&3
+        printf "     %s\n" "$description" >&3
+        echo "" >&3
         ((counter++))
     done <<< "$options"
     
-    echo "Select launch function (1-$((counter-1))):" >&2
+    echo "Select launch function (1-$((counter-1))):" >&3
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
@@ -387,49 +386,49 @@ configure_positioning() {
     debug_function_enter "$function_name" "$@"
     
     # Desktop selection
-    echo "Detected virtual desktops: $DETECTED_DESKTOP_COUNT"
-    echo "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):"
+    echo "Detected virtual desktops: $DETECTED_DESKTOP_COUNT" >&3
+    echo "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):" >&3
     read -r desktop_ref
     
     if ! [[ "$desktop_ref" =~ ^[0-9]+$ ]] || \
        [ "$desktop_ref" -lt 1 ] || \
        [ "$desktop_ref" -gt "$DETECTED_DESKTOP_COUNT" ]; then
-        echo "Error: Invalid desktop number"
+        echo "Error: Invalid desktop number" >&2
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Screen selection
-    echo ""
-    echo "Detected screens:"
+    echo "" >&3
+    echo "Detected screens:" >&3
     list_detected_screens
-    echo ""
-    echo "Enter screen number (1-$DETECTED_SCREEN_COUNT):"
+    echo "" >&3
+    echo "Enter screen number (1-$DETECTED_SCREEN_COUNT):" >&3
     read -r screen_ref
     
     if ! [[ "$screen_ref" =~ ^[0-9]+$ ]] || \
        [ "$screen_ref" -lt 1 ] || \
        [ "$screen_ref" -gt "$DETECTED_SCREEN_COUNT" ]; then
-        echo "Error: Invalid screen number"
+        echo "Error: Invalid screen number" >&2
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Position selection
-    echo ""
-    echo "Available positions:"
-    echo "  1) Fullscreen"
-    echo "  2) Right Half"
-    echo "  3) Left Half"
-    echo "  4) Top Half"
-    echo "  5) Bottom Half"
-    echo "  6) Top Left"
-    echo "  7) Top Right"
-    echo "  8) Bottom Left"
-    echo "  9) Bottom Right"
-    echo " 10) Left Third"
-    echo " 11) Middle Third"
-    echo " 12) Right Third"
+    echo "" >&3
+    echo "Available positions:" >&3
+    echo "  1) Fullscreen" >&3
+    echo "  2) Right Half" >&3
+    echo "  3) Left Half" >&3
+    echo "  4) Top Half" >&3
+    echo "  5) Bottom Half" >&3
+    echo "  6) Top Left" >&3
+    echo "  7) Top Right" >&3
+    echo "  8) Bottom Left" >&3
+    echo "  9) Bottom Right" >&3
+    echo " 10) Left Third" >&3
+    echo " 11) Middle Third" >&3
+    echo " 12) Right Third" >&3
     read -r pos_choice
     
     case "$pos_choice" in
@@ -446,7 +445,7 @@ configure_positioning() {
         11) position_ref="MIDDLETHIRD" ;;
         12) position_ref="RIGHTTHIRD" ;;
         *) 
-            echo "Error: Invalid choice"
+            echo "Error: Invalid choice" >&2
             debug_function_exit "$function_name"
             return 1
             ;;

@@ -19,7 +19,7 @@ workspace_open() {
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        echo "Usage: kdoitall workspace open <workspace-name>"
+        echo "Usage: kdoitall workspace open <workspace-name>" >&3
         debug_function_exit "$function_name"
         return 1
     fi
@@ -34,8 +34,8 @@ workspace_open() {
     # Check if open script file exists
     if [[ ! -f "$open_script" ]]; then
         debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$open_script"
-        echo "The workspace exists in database but script file is missing."
-        echo "Try recreating the workspace."
+        echo "The workspace exists in database but script file is missing." >&3
+        echo "Try recreating the workspace." >&3
         debug_function_exit "$function_name"
         return 1
     fi
@@ -46,41 +46,45 @@ workspace_open() {
     
     if [[ ${#safe_mode_apps[@]} -gt 0 ]]; then
         # Prompt user with options
+        prompt_safe_mode "${safe_mode_apps[@]}"
+
+        # Get user choice
         local choice
-        choice=$(prompt_safe_mode "${safe_mode_apps[@]}")
+        read -r -p "Choice: " choice
+        choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
         
         case "$choice" in
             e)
                 # End - exit workspace open
-                echo "Please run safe mode for each app using the commands shown above."
-                echo "Then run 'kdoitall workspace open $workspace_name' again."
+                echo "Please run safe mode for each app using the commands shown above." >&3
+                echo "Then run 'kdoitall workspace open $workspace_name' again." >&3
                 debug_function_exit "$function_name"
                 return 0
                 ;;
             o)
                 # Open anyway - will ask again next time
-                echo "Opening workspace without safe mode validation..."
-                echo "Note: Window detection may be unreliable for unvalidated apps."
+                echo "Opening workspace without safe mode validation..." >&3
+                echo "Note: Window detection may be unreliable for unvalidated apps." >&3
                 ;;
             s)
                 # Skip these specific apps - mark as completed
                 for app_id in "${safe_mode_apps[@]}"; do
                     db_set_safe_mode_completed "$app_id"
                 done
-                echo "Safe mode disabled for these apps. Opening workspace..."
+                echo "Safe mode disabled for these apps. Opening workspace..." >&3
                 ;;
             n)
                 # Never ask again - set global config
                 # TODO: Implement global config setting
-                echo "Safe mode prompts disabled globally."
+                echo "Safe mode prompts disabled globally." >&3
                 for app_id in "${safe_mode_apps[@]}"; do
                     db_set_safe_mode_completed "$app_id"
                 done
-                echo "Opening workspace..."
+                echo "Opening workspace..." >&3
                 ;;
             *)
                 # Invalid choice - default to end
-                echo "Invalid choice. Exiting."
+                echo "Invalid choice. Exiting." >&3
                 debug_function_exit "$function_name"
                 return 1
                 ;;
@@ -92,7 +96,6 @@ workspace_open() {
     # - Not in debug or verbose mode (user wants to see output)
     # - Haven't already detached (prevent recursive detachment)
     if [ -t 0 ] && 
-       [ "$DEBUG_MODE" != "true" ] && 
        [ "$VERBOSE_MODE" != "true" ] && 
        [ -z "$_KDOITALL_DETACHED" ]; then
         
@@ -101,8 +104,8 @@ workspace_open() {
         # Mark as detached to prevent recursive backgrounding
         export _KDOITALL_DETACHED=true
         
-        echo "Opening workspace: $workspace_name"
-        echo "Launching applications in background..."
+        echo "Opening workspace: $workspace_name" >&3
+        echo "Launching applications in background..." >&3
         
         # Execute workspace script in background with nohup
         # This allows the terminal to be closed without killing the processes
@@ -122,7 +125,7 @@ workspace_open() {
         return 0
     fi
     
-    echo "Opening workspace: $workspace_name"
+    echo "Opening workspace: $workspace_name" >&3
     debug_log "$function_name" "Executing open script: $open_script"
     
     # Source and execute the script
@@ -133,7 +136,7 @@ workspace_open() {
     db_set_workspace_active "$workspace_name" "TRUE"
     db_update_workspace_last_opened "$workspace_name"
     
-    echo "Workspace '$workspace_name' opened successfully"
+    echo "Workspace '$workspace_name' opened successfully" >&3
     debug_log "$function_name" "Workspace opened and database updated"
     debug_function_exit "$function_name"
     return 0

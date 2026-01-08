@@ -2,6 +2,9 @@
 
 check_and_set_guard "_KDOITALL_SCREEN_DETECTION_LOADED" || return 0
 
+# shellcheck source=lib/utils/workspace-validators.sh
+source "${LIB_DIR}/utils/workspace-validators.sh"
+
 # Global variable to store detected desktop count
 declare -g DETECTED_DESKTOP_COUNT=0
 # Global associative array to store screen information

@@ -56,7 +56,7 @@ registry_validate_app_metadata() {
     # Parse validation output
     while IFS= read -r line; do
         if [[ "$line" =~ ^ERROR:(.*)$ ]]; then
-            echo "  ✗ ${BASH_REMATCH[1]}"
+            echo "  ✗ ${BASH_REMATCH[1]}" >&2
             ((errors++))
         fi
     done <<< "$validation_output"
@@ -84,8 +84,8 @@ registry_validate_all_app_files() {
 
     validate_directory_exists "$app_dir" || return 1
     
-    echo "Validating application files in: $app_dir"
-    echo ""
+    echo "Validating application files in: $app_dir" >&3
+    echo "" >&3
     
     # Iterate through all .sh files
     for app_file in "$app_dir"/*.sh; do
@@ -96,25 +96,25 @@ registry_validate_all_app_files() {
         local app_name=""
         app_name=$(basename "$app_file")
         
-        echo "Checking: $app_name"
+        echo "Checking: $app_name" >&3
         
         if registry_validate_app_metadata "$app_file"; then
-            echo "  ✓ Valid"
+            echo "  ✓ Valid" >&3
             ((valid_files++))
         else
             ((invalid_files++))
         fi
         
-        echo ""
+        echo "" >&3
     done
     
     # Summary
-    echo "================================"
-    echo "Validation Summary:"
-    echo "  Total files:   $total_files"
-    echo "  Valid:         $valid_files"
-    echo "  Invalid:       $invalid_files"
-    echo "================================"
+    echo "================================" >&3
+    echo "Validation Summary:" >&3
+    echo "  Total files:   $total_files" >&3
+    echo "  Valid:         $valid_files" >&3
+    echo "  Invalid:       $invalid_files" >&3
+    echo "================================" >&3
     
     debug_log "$function_name" "Validation complete: $valid_files/$total_files valid"
     debug_function_exit "$function_name"
@@ -226,8 +226,8 @@ registry_scan_applications() {
         done < <(find "$location" -maxdepth 1 -name "*.desktop" -type f -print0 2>/dev/null)
     done
     
-    echo ""
-    echo "Scan complete: $app_count applications added to registry"
+    echo "" >&3
+    echo "Scan complete: $app_count applications added to registry" >&3
     debug_log "$function_name" "Scan complete: $app_count applications processed"
     debug_function_exit "$function_name"
     
@@ -464,7 +464,7 @@ registry_get_application_info() {
     # Get application details from database
     app_info=$(db_get_application "$app_id")
     if [[ $? -ne 0 ]]; then
-        echo "Error: Application not found: $app_id"
+        echo "Error: Application not found: $app_id" >&2
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
         debug_function_exit "$function_name"
         return 1
@@ -484,39 +484,39 @@ registry_get_application_info() {
     [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="Available"
     
     # Display formatted information
-    echo "Application Information"
-    echo "======================="
-    echo "Name:              $display_name"
-    echo "App ID:            $app_id"
-    echo "Desktop File:      $desktop_file_path"
+    echo "Application Information" >&3
+    echo "=======================" >&3
+    echo "Name:              $display_name" >&3
+    echo "App ID:            $app_id" >&3
+    echo "Desktop File:      $desktop_file_path" >&3
     
     # Show app file path if available
     if [[ -n "$app_file_path" ]]; then
-        echo "App File:          $app_file_path"
+        echo "App File:          $app_file_path" >&3
     fi
     
     # Show terminal command if available
     if [[ -n "$terminal_command" ]]; then
-        echo "Terminal Command:  $terminal_command"
+        echo "Terminal Command:  $terminal_command" >&3
     fi
     
     # Show app class if detected
     if [[ -n "$app_class" ]]; then
-        echo "Window Class:      $app_class"
+        echo "Window Class:      $app_class" >&3
     else
-        echo "Window Class:      Not yet detected"
+        echo "Window Class:      Not yet detected" >&3
     fi
     
-    echo ""
-    echo "Launch Methods:"
-    echo "  Terminal:        $terminal_status"
-    echo "  Desktop:         $desktop_status"
-    echo ""
+    echo "" >&3
+    echo "Launch Methods:" >&3
+    echo "  Terminal:        $terminal_status" >&3
+    echo "  Desktop:         $desktop_status" >&3
+    echo "" >&3
     
     if [[ -n "$last_validated" ]]; then
-        echo "Last Validated:    $last_validated"
+        echo "Last Validated:    $last_validated" >&3
     else
-        echo "Last Validated:    Never"
+        echo "Last Validated:    Never" >&3
     fi
     
     debug_function_exit "$function_name"
@@ -536,7 +536,7 @@ registry_list_applications() {
             debug_log "$function_name" "Filter: $filter"
             ;;
         *)
-            echo "Error: Invalid filter: $filter (must be: all, terminal, desktop)"
+            echo "Error: Invalid filter: $filter (must be: all, terminal, desktop)" >&2
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
             debug_function_exit "$function_name"
             return 1
@@ -559,11 +559,11 @@ registry_list_applications() {
     fi
     
     # Format output header
-    echo ""
-    echo "Available Applications (Filter: $filter)"
-    echo ""
-    printf "%-30s %-25s %-9s %-8s\n" "NAME" "APP_ID" "TERMINAL" "DESKTOP"
-    printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})"
+    echo "" >&3
+    echo "Available Applications (Filter: $filter)" >&3
+    echo "" >&3
+    printf "%-30s %-25s %-9s %-8s\n" "NAME" "APP_ID" "TERMINAL" "DESKTOP" >&3
+    printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})" >&3
     
     # Parse and display results from db_list_applications
     # Format: app_id|display_name|has_terminal_launch|has_desktop_launch
@@ -592,13 +592,13 @@ registry_list_applications() {
         
         # Format and display
         printf "%-30s %-25s %-9s %-8s\n" \
-            "$display_short" "$app_id_short" "$terminal_status" "$desktop_status"
+            "$display_short" "$app_id_short" "$terminal_status" "$desktop_status" >&3
         
         ((line_count++))
     done <<< "$app_list"
     
-    echo ""
-    echo "Total: $line_count applications"
+    echo "" >&3
+    echo "Total: $line_count applications" >&3
     
     debug_function_exit "$function_name"
     return 0
@@ -625,23 +625,23 @@ registry_get_launch_options() {
     options=$(db_get_launch_options "$app_id")
     
     if [[ -z "$options" ]]; then
-        echo "No launch options available for: $app_id"
-        echo "(This application does not have terminal launch capability)"
+        echo "No launch options available for: $app_id" >&3
+        echo "(This application does not have terminal launch capability)" >&3
         debug_log "$function_name" "No launch options found for $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
     
     # Display header
-    echo "Launch Options for $app_id:"
-    echo ""
+    echo "Launch Options for $app_id:" >&3
+    echo "" >&3
     
     # Parse and display launch options from database
     # Format: function_name|description
     local index=1
     while IFS='|' read -r func_name description; do
         [[ -z "$func_name" ]] && continue
-        printf "  %2d) %-40s - %s\n" "$index" "$func_name" "$description"
+        printf "  %2d) %-40s - %s\n" "$index" "$func_name" "$description" >&3
         ((index++))
     done <<< "$options"
     

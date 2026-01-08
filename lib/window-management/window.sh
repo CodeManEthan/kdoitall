@@ -87,8 +87,6 @@ get_uuid_by_process_of_elimination() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$class" || return 1
-
     # Get all current window UUIDs from kdotool
     mapfile -t current_uuids < <(get_existing_windows_uuid)
     
@@ -152,8 +150,6 @@ get_uuid_by_process_of_elimination_with_retry() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$class" || return 1
-    
     debug_log "$function_name" "Waiting up to ${max_wait_seconds}s for window (class: '$class')"
     
     while (( $(echo "$elapsed < $max_wait_seconds" | bc -l) )); do
@@ -164,6 +160,21 @@ get_uuid_by_process_of_elimination_with_retry() {
         
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed}s (attempt #$attempt)"
+
+            # Validate class if provided
+            if [[ -n "$class" ]]; then
+                local found_class=""
+                found_class=$(get_window_class_by_uuid "$uuid")
+                
+                if [[ "$class" != "$found_class" ]]; then
+                    debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
+                    debug_function_exit "$function_name"
+                    return 1
+                fi
+                
+                debug_log "$function_name" "Class validation passed: '$class' matches for UUID '$uuid'"
+            fi
+
             debug_function_exit "$function_name"
             echo "$uuid"
             return 0
@@ -366,8 +377,6 @@ get_existing_windows_uuid() {
         return 0  # Not an error - just no windows open
     fi
 
-    debug_array uuids
-
     debug_function_exit "$function_name"
     printf '%s\n' "${uuids[@]}"
 }
@@ -378,7 +387,7 @@ get_existing_windows_class_by_uuids() {
     local -a classes=()
     local function_name="get_existing_windows_class_by_uuids"
 
-    debug_function_enter "$function_name" "$@"
+    debug_function_enter "$function_name"
 
     for uuid in "$@"; do  # Accept UUIDs as separate arguments
         class=$(kdotool getwindowclassname "$uuid")
@@ -387,7 +396,6 @@ get_existing_windows_class_by_uuids() {
         printf '%s\n' "${class:-N/A}"
     done
 
-    debug_array classes
     debug_function_exit "$function_name"
 }
 

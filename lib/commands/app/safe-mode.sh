@@ -22,7 +22,7 @@ app_safe_mode() {
     # Validate app_id provided
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        echo "Usage: kdoitall app safe-mode <app_id>"
+        echo "Usage: kdoitall app safe-mode <app_id>" >&2
         debug_function_exit "$function_name"
         return 1
     fi
@@ -30,8 +30,8 @@ app_safe_mode() {
     # Validate app exists
     if ! db_application_exists "$app_id"; then
         debug_error "$function_name" "$ERR_APP_NOT_FOUND" "$app_id"
-        echo "Error: Application '$app_id' not found in database"
-        echo "Run 'kdoitall app scan' to discover applications"
+        echo "Error: Application '$app_id' not found in database" >&2
+        echo "Run 'kdoitall app scan' to discover applications" >&2
         debug_function_exit "$function_name"
         return 1
     fi
@@ -41,8 +41,8 @@ app_safe_mode() {
     has_desktop=$(db_get_app_has_desktop_launch "$app_id")
     
     if [[ "$has_desktop" != "1" ]]; then
-        echo "Error: Application '$app_id' does not support desktop launch"
-        echo "Safe mode is only for desktop-launched applications"
+        echo "Error: Application '$app_id' does not support desktop launch" >&2
+        echo "Safe mode is only for desktop-launched applications" >&2
         debug_function_exit "$function_name"
         return 1
     fi
@@ -52,7 +52,7 @@ app_safe_mode() {
     already_completed=$(db_get_safe_mode_completed "$app_id")
     
     if [[ "$already_completed" == "1" ]]; then
-        echo "Application '$app_id' has already completed safe mode."
+        echo "Application '$app_id' has already completed safe mode." >&3
         read -r -p "Run safe mode again (re-validate)? [y/N]: " revalidate
         revalidate=$(echo "$revalidate" | tr '[:upper:]' '[:lower:]')
         
@@ -78,7 +78,7 @@ app_safe_mode() {
         return 1
     fi
     
-    echo "✅ Safe mode complete for '$app_id'"
+    echo "✅ Safe mode complete for '$app_id'" >&3
     debug_function_exit "$function_name"
     return 0
 }

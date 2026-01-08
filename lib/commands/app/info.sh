@@ -14,7 +14,7 @@ app_info() {
     # Validate parameter
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
-        echo "Usage: kdoitall app info <app_id>"
+        echo "Usage: kdoitall app info <app_id>" >&2
         debug_function_exit "$function_name"
         return 1
     fi

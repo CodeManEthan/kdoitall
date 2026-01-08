@@ -17,7 +17,7 @@ workspace_delete() {
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        echo "Usage: kdoitall workspace delete <workspace-name>"
+        echo "Usage: kdoitall workspace delete <workspace-name>" >&3
         debug_function_exit "$function_name"
         return 1
     fi
@@ -30,11 +30,11 @@ workspace_delete() {
     fi
     
     # Confirm deletion with user
-    echo "Are you sure you want to delete workspace '$workspace_name'? (y/n)"
+    echo "Are you sure you want to delete workspace '$workspace_name'? (y/n)" >&3
     read -r confirm
     
     if [[ "$confirm" != "y" ]]; then
-        echo "Cancelled"
+        echo "Cancelled" >&3
         debug_log "$function_name" "Deletion cancelled by user"
         debug_function_exit "$function_name"
         return 0
@@ -67,7 +67,7 @@ workspace_delete() {
         debug_log "$function_name" "Close script not found (already deleted?): $close_script"
     fi
     
-    echo "Workspace '$workspace_name' deleted successfully"
+    echo "Workspace '$workspace_name' deleted successfully" >&3
     debug_log "$function_name" "Workspace deletion complete"
     debug_function_exit "$function_name"
     return 0

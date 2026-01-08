@@ -8,7 +8,7 @@ app_command() {
     
     # Validate subcommand provided
     if [[ -z "$subcommand" ]]; then
-        echo "Error: App subcommand required"
+        echo "Error: App subcommand required" >&2
         app_show_help
         return 1
     fi
@@ -46,7 +46,7 @@ app_command() {
             app_safe_mode "$@"
             ;;
         *)
-            echo "Error: Unknown app subcommand: $subcommand"
+            echo "Error: Unknown app subcommand: $subcommand" >&2
             app_show_help
             return 1
             ;;

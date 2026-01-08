@@ -18,7 +18,7 @@ app_list() {
             ;;
         *)
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
-            echo "Valid filters: all, terminal, desktop"
+            echo "Valid filters: all, terminal, desktop" >&2
             debug_function_exit "$function_name"
             return 1
             ;;
