@@ -9,7 +9,7 @@ db_get_uuid_by_window_name() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Get UUID for Window Name from 'windows' table
     uuid=$(sqlite3 "$KDOITALL_DB" \
@@ -37,7 +37,7 @@ db_get_window_name_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get Window Name for UUID from 'windows' table
     window_name=$(sqlite3 "$KDOITALL_DB" \
@@ -66,8 +66,8 @@ db_get_tab_by_tab_name() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_name" || return 1
-    validate_parameter_pass "$tab_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
+    validate_parameter_pass "$tab_name" "tab_name" || return 1
 
     # Get Tab Number for Window Name & Tab Name from 'tabs' table
     tab_number=$(sqlite3 "$KDOITALL_DB" \
@@ -96,7 +96,7 @@ db_check_window_exists_by_window_name() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Get UUID by Window Name
     uuid=$(db_get_uuid_by_window_name "$window_name")
@@ -123,10 +123,10 @@ db_add_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$window_name" || return 1
-    validate_parameter_pass "$uuid" || return 1
-    validate_parameter_pass "$class" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$class" "class" || return 1
     
     # Add entry to 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
@@ -148,7 +148,7 @@ db_delete_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Delete entry from 'app_windows' table
     sqlite3 "$KDOITALL_DB" \
@@ -168,9 +168,9 @@ db_claim_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$new_workspace_name" || return 1
-    validate_parameter_pass "$new_window_name" || return 1
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$new_workspace_name" "new_workspace_name" || return 1
+    validate_parameter_pass "$new_window_name" "new_window_name" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

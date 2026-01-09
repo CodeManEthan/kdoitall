@@ -15,11 +15,11 @@ db_add_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$display_name" || return 1
-    validate_parameter_pass "$desktop_file_path" || return 1
-    validate_parameter_pass "$has_terminal_launch" || return 1
-    validate_parameter_pass "$has_desktop_launch" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
+    validate_parameter_pass "$display_name" "display_name" "display_name" || return 1
+    validate_parameter_pass "$desktop_file_path" "desktop_file_path" "desktop_file_path" || return 1
+    validate_parameter_pass "$has_terminal_launch" "has_terminal_launch" "has_terminal_launch" || return 1
+    validate_parameter_pass "$has_desktop_launch" "has_desktop_launch" "has_desktop_launch" || return 1
     
     has_terminal_launch=$(normalize_boolean "$has_terminal_launch")
     has_desktop_launch=$(normalize_boolean "$has_desktop_launch")
@@ -65,7 +65,7 @@ db_get_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     # Query database with all fields
     result=$(sqlite3 "$KDOITALL_DB" \
@@ -147,7 +147,7 @@ db_application_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -173,7 +173,7 @@ db_application_not_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -199,7 +199,7 @@ db_delete_application() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     db_application_exists "$app_id" || return 1
     
     # Delete application
@@ -227,7 +227,7 @@ db_update_validation_timestamp() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     # Update timestamp
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -286,7 +286,7 @@ db_get_terminal_command() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -306,7 +306,7 @@ db_get_app_file_path() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

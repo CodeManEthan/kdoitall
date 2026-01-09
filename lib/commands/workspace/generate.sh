@@ -18,7 +18,7 @@ generate_workspace_scripts() {
     # shellcheck disable=SC2034
     local -n apps_array_ref="$2"
 
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
     local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
     local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
@@ -65,8 +65,8 @@ generate_open_script() {
     validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
     local -n apps_ref="$3"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$script_path" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$script_path" "script_path" || return 1
 
     # Generate guard name from workspace name
     # Convert to uppercase and replace hyphens with underscores
@@ -170,8 +170,8 @@ generate_close_script() {
     validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
     local -n apps_ref="$3"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$script_path" || return 1    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$script_path" "script_path" || return 1    
 
     # Generate guard name from workspace name
     # Convert to uppercase and replace hyphens with underscores

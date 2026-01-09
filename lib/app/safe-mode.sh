@@ -22,7 +22,7 @@ detect_safe_mode_apps() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_file_exists "$script_path" || return 1
     
     # Parse workspace script to find all launch_by_app_id calls
@@ -150,8 +150,8 @@ safe_mode_verify_window() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
     
     # Get window metadata
     local class
@@ -199,8 +199,8 @@ safe_mode_store_metadata() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
     
     # Extract metadata
     local class
@@ -226,8 +226,8 @@ safe_mode_test_multi_instance() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$existing_uuid" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$existing_uuid" "existing_uuid" || return 1
     
     # Get display name
     local display_name=""
@@ -598,7 +598,7 @@ safe_mode_measure_launch_time() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     if [[ -z "$app_id" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "app_id"
@@ -697,7 +697,7 @@ safe_mode_launch_and_detect() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     # Get display name
     local display_name
@@ -817,8 +817,8 @@ safe_mode_test_pid_validation() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
@@ -906,9 +906,9 @@ safe_mode_analyze_title_pattern() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$uuid" || return 1
-    validate_parameter_pass "$current_title" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$current_title" "current_title" || return 1
     
     # Get display name
     local display_name

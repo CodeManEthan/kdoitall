@@ -9,7 +9,7 @@ db_get_safe_mode_completed() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -29,7 +29,7 @@ db_set_safe_mode_completed() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -58,7 +58,7 @@ db_clear_safe_mode_data() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -89,8 +89,8 @@ db_set_launch_mode() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$launch_mode" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$launch_mode" "launch_mode" || return 1
     
     # Validate launch_mode value
     if [[ "$launch_mode" != "multi" && "$launch_mode" != "single" ]]; then
@@ -126,7 +126,7 @@ db_get_launch_mode() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -149,9 +149,8 @@ db_set_pid_validation_data() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    
-    validate_parameter_pass "$supports_pid" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$supports_pid" "supports_pid" || return 1
     
     # Validate supports_pid value
     if [[ "$supports_pid" != "true" && "$supports_pid" != "false" ]]; then
@@ -195,7 +194,7 @@ db_get_pid_validation_data() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -220,7 +219,7 @@ db_get_supports_pid_validation() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -241,9 +240,8 @@ db_set_title_pattern() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    
-    validate_parameter_pass "$pattern" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$pattern" "pattern" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -272,7 +270,7 @@ db_get_title_pattern() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -292,9 +290,8 @@ db_set_launch_time() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    
-    validate_parameter_pass "$measured_time_ms" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$measured_time_ms" "measured_time_ms" || return 1
     
     # Get current data
     local current_samples
@@ -353,7 +350,7 @@ db_get_expected_launch_time() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     expected_time=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -373,7 +370,7 @@ db_get_launch_time_samples() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     samples=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

@@ -14,7 +14,7 @@ get_last_launched_uuid_by_class() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$class" || return 1
+    validate_parameter_pass "$class" "class" || return 1
 
     # Get last UUID by class
     uuid=$(kdotool search --classname "$class" | tail -1)
@@ -61,7 +61,7 @@ get_uuid_by_window_title() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_title" || return 1
+    validate_parameter_pass "$window_title" "window_title" || return 1
 
     uuid=$(kdotool search --name "$window_title")
 
@@ -205,7 +205,7 @@ get_window_title_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get window title
     window_title=$(kdotool getwindowname "$uuid")
@@ -229,7 +229,7 @@ get_window_class_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get window class
     class=$(kdotool getwindowclassname "$uuid")
@@ -253,7 +253,7 @@ get_window_pid_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get window pid
     pid=$(kdotool getwindowpid "$uuid")
@@ -277,7 +277,7 @@ get_process_name_by_pid() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$pid" || return 1
+    validate_parameter_pass "$pid" "pid" || return 1
     
     # Get process name using ps
     process_name=$(ps -p "$pid" -o comm= 2>/dev/null)
@@ -302,7 +302,7 @@ get_executable_path_by_pid() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$pid" || return 1
+    validate_parameter_pass "$pid" "pid" || return 1
     
     # Get executable path from /proc
     executable_path=$(readlink -f /proc/"$pid"/exe 2>/dev/null)
@@ -327,7 +327,7 @@ get_window_size_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get window size
     window_size=$(kdotool getwindowgeometry "$uuid" | grep "Geometry:" | awk '{print $2}')
@@ -351,7 +351,7 @@ get_window_position_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get window position
     window_position=$(kdotool getwindowgeometry "$uuid" | grep "Position:" | awk '{print $2}')
@@ -412,7 +412,7 @@ check_window_exists_by_window_title_and_class() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_title" || return 1
+    validate_parameter_pass "$window_title" "window_title" || return 1
 
     # Search for window by title
     uuid=$(kdotool search --name "$window_title" | head -1)
@@ -454,7 +454,7 @@ activate_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Activate window
     kdotool windowactivate "$uuid"
@@ -470,7 +470,7 @@ raise_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Raise window
     kdotool windowraise "$uuid"
@@ -488,7 +488,7 @@ move_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Move window
     kdotool windowmove "$uuid" "$x" "$y"
@@ -506,7 +506,7 @@ size_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Size window
     kdotool windowsize "$uuid" "$width" "$height"
@@ -522,7 +522,7 @@ minimize_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     #Minimize window
     kdotool windowminimize "$uuid"
@@ -538,7 +538,7 @@ close_window_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Close window
     kdotool windowclose "$uuid"

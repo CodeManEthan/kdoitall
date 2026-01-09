@@ -9,7 +9,7 @@ db_create_workspace() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
     # Execute INSERT
     sqlite3 "$KDOITALL_DB" \
@@ -40,7 +40,7 @@ db_workspace_not_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -66,7 +66,7 @@ db_workspace_exists() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
     # Check existence
     count=$(sqlite3 "$KDOITALL_DB" \
@@ -111,7 +111,7 @@ db_get_workspace() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
     # Query workspace metadata
     result=$(sqlite3 "$KDOITALL_DB" \
@@ -140,7 +140,7 @@ db_delete_workspace() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     db_workspace_exists "$workspace_name" || return 1
     
     # Delete workspace
@@ -168,7 +168,7 @@ db_update_workspace_last_opened() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
     # Update timestamp
     changes=$(sqlite3 "$KDOITALL_DB" \
@@ -198,8 +198,8 @@ db_set_workspace_active() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$is_active" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$is_active" "is_active" || return 1
     
     is_active=$(normalize_boolean "$is_active")
     

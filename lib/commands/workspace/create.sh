@@ -136,8 +136,8 @@ add_application_to_workspace() {
     validate_name_ref_parameter_pass "$3" "apps_array_ref" || return 1
     local -n apps_array_ref="$3"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$display_order" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$display_order" "display_order" || return 1
     
     # Step 1: Select application
     echo "Step 1: Select Application" >&3
@@ -278,7 +278,7 @@ choose_launch_type() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     app_info=$(db_get_application "$app_id")
     has_terminal=$(echo "$app_info" | cut -d'|' -f7)
@@ -329,7 +329,7 @@ select_launch_function() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     options=$(db_get_launch_options "$app_id")
     

@@ -58,7 +58,7 @@ get_desktop_for_window_by_uuid() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get Desktop for Window
     desktop=$(kdotool get_desktop_for_window "$uuid")
@@ -100,8 +100,8 @@ move_window_to_desktop_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
-    validate_parameter_pass "$desktop" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$desktop" "desktop" || return 1
     validate_desktop_number "$desktop" || return 1
 
     # Move Window to Desktop

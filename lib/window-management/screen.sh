@@ -65,7 +65,7 @@ validate_screen_reference() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$screen_ref" || return 1
+    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
     
     # Resolve the screen reference to an output number
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -92,7 +92,7 @@ calculate_screen_origin() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$screen_ref" || return 1
+    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
     
     # Resolve screen reference to output number
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -131,8 +131,8 @@ move_window_to_screen_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$uuid" || return 1
-    validate_parameter_pass "$screen_ref" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
     
     # Resolve screen reference (supports output numbers, names, aliases)
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -181,9 +181,9 @@ move_window_to_position_by_uuid() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$uuid" || return 1
-    validate_parameter_pass "$screen_ref" || return 1
-    validate_parameter_pass "$position_mode" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
+    validate_parameter_pass "$position_mode" "position_mode" || return 1
     
     # Resolve screen reference (supports output numbers, names, aliases)
     output_num=$(resolve_screen_reference "$screen_ref")

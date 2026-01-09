@@ -22,7 +22,7 @@ registry_validate_app_metadata() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_file_path" || return 1
+    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
     validate_file_exists "$app_file_path" || return 1
     
     # Extract app_id from filename for display
@@ -252,7 +252,7 @@ registry_check_app_file() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     app_file_path=$(registry_get_app_file_path "$app_id")
     
@@ -276,8 +276,8 @@ registry_validate_terminal_command() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$terminal_command" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$terminal_command" "terminal_command" || return 1
     
     debug_log "$function_name" "Checking command availability: $terminal_command"
     
@@ -300,7 +300,7 @@ registry_extract_terminal_command() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_file_path" || return 1
+    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
     validate_file_exists "$app_file_path" || return 1
     
     # Parse TERMINAL_COMMAND from file
@@ -324,8 +324,8 @@ registry_store_launch_options() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$app_file_path" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
     validate_file_exists "$app_file_path" || return 1
     
     # Clear existing launch options for this app
@@ -386,7 +386,7 @@ registry_parse_app_file() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_file_path" || return 1
+    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
     validate_file_exists "$app_file_path" || return 1
     
     debug_log "$function_name" "Parsing app file: $app_file_path"
@@ -459,7 +459,7 @@ registry_get_application_info() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     debug_log "$function_name" "Retrieving info for: $app_id"
     
@@ -652,7 +652,7 @@ registry_get_launch_options() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     debug_log "$function_name" "Retrieving launch options for: $app_id"
     

@@ -54,7 +54,7 @@ db_get_window_info_by_uuid() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$uuid" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

@@ -31,15 +31,15 @@ execute_launch_window() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$window_name" || return 1
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$desktop" || return 1
-    validate_parameter_pass "$screen" || return 1
-    validate_parameter_pass "$position" || return 1
-    validate_parameter_pass "$launch_mode" || return 1
-    validate_parameter_pass "$launch_type" || return 1
-    validate_parameter_pass "$launch_command" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$desktop" "desktop" || return 1
+    validate_parameter_pass "$screen" "screen" || return 1
+    validate_parameter_pass "$position" "position" || return 1
+    validate_parameter_pass "$launch_mode" "launch_mode" || return 1
+    validate_parameter_pass "$launch_type" "launch_type" || return 1
+    validate_parameter_pass "$launch_command" "launch_command" || return 1
 
     # Refresh database with current windows
     debug_log "$function_name" "Auto Detect Windows"
@@ -98,7 +98,7 @@ execute_close_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
 
     uuid=$(db_get_uuid_by_window_name "$window_name")
 
@@ -171,12 +171,12 @@ launch_by_app_id() {
     
     local function_name="launch_by_app_id"
 
-    validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$window_name" || return 1
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$desktop" || return 1
-    validate_parameter_pass "$screen" || return 1
-    validate_parameter_pass "$position" || return 1
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    validate_parameter_pass "$window_name" "window_name" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$desktop" "desktop" || return 1
+    validate_parameter_pass "$screen" "screen" || return 1
+    validate_parameter_pass "$position" "position" || return 1
 
     launch_type="$LAUNCH_TYPE_DESKTOP"
 

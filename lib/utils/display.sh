@@ -50,7 +50,7 @@ parse_window_title_segments() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$title" || return 1
+    validate_parameter_pass "$title" "title" || return 1
     
     local remaining="$title"
     local -a separator_positions=()  # Will store: "position|separator_text"

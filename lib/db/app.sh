@@ -9,7 +9,7 @@ db_get_app_display_name() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -29,7 +29,7 @@ db_get_app_has_desktop_launch() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -49,7 +49,7 @@ db_get_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -70,9 +70,9 @@ db_set_app_class() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
-    validate_parameter_pass "$class" || return 1
+    validate_parameter_pass "$class" "class" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
