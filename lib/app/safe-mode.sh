@@ -252,12 +252,14 @@ safe_mode_test_multi_instance() {
     
     # Launch second instance
     echo "Launching second instance of $display_name..." >&3
-    gtk-launch "$app_id" &
+    (gtk-launch "$app_id" &>/dev/null &)
     
     # Wait and detect new window using retry function
     echo "Waiting for new window to appear..." >&3
     local new_uuid=""
     new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
+
+    minimize_window_by_uuid "$new_uuid"
     
     local detected_mode=""
     if [[ -n "$new_uuid" ]]; then
@@ -287,6 +289,11 @@ safe_mode_test_multi_instance() {
     fi
     
     echo "" >&3
+
+    if [[ "$detected_mode" == "single" ]]; then
+        # Test if it's actually UNIQUE mode
+        detected_mode=$(safe_mode_test_for_unique_mode "$app_id" "$existing_uuid")
+    fi
     
     # PID Verification for Multi-Instance Apps
     if [[ "$detected_mode" == "multi" ]]; then
@@ -338,7 +345,6 @@ safe_mode_test_multi_instance() {
             echo "   Second window PID: $second_pid" >&3
             echo "" >&3
             echo "→ PID validation CAN be used for this application" >&3
-            echo "→ The standard PID validation test will run later" >&3
             echo "" >&3
         fi
     fi
@@ -382,6 +388,159 @@ safe_mode_test_multi_instance() {
     return 0
 }
 
+safe_mode_test_for_unique_mode() {
+    local app_id="$1"
+    local existing_uuid="$2"
+    local function_name="safe_mode_test_for_unique_mode"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    local display_name
+    display_name=$(db_get_app_display_name "$app_id")
+    
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "🔬 UNIQUE MODE TEST" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "No new window appeared with default launch." >&3
+    echo "" >&3
+    echo "This could mean:" >&3
+    echo "  1. SINGLE mode: Only one window allowed (e.g., Settings)" >&3
+    echo "  2. UNIQUE mode: Multiple windows allowed if state differs" >&3
+    echo "" >&3
+    echo "Examples of UNIQUE mode applications:" >&3
+    echo "  • VS Code: Opens new window if you open a different folder" >&3
+    echo "  • Firefox: Opens new window with different profile" >&3
+    echo "  • File managers: Sometimes open new window for different locations" >&3
+    echo "" >&3
+    echo "We'll test if $display_name supports UNIQUE mode by letting you" >&3
+    echo "change the application's state before we try launching again." >&3
+    echo "" >&3
+    
+    local attempt=1
+    local max_attempts=5
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "Attempt $attempt of $max_attempts" >&3
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "" >&3
+        echo "Instructions:" >&3
+        echo "  1. Switch to the $display_name window" >&3
+        echo "  2. Change its state (examples below)" >&3
+        echo "  3. Return to this terminal" >&3
+        echo "  4. Press [Enter] to test launch" >&3
+        echo "" >&3
+        echo "Ways to change application state:" >&3
+        echo "  • Open a different file/folder" >&3
+        echo "  • Navigate to a different location" >&3
+        echo "  • Change workspace/profile/project" >&3
+        echo "  • Close any open documents" >&3
+        echo "  • Change view/mode (if applicable)" >&3
+        echo "" >&3
+        
+        # Get current window title as reference
+        local current_title
+        current_title=$(get_window_title_by_uuid "$existing_uuid")
+        echo "Current window title: \"$current_title\"" >&3
+        echo "" >&3
+        
+        read -r -p "Ready to test? [Enter] or [S]kip to accept SINGLE mode: " ready
+        ready=$(echo "$ready" | tr '[:upper:]' '[:lower:]')
+        
+        if [[ "$ready" == "s" ]]; then
+            echo "" >&3
+            echo "User skipped UNIQUE mode testing" >&3
+            echo "Determination: LAUNCH_MODE_SINGLE" >&3
+            debug_function_exit "$function_name" "SINGLE"
+            echo "single"
+            return 0
+        fi
+        
+        # Refresh window tracking
+        echo "" >&3
+        echo "Scanning existing windows..." >&3
+        auto_detect_windows
+        
+        # Attempt launch
+        echo "Launching $display_name..." >&3
+        (gtk-launch "$app_id" &>/dev/null &)
+        
+        # Wait for new window
+        echo "Waiting for new window (10 seconds)..." >&3
+        local new_uuid
+        new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" 10 0.1)
+        
+        if [[ -n "$new_uuid" ]]; then
+            # Success! New window appeared
+            echo "" >&3
+            echo "✓ New window detected: $new_uuid" >&3
+            
+            # Get new window title for comparison
+            local new_title
+            new_title=$(get_window_title_by_uuid "$new_uuid")
+            
+            echo "" >&3
+            echo "Window Comparison:" >&3
+            echo "  Original: \"$current_title\"" >&3
+            echo "  New:      \"$new_title\"" >&3
+            echo "" >&3
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+            echo "✅ DETERMINATION: LAUNCH_MODE_UNIQUE" >&3
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+            echo "" >&3
+            echo "$display_name supports multiple windows when state differs" >&3
+            echo "" >&3
+            
+            # Clean up the new window
+            echo "Closing new test window..." >&3
+            close_window_by_uuid "$new_uuid"
+            
+            debug_function_exit "$function_name" "UNIQUE"
+            echo "unique"
+            return 0
+        else
+            # No new window
+            echo "" >&3
+            echo "✗ No new window detected" >&3
+            echo "" >&3
+            echo "Either:" >&3
+            echo "  • The application state didn't change enough" >&3
+            echo "  • The application truly is SINGLE mode" >&3
+            echo "" >&3
+            
+            if [[ $attempt -lt $max_attempts ]]; then
+                read -r -p "Try again with different state? [Y/n]: " retry
+                retry=$(echo "$retry" | tr '[:upper:]' '[:lower:]')
+                
+                if [[ "$retry" == "n" ]]; then
+                    echo "" >&3
+                    echo "User accepted SINGLE mode determination" >&3
+                    debug_function_exit "$function_name" "SINGLE"
+                    echo "single"
+                    return 0
+                fi
+            fi
+        fi
+        
+        ((attempt++))
+        echo "" >&3
+    done
+    
+    # Exhausted all attempts
+    echo "" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "Maximum attempts reached" >&3
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "" >&3
+    echo "Determination: LAUNCH_MODE_SINGLE" >&3
+    
+    debug_function_exit "$function_name" "SINGLE"
+    echo "single"
+    return 0
+}
+
 safe_mode_measure_launch_time() {
     local app_id="$1"
     local function_name="safe_mode_measure_launch_time"
@@ -400,7 +559,7 @@ safe_mode_measure_launch_time() {
     fi
     
     # Get display name
-    local display_name
+    local display_name=""
     display_name=$(db_get_app_display_name "$app_id")
     
     echo "" >&3
@@ -421,14 +580,14 @@ safe_mode_measure_launch_time() {
     
     # Launch application
     echo "Launching $display_name..." >&3
-    gtk-launch "$app_id" &
+    (gtk-launch "$app_id" &>/dev/null &)
     
     # Wait for window with extended timeout using retry function
     echo "Waiting for window to appear (timeout: 30 seconds)..." >&3
     echo "" >&3
     
     # Use get_uuid_by_process_of_elimination_with_retry with 30 second timeout
-    local uuid
+    local uuid=""
     uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
     
     if [[ -z "$uuid" ]]; then
@@ -450,6 +609,9 @@ safe_mode_measure_launch_time() {
     
     # Calculate elapsed time in milliseconds
     elapsed_ms=$((end_time - start_time))
+
+    # Close window
+    minimize_window_by_uuid "$uuid"
     
     echo "" >&3
     echo "✓ Window detected after ${elapsed_ms}ms" >&3
@@ -473,22 +635,21 @@ safe_mode_measure_launch_time() {
     
     debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms, expected: ${expected_time}ms"
     debug_function_exit "$function_name"
-    echo "$uuid"  # Return detected UUID for continued safe mode flow
+
+    # ADD THESE LINES FOR DEBUGGING:
+    # echo "About to echo UUID: $uuid" >> /tmp/kdoitall_debug.log
+    echo "$uuid"
+    # echo "Echoed UUID, about to return" >> /tmp/kdoitall_debug.log
     return 0
 }
 
 safe_mode_launch_and_detect() {
     local app_id="$1"
-    local is_recursive="${2:-false}"
     local function_name="safe_mode_launch_and_detect"
     
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$app_id" || return 1
-
-    if [[ "$is_recursive" != "true" ]]; then
-        exec 3>&1
-    fi
     
     # Get display name
     local display_name
@@ -513,19 +674,16 @@ safe_mode_launch_and_detect() {
             r)
                 debug_log "$function_name" "Retrying..."
                 safe_mode_launch_and_detect "$app_id"
-                exec 3>&-
                 return $?
                 ;;
             s)
                 debug_log "$function_name" "Skipping - marking as completed"
                 db_set_safe_mode_completed "$app_id"
                 debug_function_exit "$function_name" "Skipped"
-                exec 3>&-
                 return 0
                 ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
-                exec 3>&-
                 return 1
                 ;;
         esac
@@ -549,19 +707,16 @@ safe_mode_launch_and_detect() {
                 close_window_by_uuid "$new_uuid"
                 debug_log "$function_name" "Retrying..."
                 safe_mode_launch_and_detect "$app_id"
-                exec 3>&-
                 return $?
                 ;;
             s)
                 debug_log "$function_name" "Skipping - marking as completed"
                 db_set_safe_mode_completed "$app_id"
                 debug_function_exit "$function_name" "Skipped"
-                exec 3>&-
                 return 0
                 ;;
             *)
                 debug_function_exit "$function_name" "Aborted"
-                exec 3>&-
                 return 1
                 ;;
         esac
@@ -587,6 +742,10 @@ safe_mode_launch_and_detect() {
     
     # Test multi-instance support
     safe_mode_test_multi_instance "$app_id" "$new_uuid"
+
+    # Close first window
+    echo "Closing first window..." >&3
+    close_window_by_uuid "$new_uuid"
     
     echo "" >&3
     echo "✓ Metadata collection complete" >&3
@@ -600,7 +759,6 @@ safe_mode_launch_and_detect() {
     
     debug_function_exit "$function_name" "Success"
     echo "$new_uuid"
-    exec 3>&-
     return 0
 }
 

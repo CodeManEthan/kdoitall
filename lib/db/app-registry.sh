@@ -77,7 +77,10 @@ db_get_application() {
         "SELECT app_id, display_name, desktop_file_path,
                 app_file_path, terminal_command, app_class,
                 has_terminal_launch, has_desktop_launch,
-                last_validated
+                last_validated, safe_mode_completed, safe_mode_timestamp,
+                launch_mode, supports_pid_validation, expected_executable_path,
+                expected_process_name, window_title_pattern, 
+                expected_launch_time_ms
          FROM applications
          WHERE app_id = :app_id;" 2>/dev/null)
     

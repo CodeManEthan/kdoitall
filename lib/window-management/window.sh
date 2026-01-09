@@ -79,6 +79,7 @@ get_uuid_by_window_title() {
 
 get_uuid_by_process_of_elimination() {
     local class="$1"  # Optional class parameter for validation
+    local is_retry="${2:-FALSE}"
     local -a current_uuids=()
     local -a db_uuids=()
     local new_uuid=""
@@ -111,7 +112,11 @@ get_uuid_by_process_of_elimination() {
     done
     
     if [[ $found_count -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "No new windows found"
+        if [[ "$is_retry" == "FALSE" ]]; then
+            debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "No new windows found"
+            debug_function_exit "$function_name"
+            return 0
+        fi
         debug_function_exit "$function_name"
         return 1
     elif [[ $found_count -gt 1 ]]; then
@@ -156,7 +161,7 @@ get_uuid_by_process_of_elimination_with_retry() {
         ((attempt++))
         
         # Attempt to get UUID
-        uuid=$(get_uuid_by_process_of_elimination "$class")
+        uuid=$(get_uuid_by_process_of_elimination "$class" "TRUE")
         
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed}s (attempt #$attempt)"

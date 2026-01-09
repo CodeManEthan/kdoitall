@@ -474,7 +474,11 @@ registry_get_application_info() {
     # Format: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal|has_desktop|last_validated
     IFS='|' read -r _ display_name desktop_file_path \
         app_file_path terminal_command app_class \
-        has_terminal has_desktop last_validated <<< "$app_info"
+        has_terminal has_desktop last_validated \
+        safe_mode_completed safe_mode_timestamp \
+        launch_mode supports_pid_validation expected_executable_path \
+        expected_process_name window_title_pattern \
+        expected_launch_time_ms <<< "$app_info"
     
     # Convert boolean values for display
     local terminal_status="Not Available"
@@ -483,42 +487,77 @@ registry_get_application_info() {
     local desktop_status="Not Available"
     [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="Available"
     
+    local safe_mode_status="Not Completed"
+    [[ "$safe_mode_completed" == "1" || "$safe_mode_completed" == "TRUE" ]] && safe_mode_status="Completed"
+    
+    local pid_validation_status="Not Supported"
+    [[ "$supports_pid_validation" == "1" || "$supports_pid_validation" == "TRUE" ]] && pid_validation_status="Supported"
+    
+
     # Display formatted information
     echo "Application Information" >&3
-    echo "=======================" >&3
-    echo "Name:              $display_name" >&3
-    echo "App ID:            $app_id" >&3
-    echo "Desktop File:      $desktop_file_path" >&3
+    echo "=========================================================" >&3
+    echo "Name:                $display_name" >&3
+    echo "App ID:              $app_id" >&3
+    echo "Desktop File:        $desktop_file_path" >&3
     
     # Show app file path if available
     if [[ -n "$app_file_path" ]]; then
-        echo "App File:          $app_file_path" >&3
+        echo "App File:            $app_file_path" >&3
     fi
     
     # Show terminal command if available
     if [[ -n "$terminal_command" ]]; then
-        echo "Terminal Command:  $terminal_command" >&3
+        echo "Terminal Command:    $terminal_command" >&3
     fi
     
     # Show app class if detected
     if [[ -n "$app_class" ]]; then
-        echo "Window Class:      $app_class" >&3
+        echo "Window Class:        $app_class" >&3
     else
-        echo "Window Class:      Not yet detected" >&3
+        echo "Window Class:        Not yet detected" >&3
     fi
     
     echo "" >&3
     echo "Launch Methods:" >&3
-    echo "  Terminal:        $terminal_status" >&3
-    echo "  Desktop:         $desktop_status" >&3
+    echo "  Terminal:          $terminal_status" >&3
+    echo "  Desktop:           $desktop_status" >&3
     echo "" >&3
     
     if [[ -n "$last_validated" ]]; then
-        echo "Last Validated:    $last_validated" >&3
+        echo "Last Validated:      $last_validated" >&3
     else
-        echo "Last Validated:    Never" >&3
+        echo "Last Validated:      Never" >&3
+    fi
+
+    if [[ -n "$safe_mode_completed" ]]; then
+        echo "Safe Mode:           $safe_mode_status $safe_mode_timestamp" >&3
+    fi
+
+    if [[ -n "$launch_mode" ]]; then
+        echo "Launch Mode:         $launch_mode" >&3
     fi
     
+    if [[ -n "$supports_pid_validation" ]]; then
+        echo "PID Validation:      $pid_validation_status" >&3
+    fi
+
+    if [[ -n "$expected_executable_path" ]]; then
+        echo "Executable Path:     $expected_executable_path" >&3
+    fi
+
+    if [[ -n "$expected_process_name" ]]; then
+        echo "Process Name:        $expected_process_name" >&3
+    fi
+
+    if [[ -n "$window_title_pattern" ]]; then
+        echo "Window Title:        $window_title_pattern" >&3
+    fi
+
+    if [[ -n "$expected_launch_time_ms" ]]; then
+        echo "Launch Time:         $expected_launch_time_ms ms" >&3
+    fi
+
     debug_function_exit "$function_name"
     return 0
 }
