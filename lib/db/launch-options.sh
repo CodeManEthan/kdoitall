@@ -106,3 +106,69 @@ db_app_has_launch_options() {
         return 1
     fi
 }
+
+db_add_launch_parameter() {
+    local app_id="$1"
+    local function_id="$2"
+    local function_name="$3"
+    local description="$4"
+    local display_order="${5:-0}"
+    local func_name="db_add_launch_parameter"
+    
+    debug_function_enter "$func_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$function_id" "function_id" || return 1
+    validate_parameter_pass "$function_name" "function_name" || return 1
+    validate_parameter_pass "$description" "description" || return 1
+    
+    # Execute INSERT OR REPLACE
+    sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :function_id '$function_id'" \
+        -cmd ".param set :function_name '$function_name'" \
+        -cmd ".param set :description '$description'" \
+        -cmd ".param set :display_order '$display_order'" \
+        "INSERT OR REPLACE INTO launch_parameters (
+            app_id, function_id, function_name, description, display_order
+        ) VALUES (
+            :app_id, :function_id, :function_name, :description, :display_order
+        );" 2>/dev/null
+    
+    if [[ $? -ne 0 ]]; then
+        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch parameter: $app_id.$function_id.$function_name"
+        debug_function_exit "$func_name"
+        return 1
+    fi
+    
+    debug_log "$func_name" "Added launch parameter: $app_id.$function_id.$function_name"
+    debug_function_exit "$func_name"
+    return 0
+}
+
+db_get_launch_parameters() {
+    local app_id="$1"
+    local function_id="$2"
+    local function_name="db_get_launch_parameters"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$function_id" "function_id" || return 1
+    
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :function_id '$function_id'" \
+        "SELECT function_name, description 
+         FROM launch_parameters 
+         WHERE app_id = :app_id AND function_id = :function_id 
+         ORDER BY display_order, function_name;" 2>/dev/null)
+    
+    debug_log "$function_name" "Retrieved launch parameters for $app_id.$function_id"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}

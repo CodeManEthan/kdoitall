@@ -1,0 +1,29 @@
+{
+  "app_id": "code",
+  "app_class": "code",
+  "terminal_command": "code",
+  "launch_mode": "LAUNCH_MODE_UNIQUE",
+  "launch_type": "LAUNCH_TYPE_TERMINAL",
+  "launch_options": [
+    {
+      "function_name": "launch_vscode_window",
+      "description": "Open directory or file",
+      "parameters": [
+        {
+          "name": "Path",
+          "description": "Path to directory or file"
+        }
+      ]
+    },
+    {
+      "function_name": "launch_vscode_workspace_window",
+      "description": "Open .code-workspace file",
+      "parameters": [
+        {
+          "name": "Workspace",
+          "description": "Path to .code-workspace file"
+        }
+      ]
+    }
+  ]
+}

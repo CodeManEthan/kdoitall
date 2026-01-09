@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "kdoitall Application Metadata",
+  "description": "Metadata schema for kdoitall application definitions",
+  "type": "object",
+  "required": ["app_id", "terminal_command", "launch_options"],
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9._-]+$",
+      "description": "Unique application identifier"
+    },
+    "app_class": {
+      "type": "string",
+      "description": "X11 window class for window detection"
+    },
+    "terminal_command": {
+      "type": "string",
+      "description": "Command to validate terminal availability"
+    },
+    "launch_mode": {
+      "type": "string",
+      "enum": ["LAUNCH_MODE_UNIQUE", "LAUNCH_MODE_MULTI"],
+      "description": "How application handles multiple instances"
+    },
+    "launch_type": {
+      "type": "string",
+      "enum": ["LAUNCH_TYPE_TERMINAL", "LAUNCH_TYPE_DESKTOP"],
+      "description": "Primary launch method"
+    },
+    "launch_options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["function_name", "description"],
+        "properties": {
+          "function_name": {
+            "type": "string",
+            "pattern": "^[a-z_][a-z0-9_]*$",
+            "description": "Bash function name (must exist in functions.sh)"
+          },
+          "description": {
+            "type": "string",
+            "description": "User-friendly description of what this launch option does"
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "description"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[A-Z][a-zA-Z0-9_]*$",
+                  "description": "Simple descriptive parameter name (e.g., 'Path', 'Workspace', 'Directory')"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "User-friendly parameter description"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

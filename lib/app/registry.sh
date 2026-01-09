@@ -689,3 +689,48 @@ registry_get_launch_options() {
     debug_function_exit "$function_name"
     return 0
 }
+
+registry_get_launch_parameters() {
+    local app_id="$1"
+    local function_id="$2"
+    local function_name="registry_get_launch_parameters"
+    local parameters=""
+    
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$function_id" "function_id" || return 1
+    
+    debug_log "$function_name" "Retrieving launch parameters for: $app_id (function_id: $function_id)"
+    
+    if ! db_application_exists "$app_id"; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get launch parameters from database
+    parameters=$(db_get_launch_parameters "$app_id" "$function_id")
+    
+    if [[ -z "$parameters" ]]; then
+        debug_log "$function_name" "No launch parameters found for $app_id (function_id: $function_id)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Display header
+    echo "Launch Parameters for function_id $function_id:" >&3
+    echo "" >&3
+    
+    # Parse and display launch parameters from database
+    # Format: function_name|description
+    local index=1
+    while IFS='|' read -r param_name description; do
+        [[ -z "$param_name" ]] && continue
+        printf "  %2d) %-40s - %s\n" "$index" "$param_name" "$description" >&3
+        ((index++))
+    done <<< "$parameters"
+    
+    debug_function_exit "$function_name"
+    return 0
+}

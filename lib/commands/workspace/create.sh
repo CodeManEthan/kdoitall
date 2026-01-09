@@ -147,25 +147,52 @@ add_application_to_workspace() {
         return 1
     fi
     
-    # Step 2: Prompt for window name
-    echo "" >&3
-    echo "Step 2: Window Name" >&3
-    echo "-------------------" >&3
-    echo "Enter a unique window name for this instance:" >&3
-    echo "  (alphanumeric, hyphens, and underscores only)" >&3
-    read -r window_name
+    # Get the display name for the selected app
+    local display_name=""
+    display_name=$(db_get_display_name "$app_id")
+
+    # Count existing instances of this app_id in the workspace
+    local instance_count=1
+    for app_entry in "${apps_array_ref[@]}"; do
+        local existing_app_id=""
+        existing_app_id=$(echo "$app_entry" | cut -d'|' -f1)
+        
+        if [[ "$existing_app_id" == "$app_id" ]]; then
+            ((instance_count++))
+        fi
+    done
+
+    # Sanitize display name:
+    local sanitized_display_name=""
+    sanitized_display_name=$(echo "$display_name" | \
+        tr '[:upper:]' '[:lower:]' | \
+        tr ' _' '-' | \
+        sed 's/[^a-z0-9-]//g' | \
+        sed 's/--*/-/g')
+
+    # Generate window name automatically
+    window_name="${workspace_name}-${sanitized_display_name}-${instance_count}"
     
     validate_window_name "$window_name" || return 1
     
-    # Step 3: Choose launch type (to determine launch function)
+    # Step 2: Choose launch type (to determine launch function)
     echo "" >&3
-    echo "Step 3: Launch Type" >&3
+    echo "Step 2: Launch Type" >&3
     echo "-------------------" >&3
     if ! launch_type=$(choose_launch_type "$app_id"); then
         debug_function_exit "$function_name"
         return 1
     fi
     
+    # Step 3: Configure positioning
+    echo "" >&3
+    echo "Step 3: Window Positioning" >&3
+    echo "--------------------------" >&3
+    if ! configure_positioning desktop_number screen_number position; then
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
     # Step 4: Determine launch function based on launch type
     if [[ "$launch_type" == "desktop" ]]; then
         # For desktop launches, use launch_by_app_id
@@ -181,20 +208,11 @@ add_application_to_workspace() {
         fi
     fi
     
-    # Step 5: Configure positioning
-    echo "" >&3
-    echo "Step 5: Window Positioning" >&3
-    echo "--------------------------" >&3
-    if ! configure_positioning desktop_number screen_number position; then
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Step 6: Terminal-specific parameters
+    # Step 5: Terminal-specific parameters
     if [[ "$launch_type" == "terminal" ]]; then
         # Prompt for parameters
         echo "" >&3
-        echo "Step 6: Function Parameters" >&3
+        echo "Step 5: Function Parameters" >&3
         echo "---------------------------" >&3
         echo "Enter parameters for this function (space-separated):" >&3
         echo "  Example: /path/to/project" >&3

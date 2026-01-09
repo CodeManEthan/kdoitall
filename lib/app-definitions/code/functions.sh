@@ -5,34 +5,26 @@ check_and_set_guard "_KDOITALL_CODE_LOADED" || return 0
 # shellcheck source=lib/core/core.sh
 source "${LIB_DIR}/core/core.sh"
 
-# ============================================================================
-# Application Metadata
-# ============================================================================
+# Load metadata from JSON into global variables
+# This happens once when the file is sourced
+_load_app_metadata() {
+    local app_dir="${BASH_SOURCE[0]%/*}"
+    local json_file="$app_dir/metadata.json"
+    
+    # shellcheck disable=SC2034
+    TERMINAL_COMMAND=$(jq -r '.terminal_command' "$json_file")
+    # shellcheck disable=SC2034
+    APP_ID=$(jq -r '.app_id' "$json_file")
+    # shellcheck disable=SC2034
+    APP_CLASS=$(jq -r '.app_class // empty' "$json_file")
+    # shellcheck disable=SC2034
+    LAUNCH_MODE=$(jq -r '.launch_mode' "$json_file")
+    # shellcheck disable=SC2034
+    LAUNCH_TYPE=$(jq -r '.launch_type' "$json_file")
+}
 
-# shellcheck disable=SC2034
-# Command to validate terminal availability
-TERMINAL_COMMAND="code"
-
-# shellcheck disable=SC2034
-# Launch options with user-friendly descriptions
-declare -A LAUNCH_OPTIONS=(
-    ["launch_vscode_window"]="Open directory or file"
-    ["launch_vscode_workspace_window"]="Open .code-workspace file"
-)
-
-# ============================================================================
-# Script-Global Variables
-# ============================================================================
-
-# Launch configuration variables (script-global, not exported)
-launch_mode="$LAUNCH_MODE_UNIQUE"
-launch_type="$LAUNCH_TYPE_TERMINAL"
-class="code"
-app_id="code"
-
-# ============================================================================
-# Launch Functions
-# ============================================================================
+# Load metadata when file is sourced
+_load_app_metadata
 
 launch_vscode_window() {
     local workspace_name="$1"
@@ -50,8 +42,6 @@ launch_vscode_window() {
 
     directory_path=$(safe_directory "$directory_path") || return 1
     
-    launch_mode="$LAUNCH_MODE_UNIQUE"
-    launch_type="$LAUNCH_TYPE_TERMINAL"
     launch_command="code --new-window \"$directory_path\" &"
 
     local directory=""
@@ -60,8 +50,8 @@ launch_vscode_window() {
     window_title=$(safe_name "$window_title")
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
-    "$class" "$window_title" ""
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "$launch_command" \
+    "$$APP_CLASS" "$window_title" ""
 
     debug_function_exit "$function_name"
 }
@@ -90,8 +80,8 @@ launch_vscode_workspace_window() {
     window_title=$(safe_name "$window_title")
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
-    "$class" "$window_title" ""
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "$launch_command" \
+    "$APP_CLASS" "$window_title" ""
 
     debug_function_exit "$function_name"
 }

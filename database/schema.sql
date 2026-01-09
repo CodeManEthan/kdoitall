@@ -60,6 +60,18 @@ CREATE TABLE launch_options (
     UNIQUE(app_id, function_name)
 );
 
+CREATE TABLE launch_parameters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_id TEXT NOT NULL,
+    function_id TEXT NOT NULL,
+    function_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    display_order INTEGER NOT NULL,
+    FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE CASCADE,
+    FOREIGN KEY (function_id) REFERENCES launch_options(id) ON DELETE CASCADE,
+    UNIQUE(app_id, function_name)
+);
+
 CREATE INDEX idx_launch_options_app_id ON launch_options(app_id);
 
 CREATE TRIGGER auto_tab_number
