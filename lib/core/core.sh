@@ -8,10 +8,10 @@ source "${LIB_DIR}/window-management/desktop.sh"
 source "${LIB_DIR}/window-management/screen.sh"
 # shellcheck source=../window-management/window.sh
 source "${LIB_DIR}/window-management/window.sh"
-# shellcheck source=../window-management/tab.sh
-source "${LIB_DIR}/window-management/tab.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../db/safe-mode.sh
+source "${LIB_DIR}/db/safe-mode.sh"
 
 execute_launch_window() {
     local workspace_name="$1"
@@ -23,28 +23,13 @@ execute_launch_window() {
     local launch_mode="$7"
     local launch_type="$8"
     local launch_command="$9"
+    local class="${10}"
+    local window_title="${11}"
+    local launch_time="${12}"
     local function_name="launch_window"
     local uuid=""
-    local class=""
-    local window_title=""
-
-    debug_function_enter "$function_name" "$@"
     
-    shift 9
- 
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --window-title)
-                window_title="$2"
-                shift 2
-                ;;
-            *)
-                debug_error "$function_name" "$ERR_INVALID_PARAMETER" "$1"
-                debug_function_exit "$function_name"
-                return 1
-                ;;
-        esac
-    done
+    debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$workspace_name" || return 1
     validate_parameter_pass "$window_name" || return 1
@@ -56,21 +41,10 @@ execute_launch_window() {
     validate_parameter_pass "$launch_type" || return 1
     validate_parameter_pass "$launch_command" || return 1
 
-    # Try to retrieve stored app_class from database
-    if [[ -n "$app_id" ]]; then
-        class=$(db_get_app_class "$app_id")
-        if [[ -n "$class" ]]; then
-            debug_log "$function_name" "Retrieved stored app_class: $class"
-        else
-            debug_log "$function_name" "No stored app_class yet for $app_id, will detect after launch"
-        fi
-    fi
-
     # Refresh database with current windows
     debug_log "$function_name" "Auto Detect Windows"
     auto_detect_windows
 
-    
     # Check Window Exists (If SINGLE or UNIQUE Launch Mode)
     if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
         debug_log "$function_name" "Check Window Exists"
@@ -94,23 +68,7 @@ execute_launch_window() {
 
         # Detect and store app_class if not already stored
         if [[ -n "$app_id" && -z "$class" ]]; then
-            debug_log "$function_name" "Detecting app_class for $app_id..."
-            
-            # Detect actual window class from the launched window
-            local detected_class=""
-            detected_class=$(get_window_class_by_uuid "$uuid")
-            
-            if [[ -n "$detected_class" ]]; then
-                # Store in database for future use
-                if db_set_app_class "$app_id" "$detected_class"; then
-                    class="$detected_class"
-                    debug_log "$function_name" "✓ Auto-detected and stored app_class: $detected_class"
-                else
-                    debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store app_class: $detected_class"
-                fi
-            else
-                debug_error "$function_name" "$ERR_CLASS_DETECTION_FAILED" "Could not detect class for UUID $uuid"
-            fi
+            detect_and_store_class "$uuid" "$app_id"
         fi
 
         # Add Window to Database
@@ -197,7 +155,6 @@ auto_detect_windows() {
     debug_function_exit "$function_name"
 }
 
-
 launch_by_app_id() {
     local workspace_name="$1"
     local window_name="$2"
@@ -207,7 +164,11 @@ launch_by_app_id() {
     local position="$6"
     local launch_mode=""
     local launch_type=""
+    local class=""
+    local window_title=""
     local launch_command=""
+    local launch_time=""
+    
     local function_name="launch_by_app_id"
 
     validate_parameter_pass "$workspace_name" || return 1
@@ -217,10 +178,51 @@ launch_by_app_id() {
     validate_parameter_pass "$screen" || return 1
     validate_parameter_pass "$position" || return 1
 
-    launch_mode="$LAUNCH_MODE_UNKNOWN"
     launch_type="$LAUNCH_TYPE_DESKTOP"
+
+    class=$(db_get_app_class "$app_id")
+    window_title=$(db_get_title_pattern "$app_id")
+    launch_mode=$(db_get_launch_mode "$app_id")
+    launch_time=$(db_get_expected_launch_time "$app_id")
+
+    if [[ -z "$launch_mode" ]]; then
+        launch_mode="$LAUNCH_MODE_UNKNOWN"
+    fi
 
     launch_command="gtk-launch $app_id &"
 
-     execute_launch_window "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
+     execute_launch_window \
+     "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \
+     "$launch_mode" "$launch_type" "$launch_command" "$class" "$window_title" "$launch_time"
+}
+
+detect_and_store_class() {
+    local uuid="$1"
+    local app_id="$2"
+    local function_name="detect_and_store_class"
+    
+    debug_function_enter "$function_name" "$@"
+    debug_log "$function_name" "Detecting app_class for $app_id..."
+    
+    # Detect actual window class from the launched window
+    local detected_class=""
+    detected_class=$(get_window_class_by_uuid "$uuid")
+    
+    if [[ -n "$detected_class" ]]; then
+        # Store in database for future use
+        if db_set_app_class "$app_id" "$detected_class"; then
+            debug_log "$function_name" "✓ Auto-detected and stored app_class: $detected_class"
+            debug_function_exit "$function_name"
+            echo "$detected_class"
+            return 0
+        else
+            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store app_class: $detected_class"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+    else
+        debug_error "$function_name" "$ERR_CLASS_DETECTION_FAILED" "Could not detect class for UUID $uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 }

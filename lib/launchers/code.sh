@@ -61,7 +61,7 @@ launch_vscode_window() {
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
-    --window-title "$window_title"
+    "$class" "$window_title" ""
 
     debug_function_exit "$function_name"
 }
@@ -91,7 +91,7 @@ launch_vscode_workspace_window() {
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
-    --window-title "$window_title"
+    "$class" "$window_title" ""
 
     debug_function_exit "$function_name"
 }

@@ -25,7 +25,7 @@ workspace_create() {
     debug_function_enter "$function_name" "$@"
     
     validate_workspace_name "$workspace_name" || return 1
-    db_workspace_exists "$workspace_name" || return 1
+    db_workspace_not_exists "$workspace_name" || return 1
 
     # 1. Prompt for description
     echo "" >&3

@@ -2,6 +2,9 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_LIST_LOADED" || return 0
 
+# shellcheck source=../../db/workspace.sh
+source "${LIB_DIR}/db/workspace.sh"
+
 workspace_list() {
     local workspaces=""
     local function_name="workspace_list"

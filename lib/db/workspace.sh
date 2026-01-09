@@ -10,7 +10,6 @@ db_create_workspace() {
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$workspace_name" || return 1
-    validate_parameter_pass "$description" || return 1
     
     # Execute INSERT
     sqlite3 "$KDOITALL_DB" \
@@ -32,6 +31,32 @@ db_create_workspace() {
     debug_log "$function_name" "Created workspace: $workspace_name"
     debug_function_exit "$function_name"
     return 0
+}
+
+db_workspace_not_exists() {
+    local workspace_name="$1"
+    local function_name="db_workspace_not_exists"
+    local count=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" || return 1
+    
+    # Check existence
+    count=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name = :workspace_name;" 2>/dev/null)
+    
+    if [[ "$count" -eq 1 ]]; then
+        debug_log "$function_name" "Workspace exists: $workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    else
+        debug_log "$function_name" "Workspace does not exist: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    fi
 }
 
 db_workspace_exists() {
@@ -64,7 +89,7 @@ db_list_workspaces() {
     local function_name="db_list_workspaces"
     local result=""
     
-    debug_function_enter "$function_name" "$@"
+    debug_function_enter "$function_name"
     
     # Query all workspaces ordered by last opened (most recent first), then by creation
     result=$(sqlite3 "$KDOITALL_DB" \

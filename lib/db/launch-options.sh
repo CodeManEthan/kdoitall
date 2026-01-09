@@ -11,9 +11,9 @@ db_add_launch_option() {
     
     debug_function_enter "$func_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$function_name" || return 1
-    validate_parameter_pass "$description" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$function_name" "function_name" || return 1
+    validate_parameter_pass "$description" "description" || return 1
     
     # Execute INSERT OR REPLACE
     sqlite3 "$KDOITALL_DB" \
@@ -46,7 +46,7 @@ db_get_launch_options() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     result=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -69,7 +69,7 @@ db_delete_launch_options_for_app() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
@@ -89,7 +89,7 @@ db_app_has_launch_options() {
     
     debug_function_enter "$function_name" "$@"
     
-    validate_parameter_pass "$app_id" || return 1
+    validate_parameter_pass "$app_id" "app_id" || return 1
     
     count=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \

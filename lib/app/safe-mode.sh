@@ -61,6 +61,7 @@ prompt_safe_mode() {
     local app_count=${#apps[@]}
     
     debug_function_enter "$function_name" "App count: $app_count"
+    debug_array "apps"
     
     # Display header
     echo "" >&3
@@ -229,8 +230,11 @@ safe_mode_test_multi_instance() {
     validate_parameter_pass "$existing_uuid" || return 1
     
     # Get display name
-    local display_name
+    local display_name=""
     display_name=$(db_get_app_display_name "$app_id")
+
+    local class=""
+    class=$(db_get_app_class "$app_id")
     
     # Prompt user
     echo "" >&3
@@ -254,10 +258,53 @@ safe_mode_test_multi_instance() {
     echo "Launching second instance of $display_name..." >&3
     (gtk-launch "$app_id" &>/dev/null &)
     
-    # Wait and detect new window using retry function
+    # Wait and detect new window with cancellation support
     echo "Waiting for new window to appear..." >&3
+    echo "(Press 'c' + Enter at any time to cancel)" >&3
+    echo "" >&3
+
     local new_uuid=""
-    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
+    local max_attempts=60  # 30 seconds at 0.5s intervals
+    local attempt=0
+    local user_cancelled=false
+
+    while (( attempt < max_attempts )); do
+        # Check for user cancellation (non-blocking)
+        if read -t 0.5 -n 1 -r input 2>/dev/null; then
+            if [[ "$input" == "c" || "$input" == "C" ]]; then
+                echo "" >&3
+                echo "User cancelled window detection." >&3
+                user_cancelled=true
+                break
+            fi
+        fi
+        
+        # Try to detect new window
+        new_uuid=$(get_uuid_by_process_of_elimination "$class" "TRUE")
+        
+        if [[ -n "$new_uuid" ]]; then
+            echo "" >&3
+            echo "✓ New window detected after $((attempt / 2))s" >&3
+            break
+        fi
+        
+        # Progress indicator every 10 attempts (5 seconds)
+        if (( attempt > 0 && attempt % 10 == 0 )); then
+            echo "Still waiting... ($((attempt / 2))s elapsed)" >&3
+        fi
+        
+        ((attempt++))
+    done
+
+    # Handle timeout
+    if [[ -z "$new_uuid" && "$user_cancelled" == false ]]; then
+        echo "" >&3
+        echo "No new window detected after 30s" >&3
+    fi
+
+    if [[ "$user_cancelled" == true ]]; then
+        echo "Assuming NO new window appeared (single-instance mode)" >&3
+    fi
 
     minimize_window_by_uuid "$new_uuid"
     
@@ -512,9 +559,10 @@ safe_mode_test_for_unique_mode() {
             
             if [[ $attempt -lt $max_attempts ]]; then
                 read -r -p "Try again with different state? [Y/n]: " retry
-                retry=$(echo "$retry" | tr '[:upper:]' '[:lower:]')
-                
-                if [[ "$retry" == "n" ]]; then
+                retry=$(echo "$retry" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+
+                if [[ "$retry" != "y" && "$retry" != "yes" && "$retry" != "" ]]; then
+                    # Anything other than y/yes/Enter means stop
                     echo "" >&3
                     echo "User accepted SINGLE mode determination" >&3
                     debug_function_exit "$function_name" "SINGLE"

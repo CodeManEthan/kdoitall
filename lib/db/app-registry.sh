@@ -18,14 +18,11 @@ db_add_application() {
     validate_parameter_pass "$app_id" || return 1
     validate_parameter_pass "$display_name" || return 1
     validate_parameter_pass "$desktop_file_path" || return 1
-    validate_parameter_pass "$app_file_path" || return 1
-    validate_parameter_pass "$terminal_command" || return 1
-    validate_parameter_pass "$app_class" || return 1
     validate_parameter_pass "$has_terminal_launch" || return 1
     validate_parameter_pass "$has_desktop_launch" || return 1
     
-    has_terminal_launch=$(normailize_boolean "$has_terminal_launch")
-    has_desktop_launch=$(normailize_boolean "$has_desktop_launch")
+    has_terminal_launch=$(normalize_boolean "$has_terminal_launch")
+    has_desktop_launch=$(normalize_boolean "$has_desktop_launch")
 
     # Execute INSERT OR REPLACE
     sqlite3 "$KDOITALL_DB" \
@@ -169,6 +166,32 @@ db_application_exists() {
     fi
 }
 
+db_application_not_exists() {
+    local app_id="$1"
+    local function_name="db_application_not_exists"
+    local count=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" || return 1
+    
+    # Check existence
+    count=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        "SELECT COUNT(*) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    
+    if [[ "$count" -eq 1 ]]; then
+        debug_log "$function_name" "Application exists: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    else
+        debug_log "$function_name" "Application does not exist: $app_id"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+}
+
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"
@@ -254,55 +277,6 @@ db_get_applications_needing_validation() {
     debug_function_exit "$function_name"
     echo "$result"
     return 0
-}
-
-db_get_app_class() {
-    local app_id="$1"
-    local function_name="db_get_app_class"
-    local result=""
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_id" || return 1
-    
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT app_class FROM applications WHERE app_id = :app_id;" 2>/dev/null)
-    
-    debug_log "$function_name" "Retrieved app_class for $app_id: ${result:-NULL}"
-    debug_function_exit "$function_name"
-    echo "$result"
-    return 0
-}
-
-db_set_app_class() {
-    local app_id="$1"
-    local app_class="$2"
-    local function_name="db_set_app_class"
-    local changes=""
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_id" || return 1
-    validate_parameter_pass "$app_class" || return 1
-    
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :app_class '$app_class'" \
-        "UPDATE applications SET app_class = :app_class WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
-    
-    if [[ "$changes" -eq 1 ]]; then
-        debug_log "$function_name" "Set app_class='$app_class' for $app_id"
-        debug_function_exit "$function_name"
-        return 0
-    else
-        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
 }
 
 db_get_terminal_command() {

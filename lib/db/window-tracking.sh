@@ -114,7 +114,6 @@ db_check_window_exists_by_window_name() {
     echo "$uuid"    
 }
 
-
 db_add_window() {
     local workspace_name="$1"
     local window_name="$2"

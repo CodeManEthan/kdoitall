@@ -33,7 +33,7 @@ registry_validate_app_metadata() {
     # Source file in subshell to extract variables
     validation_output=$(
         (
-            set +e
+            set +eu
             # shellcheck disable=SC1090
             source "$app_file_path" 2>/dev/null || exit 1
             
@@ -303,15 +303,13 @@ registry_extract_terminal_command() {
     validate_parameter_pass "$app_file_path" || return 1
     validate_file_exists "$app_file_path" || return 1
     
-    # Source file in subshell and extract TERMINAL_COMMAND
-    terminal_command=$(
-        (
-            set +e
-            # shellcheck disable=SC1090
-            source "$app_file_path" 2>/dev/null || exit 1
-            echo "${TERMINAL_COMMAND:-}"
-        ) 2>&1
-    )
+    # Parse TERMINAL_COMMAND from file
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^[[:space:]]*TERMINAL_COMMAND=\"([^\"]*)\" ]]; then
+            terminal_command="${BASH_REMATCH[1]}"
+            break
+        fi
+    done < "$app_file_path"
     
     debug_log "$function_name" "Extracted terminal_command: ${terminal_command:-NULL}"
     debug_function_exit "$function_name"
@@ -323,7 +321,6 @@ registry_store_launch_options() {
     local app_id="$1"
     local app_file_path="$2"
     local function_name="registry_store_launch_options"
-    local parse_output=""
     
     debug_function_enter "$function_name" "$@"
 
@@ -334,40 +331,45 @@ registry_store_launch_options() {
     # Clear existing launch options for this app
     db_delete_launch_options_for_app "$app_id"
     
-    # Parse launch options from app file
-    parse_output=$(
-        (
-            set +e
-            # shellcheck disable=SC1090
-            source "$app_file_path" 2>/dev/null || exit 1
-            
-            # Check if LAUNCH_OPTIONS exists
-            if [[ -v LAUNCH_OPTIONS ]]; then
-                local order=1
-                for func_name in "${!LAUNCH_OPTIONS[@]}"; do
-                    echo "LAUNCH_OPTION:${order}:${func_name}:${LAUNCH_OPTIONS[$func_name]}"
-                    ((order++))
-                done
-            fi
-        ) 2>&1
-    )
-    
-    # Store each launch option in database
+    # Parse LAUNCH_OPTIONS array from file using text parsing
+    local in_array=false
+    local order=1
     local options_stored=0
+    
     while IFS= read -r line; do
-        if [[ "$line" =~ ^LAUNCH_OPTION:([0-9]+):([^:]+):(.*)$ ]]; then
-            local order="${BASH_REMATCH[1]}"
-            local func_name="${BASH_REMATCH[2]}"
-            local description="${BASH_REMATCH[3]}"
+        # Detect start of LAUNCH_OPTIONS array
+        if [[ "$line" =~ ^[[:space:]]*declare[[:space:]]+-A[[:space:]]+LAUNCH_OPTIONS=\( ]]; then
+            in_array=true
+            # Check if array definition is all on one line
+            if [[ "$line" =~ \) ]]; then
+                in_array=false
+            fi
+            line="${line#*LAUNCH_OPTIONS=(}"
+            line="${line%)}"
+        fi
+        
+        # Parse array elements
+        if [[ "$in_array" == true ]] || [[ "$line" =~ ^\[.*\]= ]]; then
+            # Extract key-value pairs like ["key"]="value"
+            if [[ "$line" =~ \[\"([^\"]+)\"\]=\"([^\"]*)\" ]]; then
+                local func_name="${BASH_REMATCH[1]}"
+                local description="${BASH_REMATCH[2]}"
+                
+                if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
+                    debug_log "$function_name" "Stored launch option: $app_id.$func_name"
+                    ((options_stored++))
+                    ((order++))
+                else
+                    debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
+                fi
+            fi
             
-            if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
-                debug_log "$function_name" "Stored launch option: $app_id.$func_name"
-                ((options_stored++))
-            else
-                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
+            # Check if this line ends the array
+            if [[ "$line" =~ \) ]]; then
+                in_array=false
             fi
         fi
-    done <<< "$parse_output"
+    done < "$app_file_path"
     
     debug_log "$function_name" "Stored $options_stored launch options for $app_id"
     debug_function_exit "$function_name"

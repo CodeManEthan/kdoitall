@@ -40,16 +40,19 @@ launch_firefox_window() {
     local screen="$4"
     local position="$5"
     local url="$6"
-
     local launch_command=""
+    local window_title=""
     local function_name="launch_firefox_window"
 
     debug_function_enter "$function_name" "$@"
+
+    window_title=" — Mozilla Firefox"
     
     launch_command="firefox --new-window \"$url\" &"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command"
+    "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" "$launch_mode" "$launch_type" "$launch_command" \
+    "$class" "$window_title" ""
 
     debug_function_exit "$function_name"
 }

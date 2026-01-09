@@ -22,6 +22,7 @@ class Colors:
     RED = '\033[1;31m'
     CYAN = '\033[0;36m'
     GRAY = '\033[0;37m'
+    MAGENTA = '\033[1;35m'
 
 # Bash keywords and common builtins to ignore
 BASH_KEYWORDS = {
@@ -111,7 +112,8 @@ class SourcingAnalyzer:
         if '<<' in before_pos:
             return True
         
-        # Check for echo/cat to file patterns        if 'cat' in before_pos and ('>>' in before_pos or '>' in before_pos):
+        # Check for echo/cat to file patterns
+        if 'cat' in before_pos and ('>>' in before_pos or '>' in before_pos):
             return True
         if 'echo' in before_pos and ('>>' in before_pos or '>' in before_pos):
             return True
@@ -121,8 +123,9 @@ class SourcingAnalyzer:
     def find_function_calls(self, file_path: Path, local_functions: Set[str]) -> Set[str]:
         """Find potential function calls in a file, excluding those in heredocs/strings"""
         potential_calls = set()
-        # Match function-like patterns: word followed by space/parenthesis
-        pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(|[\s])')
+        # Match function-like patterns: word followed by space/parenthesis (including process substitution)
+        # Matches: func(), func , <(func), $(func)
+        pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(|\)|[\s])')
         
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -178,7 +181,7 @@ class SourcingAnalyzer:
         return potential_calls
     
     def extract_current_sources(self, file_path: Path) -> Set[str]:
-        """Extract current source statements from a file"""
+        """Extract current source statements from a file, normalized without lib/ prefix"""
         sources = set()
         # Match: source "${LIB_DIR}/path/file.sh"
         pattern = re.compile(r'source\s+["\$\{]*LIB_DIR[}\"]*/(.+\.sh)')
@@ -188,16 +191,20 @@ class SourcingAnalyzer:
                 for line in f:
                     match = pattern.search(line)
                     if match:
-                        # Add both with and without 'lib/' prefix for matching
+                        # Normalize: always store without 'lib/' prefix
                         source_path = match.group(1)
-                        sources.add(source_path)
-                        # Also add the full path with lib/ prefix
-                        if not source_path.startswith('lib/'):
-                            sources.add(f"lib/{source_path}")
+                        sources.add(self.normalize_source_path(source_path))
         except Exception as e:
             print(f"Warning: Could not read {file_path}: {e}", file=sys.stderr)
         
         return sources
+    
+    def normalize_source_path(self, source_path: str) -> str:
+        """Normalize a source path for comparison"""
+        # Remove 'lib/' prefix if present
+        if source_path.startswith('lib/'):
+            return source_path[4:]
+        return source_path
     
     def build_function_map(self):
         """Build map of all functions to their source files"""
@@ -228,11 +235,12 @@ class SourcingAnalyzer:
         # Extract called functions
         called_functions = self.find_function_calls(file_path, local_functions)
         
-        # Extract current sources
+        # Extract current sources (normalized without lib/ prefix)
         already_sourced = self.extract_current_sources(file_path)
         
         # Calculate dependencies - group by source file
         dependencies_by_source: Dict[str, Dict[str, Any]] = {}
+        used_sources = set()  # Track which sources are actually used
         
         for func_name in sorted(called_functions):
             # Skip if not in function map (unknown function)
@@ -240,15 +248,19 @@ class SourcingAnalyzer:
                 continue
             
             source_file = self.function_map[func_name]
+            source_file_normalized = self.normalize_source_path(source_file)
             
             # Skip if this is the same file (local function we missed)
             if source_file == relative_path:
                 continue
             
+            # Track that this source file is used
+            used_sources.add(source_file_normalized)
+            
             # Determine status
             if source_file in GLOBALLY_SOURCED:
                 status = "globally available"
-            elif source_file in already_sourced:
+            elif source_file_normalized in already_sourced:
                 status = "already sourced"
             else:
                 status = "MISSING"
@@ -260,7 +272,25 @@ class SourcingAnalyzer:
             dependencies_by_source[source_file]['functions'].append(func_name)
             dependencies_by_source[source_file]['status'] = status
         
-        # Convert to list format
+        # Check for unnecessary sources - sources that don't provide any used functions
+        unnecessary_sources = []
+        for sourced in already_sourced:
+            full_path = f"lib/{sourced}"
+            
+            # Skip if it's globally sourced (those are okay to have)
+            if full_path in GLOBALLY_SOURCED:
+                continue
+            
+            # Check if this source is used
+            if sourced not in used_sources:
+                # Get functions from this source file
+                functions_in_source = self.file_functions.get(full_path, set())
+                unnecessary_sources.append({
+                    'source': sourced,
+                    'available_functions': sorted(functions_in_source) if functions_in_source else []
+                })
+        
+        # Convert dependencies to list format
         dependencies = []
         for source_file in sorted(dependencies_by_source.keys()):
             info = dependencies_by_source[source_file]
@@ -272,8 +302,9 @@ class SourcingAnalyzer:
         
         return {
             'relative_path': relative_path,
-            'already_sourced': sorted([s for s in already_sourced if not s.startswith('lib/')]),
-            'dependencies': dependencies
+            'already_sourced': sorted(already_sourced),
+            'dependencies': dependencies,
+            'unnecessary_sources': unnecessary_sources
         }
     
     def generate_report(self, verbose: bool = False):
@@ -295,7 +326,9 @@ class SourcingAnalyzer:
             'files_with_missing': 0,
             'files_fully_sourced': 0,
             'files_no_deps': 0,
-            'total_missing_deps': 0
+            'files_with_unnecessary': 0,
+            'total_missing_deps': 0,
+            'total_unnecessary': 0
         }
         
         # Group files by directory
@@ -320,6 +353,7 @@ class SourcingAnalyzer:
                 # Track statistics
                 has_missing = any(dep['status'] == 'MISSING' for dep in analysis['dependencies'])
                 has_deps = len(analysis['dependencies']) > 0
+                has_unnecessary = len(analysis['unnecessary_sources']) > 0
                 
                 if has_missing:
                     stats['files_with_missing'] += 1
@@ -329,6 +363,10 @@ class SourcingAnalyzer:
                     stats['files_fully_sourced'] += 1
                 else:
                     stats['files_no_deps'] += 1
+                
+                if has_unnecessary:
+                    stats['files_with_unnecessary'] += 1
+                    stats['total_unnecessary'] += len(analysis['unnecessary_sources'])
                 
                 self.cprint(Colors.GREEN, f"📄 {analysis['relative_path']}")
                 self.cprint(Colors.YELLOW, "─" * 60)
@@ -340,6 +378,17 @@ class SourcingAnalyzer:
                         print(f"   • {source}")
                 else:
                     print("✅ Already sources: (none)")
+                
+                # Show unnecessary sources
+                if analysis['unnecessary_sources']:
+                    self.cprint(Colors.MAGENTA, "⚠️  Unnecessary sources (not using any functions from):")
+                    for unnecessary in analysis['unnecessary_sources']:
+                        if verbose and unnecessary['available_functions']:
+                            funcs = ', '.join(unnecessary['available_functions'])
+                            func_info = f" (defines: {funcs})"
+                        else:
+                            func_info = ""
+                        self.cprint(Colors.MAGENTA, f"   • {unnecessary['source']}{func_info}")
                 
                 # Show dependencies with status
                 if analysis['dependencies']:
@@ -379,9 +428,11 @@ class SourcingAnalyzer:
         print()
         print(f"Total files analyzed: {stats['total_files']}")
         print(f"Files with missing dependencies: {stats['files_with_missing']}")
+        print(f"Files with unnecessary sources: {stats['files_with_unnecessary']}")
         print(f"Files fully sourced: {stats['files_fully_sourced']}")
         print(f"Files with no dependencies: {stats['files_no_deps']}")
         print(f"Total missing source statements needed: {stats['total_missing_deps']}")
+        print(f"Total unnecessary source statements: {stats['total_unnecessary']}")
         print()
 
 

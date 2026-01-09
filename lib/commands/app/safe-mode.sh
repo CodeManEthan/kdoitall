@@ -4,8 +4,6 @@ check_and_set_guard "_KDOITALL_APP_SAFE_MODE_COMMAND_LOADED" || return 0
 
 # shellcheck source=../../app/safe-mode.sh
 source "${LIB_DIR}/app/safe-mode.sh"
-# shellcheck source=../../app/registry.sh
-source "${LIB_DIR}/app/registry.sh"
 # shellcheck source=../../db/app-registry.sh
 source "${LIB_DIR}/db/app-registry.sh"
 # shellcheck source=../../db/app.sh

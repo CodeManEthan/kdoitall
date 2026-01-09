@@ -44,7 +44,7 @@ workspace_open() {
     local -a safe_mode_apps=()
     mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
     
-    if [[ ${#safe_mode_apps[@]} -gt 0 ]]; then
+    if [[ ${#safe_mode_apps[@]} -gt 0 && -n "${safe_mode_apps[0]}" ]]; then
         # Prompt user with options
         prompt_safe_mode "${safe_mode_apps[@]}"
 
