@@ -15,8 +15,10 @@ CREATE TABLE app_windows (
     class TEXT NOT NULL,
     pid INTEGER,
     window_title TEXT,
+    app_id TEXT,
     is_tab BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (workspace_name) REFERENCES workspaces(workspace_name) ON DELETE CASCADE
+    FOREIGN KEY (workspace_name) REFERENCES workspaces(workspace_name) ON DELETE CASCADE,
+    FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
 );
 
 CREATE TABLE tabs (
@@ -35,18 +37,18 @@ CREATE TABLE applications (
     has_terminal_launch BOOLEAN DEFAULT FALSE,
     has_desktop_launch BOOLEAN DEFAULT FALSE,
     app_class TEXT,
-    app_file_path TEXT,
+    app_directory_path TEXT,
     terminal_command TEXT, 
     last_validated TIMESTAMP,
     safe_mode_completed BOOLEAN DEFAULT FALSE,
     safe_mode_timestamp TIMESTAMP,
     launch_mode TEXT,
     supports_pid_validation BOOLEAN DEFAULT FALSE,
-    expected_executable_path TEXT,
-    expected_process_name TEXT,
+    executable_path TEXT,
+    process_name TEXT,
     window_title_pattern TEXT,
-    expected_launch_time_ms INTEGER,
-    last_measured_launch_time_ms INTEGER,
+    launch_time_ms INTEGER,
+    last_launch_time_ms INTEGER,
     launch_time_samples INTEGER DEFAULT 0
 );
 
@@ -64,7 +66,7 @@ CREATE TABLE launch_parameters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     app_id TEXT NOT NULL,
     function_id TEXT NOT NULL,
-    function_name TEXT NOT NULL,
+    parameter_name TEXT NOT NULL,
     description TEXT NOT NULL,
     display_order INTEGER NOT NULL,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE CASCADE,

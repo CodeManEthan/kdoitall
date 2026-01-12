@@ -65,28 +65,3 @@ validate_window_name() {
     debug_function_exit "$function_name"
     return 0
 }
-
-validate_desktop_count() {
-    local desktop_count="$1"
-    local function_name="validate_desktop_count"
-
-    if [[ -z "$desktop_count" ]]; then
-        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "No output from kdotool get_num_desktops"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Validate it's a number
-    if ! [[ "$desktop_count" =~ ^[0-9]+$ ]]; then
-        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "Invalid output: $desktop_count"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Validate at least 1 desktop exists
-    if [[ "$desktop_count" -lt 1 ]]; then
-        debug_error "$function_name" "$ERR_NO_DESKTOPS_DETECTED" "Desktop count: $desktop_count"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-}

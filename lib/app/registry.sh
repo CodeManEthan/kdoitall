@@ -6,6 +6,8 @@ check_and_set_guard "_KDOITALL_APPLICATION_REGISTRY_LOADED" || return 0
 source "${LIB_DIR}/db/app-registry.sh"
 # shellcheck source=../db/app-registry.sh
 source "${LIB_DIR}/db/launch-options.sh"
+# shellcheck source=../utils/json-parser.sh
+source "${LIB_DIR}/utils/json-parser.sh"
 
 # Standard .desktop file locations
 readonly DESKTOP_FILE_LOCATIONS=(
@@ -15,94 +17,110 @@ readonly DESKTOP_FILE_LOCATIONS=(
 )
 
 registry_validate_app_metadata() {
-    local app_file_path="$1"
+    local app_dir="$1"
     local function_name="registry_validate_app_metadata"
-    local validation_output=""
-    local errors=0
+    local json_file=""
+    local functions_file=""
     
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
-    validate_file_exists "$app_file_path" || return 1
+    validate_parameter_pass "$app_dir" "app_dir" || return 1
+    validate_directory_exists "$app_dir" || return 1
     
-    # Extract app_id from filename for display
+    json_file="${app_dir}/metadata.json"
+    functions_file="${app_dir}/functions.sh"
+    
+    # Extract app_id from directory name for display
     local app_id=""
-    app_id=$(basename "$app_file_path" .sh)
-    debug_log "$function_name" "Validating: $app_file_path (app_id: $app_id)"
+    app_id=$(basename "$app_dir")
+    debug_log "$function_name" "Validating: $app_dir (app_id: $app_id)"
     
-    # Source file in subshell to extract variables
-    validation_output=$(
-        (
-            set +eu
-            # shellcheck disable=SC1090
-            source "$app_file_path" 2>/dev/null || exit 1
-            
-            # Check for required variables
-            [[ -z "${TERMINAL_COMMAND:-}" ]] && echo "ERROR:TERMINAL_COMMAND is missing"
-            
-            # Check if LAUNCH_OPTIONS exists and is not empty
-            if [[ ! -v LAUNCH_OPTIONS ]]; then
-                echo "ERROR:LAUNCH_OPTIONS array is missing"
-            elif [[ ${#LAUNCH_OPTIONS[@]} -eq 0 ]]; then
-                echo "ERROR:LAUNCH_OPTIONS array is empty"
-            fi
-            
-            # Output values for logging
-            echo "TERMINAL_COMMAND=${TERMINAL_COMMAND:-}"
-            echo "LAUNCH_OPTIONS_COUNT=${#LAUNCH_OPTIONS[@]}"
-        ) 2>&1
-    )
-    
-    # Parse validation output
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^ERROR:(.*)$ ]]; then
-            echo "  ✗ ${BASH_REMATCH[1]}" >&2
-            ((errors++))
-        fi
-    done <<< "$validation_output"
-    
-    # Report results
-    if [[ $errors -eq 0 ]]; then
-        debug_log "$function_name" "✓ Validation passed for $app_file_path"
-        debug_function_exit "$function_name"
-        return 0
-    else
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$app_file_path ($errors errors)"
+    # Validate metadata.json exists
+    if [[ ! -f "$json_file" ]]; then
+        echo "  ✗ metadata.json not found" >&2
+        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "metadata.json not found in $app_dir"
         debug_function_exit "$function_name"
         return 1
     fi
+    
+    # Validate functions.sh exists
+    if [[ ! -f "$functions_file" ]]; then
+        echo "  ✗ functions.sh not found" >&2
+        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "functions.sh not found in $app_dir"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate JSON structure
+    if ! json_validate_metadata "$json_file"; then
+        echo "  ✗ Invalid JSON metadata" >&2
+        debug_error "$function_name" "$ERR_INVALID_JSON" "JSON validation failed for $json_file"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate parameters format
+    if ! json_validate_parameters "$json_file"; then
+        echo "  ✗ Invalid parameter format" >&2
+        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "Parameter validation failed for $json_file"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate that all functions exist in functions.sh
+    local launch_options_count
+    launch_options_count=$(json_get_launch_options_count "$json_file")
+    
+    local i=0
+    while [[ $i -lt $launch_options_count ]]; do
+        local func_name
+        func_name=$(json_get_launch_option_function_name "$json_file" "$i")
+        
+        if ! json_validate_function_exists "$functions_file" "$func_name"; then
+            echo "  ✗ Function not found: $func_name" >&2
+            debug_error "$function_name" "$ERR_FUNCTION_NOT_FOUND" "Function $func_name not found in $functions_file"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+        
+        ((i++))
+    done
+    
+    debug_log "$function_name" "✓ Validation passed for $app_dir"
+    debug_function_exit "$function_name"
+    return 0
 }
 
 registry_validate_all_app_files() {
     local function_name="registry_validate_all_app_files"
-    local app_dir="${LIB_DIR}/launchers"
-    local total_files=0
-    local valid_files=0
-    local invalid_files=0
+    local app_definitions_dir="${LIB_DIR}/app-definitions"
+    local total_apps=0
+    local valid_apps=0
+    local invalid_apps=0
     
     debug_function_enter "$function_name"
 
-    validate_directory_exists "$app_dir" || return 1
+    validate_directory_exists "$app_definitions_dir" || return 1
     
-    echo "Validating application files in: $app_dir" >&3
+    echo "Validating application definitions in: $app_definitions_dir" >&3
     echo "" >&3
     
-    # Iterate through all .sh files
-    for app_file in "$app_dir"/*.sh; do
-        # Skip if no files found (glob doesn't match)
-        [[ ! -f "$app_file" ]] && continue
+    # Iterate through all directories in app-definitions
+    for app_dir in "$app_definitions_dir"/*/; do
+        # Skip if no directories found (glob doesn't match)
+        [[ ! -d "$app_dir" ]] && continue
         
-        ((total_files++))
-        local app_name=""
-        app_name=$(basename "$app_file")
+        ((total_apps++))
+        local app_id=""
+        app_id=$(basename "$app_dir")
         
-        echo "Checking: $app_name" >&3
+        echo "Checking: $app_id" >&3
         
-        if registry_validate_app_metadata "$app_file"; then
+        if registry_validate_app_metadata "$app_dir"; then
             echo "  ✓ Valid" >&3
-            ((valid_files++))
+            ((valid_apps++))
         else
-            ((invalid_files++))
+            ((invalid_apps++))
         fi
         
         echo "" >&3
@@ -111,16 +129,16 @@ registry_validate_all_app_files() {
     # Summary
     echo "================================" >&3
     echo "Validation Summary:" >&3
-    echo "  Total files:   $total_files" >&3
-    echo "  Valid:         $valid_files" >&3
-    echo "  Invalid:       $invalid_files" >&3
+    echo "  Total apps:    $total_apps" >&3
+    echo "  Valid:         $valid_apps" >&3
+    echo "  Invalid:       $invalid_apps" >&3
     echo "================================" >&3
     
-    debug_log "$function_name" "Validation complete: $valid_files/$total_files valid"
+    debug_log "$function_name" "Validation complete: $valid_apps/$total_apps valid"
     debug_function_exit "$function_name"
     
-    # Return success only if all files are valid
-    if [[ $invalid_files -eq 0 && $total_files -gt 0 ]]; then
+    # Return success only if all apps are valid
+    if [[ $invalid_apps -eq 0 && $total_apps -gt 0 ]]; then
         return 0
     else
         return 1
@@ -190,14 +208,15 @@ registry_scan_applications() {
             
             debug_log "$function_name" "Processing: $app_id ($display_name)"
             
-            # Check for app file
-            if registry_check_app_file "$app_id" > /dev/null 2>&1; then
-                debug_log "$function_name" "Found app file for: $app_id"
+            # Check for app directory with metadata
+            if registry_check_app_files "$app_id" > /dev/null 2>&1; then
+                debug_log "$function_name" "Found app definition for: $app_id"
                 
-                app_file_path=$(registry_get_app_file_path "$app_id")
+                app_file_path=$(registry_get_app_directory_path "$app_id")
+                local json_file="${app_file_path}/metadata.json"
                 
-                # Extract terminal command
-                terminal_command=$(registry_extract_terminal_command "$app_file_path")
+                # Extract terminal command from JSON
+                terminal_command=$(json_get_terminal_command "$json_file")
                 
                 if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true
@@ -206,11 +225,11 @@ registry_scan_applications() {
                     # Store launch options in database
                     registry_store_launch_options "$app_id" "$app_file_path"
                 else
-                    debug_log "$function_name" "No terminal command found in app file"
+                    debug_log "$function_name" "No terminal command found in metadata"
                     has_terminal_launch=false
                 fi
             else
-                debug_log "$function_name" "No app file found for: $app_id"
+                debug_log "$function_name" "No app definition found for: $app_id"
             fi
             
             # Add application to database with all metadata
@@ -234,503 +253,135 @@ registry_scan_applications() {
     return 0
 }
 
-registry_get_app_file_path() {
+registry_get_app_directory_path() {
     local app_id="$1"
+    local function_name="registry_get_app_directory_path"
     
-    if [[ -z "$app_id" ]]; then
-        return 1
-    fi
+    debug_function_enter "$function_name" "$@"
     
-    echo "${LIB_DIR}/launchers/${app_id}.sh"
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    
+    # Return path to app directory
+    local app_dir="${LIB_DIR}/app-definitions/${app_id}"
+    
+    debug_log "$function_name" "App directory: $app_dir"
+    debug_function_exit "$function_name"
+    
+    echo "$app_dir"
     return 0
 }
 
-registry_check_app_file() {
+registry_check_app_files() {
     local app_id="$1"
     local function_name="registry_check_app_file"
-    local app_file_path=""
+    local app_dir=""
+    local json_file=""
+    local functions_file=""
     
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    app_file_path=$(registry_get_app_file_path "$app_id")
+    app_dir=$(registry_get_app_file_path "$app_id")
+    json_file="${app_dir}/metadata.json"
+    functions_file="${app_dir}/functions.sh"
     
-    # Check if file exists and is readable
-    if [[ -f "$app_file_path" && -r "$app_file_path" ]]; then
-        debug_log "$function_name" "Found app file: $app_file_path"
+    # Check if directory exists with both required files
+    if [[ -d "$app_dir" ]] && \
+       [[ -f "$json_file" && -r "$json_file" ]] && \
+       [[ -f "$functions_file" && -r "$functions_file" ]]; then
+        debug_log "$function_name" "Found app directory: $app_dir"
         debug_function_exit "$function_name"
-        echo "$app_file_path"
+        echo "$app_dir"
         return 0
     else
-        debug_log "$function_name" "App file not found: $app_file_path"
+        debug_log "$function_name" "App directory not found or incomplete: $app_dir"
         debug_function_exit "$function_name"
         return 1
     fi
-}
-
-registry_validate_terminal_command() {
-    local app_id="$1"
-    local terminal_command="$2"
-    local function_name="registry_validate_terminal_command"
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    validate_parameter_pass "$terminal_command" "terminal_command" || return 1
-    
-    debug_log "$function_name" "Checking command availability: $terminal_command"
-    
-    # Check if command exists using 'command -v'
-    if command -v "$terminal_command" &> /dev/null; then
-        debug_log "$function_name" "Command available: $terminal_command"
-        debug_function_exit "$function_name"
-        return 0
-    else
-        debug_log "$function_name" "Command not available: $terminal_command"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-}
-
-registry_extract_terminal_command() {
-    local app_file_path="$1"
-    local function_name="registry_extract_terminal_command"
-    local terminal_command=""
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
-    validate_file_exists "$app_file_path" || return 1
-    
-    # Parse TERMINAL_COMMAND from file
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*TERMINAL_COMMAND=\"([^\"]*)\" ]]; then
-            terminal_command="${BASH_REMATCH[1]}"
-            break
-        fi
-    done < "$app_file_path"
-    
-    debug_log "$function_name" "Extracted terminal_command: ${terminal_command:-NULL}"
-    debug_function_exit "$function_name"
-    echo "$terminal_command"
-    return 0
 }
 
 registry_store_launch_options() {
     local app_id="$1"
-    local app_file_path="$2"
+    local app_dir="$2"
     local function_name="registry_store_launch_options"
+    local json_file=""
+    local launch_options_count=0
     
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$app_id" "app_id" || return 1
-    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
-    validate_file_exists "$app_file_path" || return 1
+    validate_parameter_pass "$app_dir" "app_dir" || return 1
+    validate_directory_exists "$app_dir" || return 1
+    
+    json_file="${app_dir}/metadata.json"
+    validate_file_exists "$json_file" || return 1
     
     # Clear existing launch options for this app
     db_delete_launch_options_for_app "$app_id"
     
-    # Parse LAUNCH_OPTIONS array from file using text parsing
-    local in_array=false
+    # Get count of launch options
+    launch_options_count=$(json_get_launch_options_count "$json_file")
+    
+    if [[ $launch_options_count -eq 0 ]]; then
+        debug_log "$function_name" "No launch options to store for $app_id"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+    
+    # Parse JSON and store launch options
     local order=1
     local options_stored=0
+    local i=0
     
-    while IFS= read -r line; do
-        # Detect start of LAUNCH_OPTIONS array
-        if [[ "$line" =~ ^[[:space:]]*declare[[:space:]]+-A[[:space:]]+LAUNCH_OPTIONS=\( ]]; then
-            in_array=true
-            # Check if array definition is all on one line
-            if [[ "$line" =~ \) ]]; then
-                in_array=false
-            fi
-            line="${line#*LAUNCH_OPTIONS=(}"
-            line="${line%)}"
-        fi
+    while [[ $i -lt $launch_options_count ]]; do
+        local func_name
+        local description
         
-        # Parse array elements
-        if [[ "$in_array" == true ]] || [[ "$line" =~ ^\[.*\]= ]]; then
-            # Extract key-value pairs like ["key"]="value"
-            if [[ "$line" =~ \[\"([^\"]+)\"\]=\"([^\"]*)\" ]]; then
-                local func_name="${BASH_REMATCH[1]}"
-                local description="${BASH_REMATCH[2]}"
+        func_name=$(json_get_launch_option_function_name "$json_file" "$i")
+        description=$(json_get_launch_option_description "$json_file" "$i")
+        
+        if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
+            debug_log "$function_name" "Stored launch option: $app_id.$func_name"
+            ((options_stored++))
+            
+            # Store parameters for this launch option
+            local parameters
+            parameters=$(json_get_launch_option_parameters "$json_file" "$i")
+            
+            if [[ "$parameters" != "[]" && "$parameters" != "null" ]]; then
+                local param_count
+                param_count=$(echo "$parameters" | jq 'length')
                 
-                if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
-                    debug_log "$function_name" "Stored launch option: $app_id.$func_name"
-                    ((options_stored++))
-                    ((order++))
-                else
-                    debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
-                fi
+                local j=0
+                while [[ $j -lt $param_count ]]; do
+                    local param_name
+                    local param_desc
+                    
+                    param_name=$(echo "$parameters" | jq -r ".[$j].name")
+                    param_desc=$(echo "$parameters" | jq -r ".[$j].description")
+                    
+                    if db_add_launch_parameter "$app_id" "$func_name" "$param_name" "$param_desc" "$j"; then
+                        debug_log "$function_name" "Stored parameter: $app_id.$func_name.$param_name"
+                    else
+                        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store parameter: $app_id.$func_name.$param_name"
+                    fi
+                    
+                    ((j++))
+                done
             fi
             
-            # Check if this line ends the array
-            if [[ "$line" =~ \) ]]; then
-                in_array=false
-            fi
+            ((order++))
+        else
+            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
         fi
-    done < "$app_file_path"
+        
+        ((i++))
+    done
     
     debug_log "$function_name" "Stored $options_stored launch options for $app_id"
     debug_function_exit "$function_name"
     return 0
 }
 
-registry_parse_app_file() {
-    local app_file_path="$1"
-    local function_name="registry_parse_app_file"
-    local parsed_app_id=""
-    local parsed_app_class=""
-    local parsed_terminal_command=""
-    local parse_output=""
-    
-    debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$app_file_path" "app_file_path" || return 1
-    validate_file_exists "$app_file_path" || return 1
-    
-    debug_log "$function_name" "Parsing app file: $app_file_path"
-    
-    # Source the app file in a subshell to extract metadata
-    # Redirect function definitions to /dev/null to prevent execution
-    parse_output=$(
-        (
-            # Prevent functions from being executed during sourcing
-            set +e
-            # Source the file to load variables
-            # shellcheck disable=SC1090
-            source "$app_file_path" 2>/dev/null || exit 1
-            
-            # Output metadata variables
-            echo "APP_ID=${APP_ID:-}"
-            echo "APP_CLASS=${APP_CLASS:-}"
-            echo "TERMINAL_COMMAND=${TERMINAL_COMMAND:-}"
-            
-            # Output launch options if they exist
-            if [[ -v LAUNCH_OPTIONS ]]; then
-                for func_name in "${!LAUNCH_OPTIONS[@]}"; do
-                    echo "LAUNCH_OPTION:${func_name}=${LAUNCH_OPTIONS[$func_name]}"
-                done
-            fi
-        ) 2>&1
-    )
-    
-    # Check if parsing was successful
-    if [[ -z "$parse_output" ]]; then
-        debug_error "$function_name" "$ERR_APP_FILE_PARSE_FAILED" "$app_file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Extract metadata from parse output
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^APP_ID=(.*)$ ]]; then
-            parsed_app_id="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^APP_CLASS=(.*)$ ]]; then
-            parsed_app_class="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^TERMINAL_COMMAND=(.*)$ ]]; then
-            parsed_terminal_command="${BASH_REMATCH[1]}"
-        elif [[ "$line" =~ ^LAUNCH_OPTION:([^=]+)=(.*)$ ]]; then
-            local func_name="${BASH_REMATCH[1]}"
-            local display_name="${BASH_REMATCH[2]}"
-            
-            debug_log "$function_name" "Found launch option: $func_name -> $display_name"
-            
-            # TODO: Call db_add_launch_option() once it's implemented
-            # db_add_launch_option "$parsed_app_id" "$func_name" "$display_name"
-        fi
-    done <<< "$parse_output"
-    
-    validate_app_metadata "$app_file_path" "$parsed_app_id" "APP_ID" || return 1
-    validate_app_metadata "$app_file_path" "$parsed_app_class" "APP_CLASS" || return 1
-    validate_app_metadata "$app_file_path" "$parsed_terminal_command" "TERMINAL_COMMAND" || return 1
-    
-    debug_log "$function_name" "Successfully parsed: APP_ID=$parsed_app_id, APP_CLASS=$parsed_app_class"
-    debug_log "$function_name" "TERMINAL_COMMAND=$parsed_terminal_command"
-    
-    debug_function_exit "$function_name"
-    return 0
-}
-
-registry_get_application_info() {
-    local app_id="$1"
-    local function_name="registry_get_application_info"
-    local app_info=""
-    
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    
-    debug_log "$function_name" "Retrieving info for: $app_id"
-    
-    # Get application details from database
-    app_info=$(db_get_application "$app_id")
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Application not found: $app_id" >&2
-        debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Parse the pipe-delimited output
-    # Format: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal|has_desktop|last_validated
-    IFS='|' read -r _ display_name desktop_file_path \
-        app_file_path terminal_command app_class \
-        has_terminal has_desktop last_validated \
-        safe_mode_completed safe_mode_timestamp \
-        launch_mode supports_pid_validation expected_executable_path \
-        expected_process_name window_title_pattern \
-        expected_launch_time_ms <<< "$app_info"
-    
-    # Convert boolean values for display
-    local terminal_status="Not Available"
-    [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && terminal_status="Available"
-    
-    local desktop_status="Not Available"
-    [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="Available"
-    
-    local safe_mode_status="Not Completed"
-    [[ "$safe_mode_completed" == "1" || "$safe_mode_completed" == "TRUE" ]] && safe_mode_status="Completed"
-    
-    local pid_validation_status="Not Supported"
-    [[ "$supports_pid_validation" == "1" || "$supports_pid_validation" == "TRUE" ]] && pid_validation_status="Supported"
-    
-
-    # Display formatted information
-    echo "Application Information" >&3
-    echo "=========================================================" >&3
-    echo "Name:                $display_name" >&3
-    echo "App ID:              $app_id" >&3
-    echo "Desktop File:        $desktop_file_path" >&3
-    
-    # Show app file path if available
-    if [[ -n "$app_file_path" ]]; then
-        echo "App File:            $app_file_path" >&3
-    fi
-    
-    # Show terminal command if available
-    if [[ -n "$terminal_command" ]]; then
-        echo "Terminal Command:    $terminal_command" >&3
-    fi
-    
-    # Show app class if detected
-    if [[ -n "$app_class" ]]; then
-        echo "Window Class:        $app_class" >&3
-    else
-        echo "Window Class:        Not yet detected" >&3
-    fi
-    
-    echo "" >&3
-    echo "Launch Methods:" >&3
-    echo "  Terminal:          $terminal_status" >&3
-    echo "  Desktop:           $desktop_status" >&3
-    echo "" >&3
-    
-    if [[ -n "$last_validated" ]]; then
-        echo "Last Validated:      $last_validated" >&3
-    else
-        echo "Last Validated:      Never" >&3
-    fi
-
-    if [[ -n "$safe_mode_completed" ]]; then
-        echo "Safe Mode:           $safe_mode_status $safe_mode_timestamp" >&3
-    fi
-
-    if [[ -n "$launch_mode" ]]; then
-        echo "Launch Mode:         $launch_mode" >&3
-    fi
-    
-    if [[ -n "$supports_pid_validation" ]]; then
-        echo "PID Validation:      $pid_validation_status" >&3
-    fi
-
-    if [[ -n "$expected_executable_path" ]]; then
-        echo "Executable Path:     $expected_executable_path" >&3
-    fi
-
-    if [[ -n "$expected_process_name" ]]; then
-        echo "Process Name:        $expected_process_name" >&3
-    fi
-
-    if [[ -n "$window_title_pattern" ]]; then
-        echo "Window Title:        $window_title_pattern" >&3
-    fi
-
-    if [[ -n "$expected_launch_time_ms" ]]; then
-        echo "Launch Time:         $expected_launch_time_ms ms" >&3
-    fi
-
-    debug_function_exit "$function_name"
-    return 0
-}
-
-registry_list_applications() {
-    local filter="${1:-all}"
-    local function_name="registry_list_applications"
-    local app_list=""
-    local line_count=0
-    
-    debug_function_enter "$function_name" "$@"
-    
-    case "$filter" in
-        all|terminal|desktop)
-            debug_log "$function_name" "Filter: $filter"
-            ;;
-        *)
-            echo "Error: Invalid filter: $filter (must be: all, terminal, desktop)" >&2
-            debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"
-            debug_function_exit "$function_name"
-            return 1
-            ;;
-    esac
-    
-    # Get filtered application list from database
-    app_list=$(db_list_applications "$filter")
-    if [[ $? -ne 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to list applications"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Check if we have any results
-    if [[ -z "$app_list" ]]; then
-        debug_log "$function_name" "No applications found for filter: $filter"
-        debug_function_exit "$function_name"
-        return 0
-    fi
-    
-    # Format output header
-    echo "" >&3
-    echo "Available Applications (Filter: $filter)" >&3
-    echo "" >&3
-    printf "%-30s %-25s %-9s %-8s\n" "NAME" "APP_ID" "TERMINAL" "DESKTOP" >&3
-    printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})" >&3
-    
-    # Parse and display results from db_list_applications
-    # Format: app_id|display_name|has_terminal_launch|has_desktop_launch
-    while IFS='|' read -r app_id display_name has_terminal has_desktop; do
-        # Skip empty lines
-        [[ -z "$app_id" ]] && continue
-        
-        # Convert boolean to symbols
-        local terminal_status="✗"
-        [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && terminal_status="✓"
-        
-        local desktop_status="✗"
-        [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="✓"
-        
-        # Truncate display_name if too long
-        local display_short="$display_name"
-        if [[ ${#display_name} -gt 28 ]]; then
-            display_short="${display_name:0:25}..."
-        fi
-        
-        # Truncate app_id if too long
-        local app_id_short="$app_id"
-        if [[ ${#app_id} -gt 23 ]]; then
-            app_id_short="${app_id:0:20}..."
-        fi
-        
-        # Format and display
-        printf "%-30s %-25s %-9s %-8s\n" \
-            "$display_short" "$app_id_short" "$terminal_status" "$desktop_status" >&3
-        
-        ((line_count++))
-    done <<< "$app_list"
-    
-    echo "" >&3
-    echo "Total: $line_count applications" >&3
-    
-    debug_function_exit "$function_name"
-    return 0
-}
-
-registry_get_launch_options() {
-    local app_id="$1"
-    local function_name="registry_get_launch_options"
-    local options=""
-    
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    
-    debug_log "$function_name" "Retrieving launch options for: $app_id"
-    
-    if ! db_application_exists "$app_id"; then
-        debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Get launch options from database
-    options=$(db_get_launch_options "$app_id")
-    
-    if [[ -z "$options" ]]; then
-        echo "No launch options available for: $app_id" >&3
-        echo "(This application does not have terminal launch capability)" >&3
-        debug_log "$function_name" "No launch options found for $app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Display header
-    echo "Launch Options for $app_id:" >&3
-    echo "" >&3
-    
-    # Parse and display launch options from database
-    # Format: function_name|description
-    local index=1
-    while IFS='|' read -r func_name description; do
-        [[ -z "$func_name" ]] && continue
-        printf "  %2d) %-40s - %s\n" "$index" "$func_name" "$description" >&3
-        ((index++))
-    done <<< "$options"
-    
-    debug_function_exit "$function_name"
-    return 0
-}
-
-registry_get_launch_parameters() {
-    local app_id="$1"
-    local function_id="$2"
-    local function_name="registry_get_launch_parameters"
-    local parameters=""
-    
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    validate_parameter_pass "$function_id" "function_id" || return 1
-    
-    debug_log "$function_name" "Retrieving launch parameters for: $app_id (function_id: $function_id)"
-    
-    if ! db_application_exists "$app_id"; then
-        debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Get launch parameters from database
-    parameters=$(db_get_launch_parameters "$app_id" "$function_id")
-    
-    if [[ -z "$parameters" ]]; then
-        debug_log "$function_name" "No launch parameters found for $app_id (function_id: $function_id)"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Display header
-    echo "Launch Parameters for function_id $function_id:" >&3
-    echo "" >&3
-    
-    # Parse and display launch parameters from database
-    # Format: function_name|description
-    local index=1
-    while IFS='|' read -r param_name description; do
-        [[ -z "$param_name" ]] && continue
-        printf "  %2d) %-40s - %s\n" "$index" "$param_name" "$description" >&3
-        ((index++))
-    done <<< "$parameters"
-    
-    debug_function_exit "$function_name"
-    return 0
-}

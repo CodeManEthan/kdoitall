@@ -131,15 +131,23 @@ validate_directory_exists() {
     fi
 }
 
-validate_app_metadata() {
-    local app_file_path="$1"
-    local metadata="$2"
-    local metadata_name="$3"
-
-    if [[ -z "$metadata" ]]; then
-        function_name="validate_app_metadata"
-
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$metadata_name missing in $app_file_path"
+validate_command_exists() {
+    local terminal_command="$1"
+    local function_name="registry_validate_terminal_command"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$terminal_command" "terminal_command" || return 1
+    
+    debug_log "$function_name" "Checking command availability: $terminal_command"
+    
+    # Check if command exists using 'command -v'
+    if command -v "$terminal_command" &> /dev/null; then
+        debug_log "$function_name" "Command available: $terminal_command"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_log "$function_name" "Command not available: $terminal_command"
         debug_function_exit "$function_name"
         return 1
     fi

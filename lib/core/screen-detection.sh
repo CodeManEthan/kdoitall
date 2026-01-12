@@ -20,7 +20,25 @@ detect_desktops() {
     # Get desktop count from kdotool
     desktop_count=$(kdotool get_num_desktops 2>/dev/null)
     
-    validate_desktop_count "$desktop_count" || return 1
+    if [[ -z "$desktop_count" ]]; then
+        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "No output from kdotool get_num_desktops"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate it's a number
+    if ! [[ "$desktop_count" =~ ^[0-9]+$ ]]; then
+        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "Invalid output: $desktop_count"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Validate at least 1 desktop exists
+    if [[ "$desktop_count" -lt 1 ]]; then
+        debug_error "$function_name" "$ERR_NO_DESKTOPS_DETECTED" "Desktop count: $desktop_count"
+        debug_function_exit "$function_name"
+        return 1
+    fi
     
     DETECTED_DESKTOP_COUNT="$desktop_count"
     

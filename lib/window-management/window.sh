@@ -7,53 +7,6 @@
 
 check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 
-get_last_launched_uuid_by_class() {
-    local class="$1"
-    local uuid=""
-    local function_name="get_last_launched_uuid_by_class"
-
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$class" "class" || return 1
-
-    # Get last UUID by class
-    uuid=$(kdotool search --classname "$class" | tail -1)
-
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$class"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Pass UUID
-    debug_log "$function_name" "'$class' → '$uuid'"
-    
-    debug_function_exit "$function_name"
-    echo "$uuid"
-}
-
-get_last_launched_uuid() {
-    local uuid=""
-    local function_name="get_last_launched_uuid"
-
-    debug_function_enter "$function_name"
-
-    # Get last UUID
-    uuid=$(kdotool search | tail -1)
-
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_NOT_FOUND"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Pass UUID
-    debug_log "$function_name" "'$uuid'"
-
-    debug_function_exit "$function_name"
-    echo "$uuid"
-}
-
 get_uuid_by_window_title() {
     local window_title="$1"
     local uuid=""

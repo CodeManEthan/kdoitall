@@ -314,10 +314,10 @@ class SourcingAnalyzer:
         self.cprint(Colors.BLUE, "╚" + "═" * 58 + "╝")
         print()
         
-        # Get all .sh files in lib/, excluding lib/launchers/
+        # Get all .sh files in lib/, excluding lib/app-definitions/
         shell_files = sorted([
             f for f in self.lib_dir.rglob("*.sh")
-            if not str(f).startswith(str(self.lib_dir / "launchers"))
+            if not str(f).startswith(str(self.lib_dir / "app_definitions"))
         ])
         
         # Statistics tracking

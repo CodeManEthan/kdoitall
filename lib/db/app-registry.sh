@@ -166,32 +166,6 @@ db_application_exists() {
     fi
 }
 
-db_application_not_exists() {
-    local app_id="$1"
-    local function_name="db_application_not_exists"
-    local count=""
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    
-    # Check existence
-    count=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COUNT(*) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
-    
-    if [[ "$count" -eq 1 ]]; then
-        debug_log "$function_name" "Application exists: $app_id"
-        debug_function_exit "$function_name"
-        return 1
-    else
-        debug_log "$function_name" "Application does not exist: $app_id"
-        debug_function_exit "$function_name"
-        return 0
-    fi
-}
-
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"

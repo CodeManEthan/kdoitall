@@ -12,15 +12,15 @@ while [ -L "$SCRIPT_PATH" ]; do
     [[ "$SCRIPT_PATH" != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
 done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../lib"
+export LIB_DIR="${SCRIPT_DIR}/../lib"
 export KDOITALL_ROOT="${SCRIPT_DIR}/.."
+
+readonly LIB_DIR KDOITALL_ROOT
 
 # ============================================================================
 # Set up file descriptor 3 for display output
 # ============================================================================
 # fd 3 is used throughout kdoitall for user-facing display output
-# This allows functions to return values via stdout while still showing
-# prompts and messages to the user
 exec 3>&1
 
 # ============================================================================

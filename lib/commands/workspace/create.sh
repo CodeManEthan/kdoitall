@@ -194,7 +194,7 @@ add_application_to_workspace() {
     fi
 
     # Step 4: Determine launch function based on launch type
-    if [[ "$launch_type" == "desktop" ]]; then
+    if [[ "$launch_type" == "$LAUNCH_TYPE_DESKTOP" ]]; then
         # For desktop launches, use launch_by_app_id
         launch_function="launch_by_app_id"
     else
@@ -209,7 +209,7 @@ add_application_to_workspace() {
     fi
     
     # Step 5: Terminal-specific parameters
-    if [[ "$launch_type" == "terminal" ]]; then
+    if [[ "$launch_type" == "$LAUNCH_TYPE_TERMINAL" ]]; then
         # Prompt for parameters
         echo "" >&3
         echo "Step 5: Function Parameters" >&3
@@ -306,12 +306,12 @@ choose_launch_type() {
     if [[ ("$has_terminal" == "1" || "$has_terminal" == "TRUE") && ("$has_desktop" == "0" || "$has_desktop" == "FALSE") ]]; then
         debug_log "$function_name" "Only terminal launch available"
         debug_function_exit "$function_name"
-        echo "terminal"
+        echo "$LAUNCH_TYPE_TERMINAL"
         return 0
     elif [[ ("$has_desktop" == "1" || "$has_desktop" == "TRUE") && ("$has_terminal" == "0" || "$has_terminal" == "FALSE") ]]; then
         debug_log "$function_name" "Only desktop launch available"
         debug_function_exit "$function_name"
-        echo "desktop"
+        echo "$LAUNCH_TYPE_DESKTOP"
         return 0
     fi
     

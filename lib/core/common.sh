@@ -7,11 +7,6 @@ export KDOITALL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall/config"
 
 readonly KDOITALL_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
 
-# Workspace scripts location
-export WORKSPACE_DIR="$HOME/.local/bin"
-
-readonly WORKSPACE_DIR
-
 # Timing delays
 export LAUNCH_DELAY="1.0"
 export WINDOW_DELAY="0.1"
@@ -57,3 +52,37 @@ readonly FULLSCREEN
 readonly RIGHTHALF LEFTHALF TOPHALF BOTTOMHALF 
 readonly TOPLEFT TOPRIGHT BOTTOMLEFT BOTTOMRIGHT
 readonly LEFTTHIRD MIDDLETHIRD RIGHTTHIRD
+
+# In lib/core/common.sh
+declare -gA POSITION_MENU=(
+    [1]="FULLSCREEN"
+    [2]="RIGHTHALF"
+    [3]="LEFTHALF"
+    [4]="TOPHALF"
+    [5]="BOTTOMHALF"
+    [6]="TOPLEFT"
+    [7]="TOPRIGHT"
+    [8]="BOTTOMLEFT"
+    [9]="BOTTOMRIGHT"
+    [10]="LEFTTHIRD"
+    [11]="MIDDLETHIRD"
+    [12]="RIGHTTHIRD"
+)
+
+declare -ga POSITION_MENU_ORDER=(
+    "FULLSCREEN"
+    "RIGHTHALF"
+    "LEFTHALF"
+    "TOPHALF"
+    "BOTTOMHALF"
+    "TOPLEFT"
+    "TOPRIGHT"
+    "BOTTOMLEFT"
+    "BOTTOMRIGHT"
+    "LEFTTHIRD"
+    "MIDDLETHIRD"
+    "RIGHTTHIRD"
+)
+
+# shellcheck disable=SC2034
+readonly POSITION_MENU POSITION_MENU_ORDER
