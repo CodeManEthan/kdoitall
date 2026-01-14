@@ -2,19 +2,122 @@
 
 check_and_set_guard "_KDOITALL_APPLICATION_REGISTRY_LOADED" || return 0
 
-# shellcheck source=../db/app-registry.sh
-source "${LIB_DIR}/db/app-registry.sh"
-# shellcheck source=../db/app-registry.sh
+# shellcheck source=../db/app.sh
+source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../db/launch-options.sh
 source "${LIB_DIR}/db/launch-options.sh"
-# shellcheck source=../utils/json-parser.sh
-source "${LIB_DIR}/utils/json-parser.sh"
+# shellcheck source=../app-definitions/json-parser.sh
+source "${LIB_DIR}/app-definitions/json-parser.sh"
+# shellcheck source=../app-definitions/validator.sh
+source "${LIB_DIR}/app-definitions/validator.sh"
 
-# Standard .desktop file locations
-readonly DESKTOP_FILE_LOCATIONS=(
-    "/usr/share/applications"
-    "/usr/local/share/applications"
-    "$HOME/.local/share/applications"
-)
+registry_scan_applications() {
+    local function_name="registry_scan_applications"
+    local app_count=0
+    local app_id=""
+    local display_name=""
+    local desktop_file_path=""
+    local app_directory_path=""
+    local terminal_command=""
+    local has_terminal_launch=false
+    local has_desktop_launch=false
+    
+    debug_function_enter "$function_name"
+    
+    # Track processed app_ids to handle duplicates (prefer user local > system)
+    declare -A processed_apps
+    
+    # Iterate through desktop file locations in reverse priority order
+    # (process system locations first, so user local overrides them)
+    for location in "${DESKTOP_FILE_LOCATIONS[@]}"; do
+        if [[ ! -d "$location" ]]; then
+            debug_log "$function_name" "Skipping non-existent location: $location"
+            continue
+        fi
+        
+        debug_log "$function_name" "Scanning location: $location"
+        
+        # Find all .desktop files in this location
+        while IFS= read -r -d '' desktop_file; do
+            # Extract app_id from filename (basename without .desktop)
+            app_id=$(basename "$desktop_file" .desktop)
+            
+            # Skip if NoDisplay=true
+            if grep -q "^NoDisplay=true" "$desktop_file" 2>/dev/null; then
+                debug_log "$function_name" "Skipping (NoDisplay=true): $app_id"
+                continue
+            fi
+            
+            # Check if we've already processed this app_id
+            if [[ -v processed_apps[$app_id] ]]; then
+                debug_log "$function_name" "Skipping duplicate (already processed): $app_id from $desktop_file"
+                continue
+            fi
+            
+            # Mark as processed
+            processed_apps[$app_id]=1
+            
+            # Extract display name from .desktop file
+            display_name=$(grep "^Name=" "$desktop_file" | head -1 | cut -d'=' -f2-)
+            if [[ -z "$display_name" ]]; then
+                debug_log "$function_name" "Warning: No Name field in $desktop_file, using app_id"
+                display_name="$app_id"
+            fi
+            
+            desktop_file_path="$desktop_file"
+            has_desktop_launch=true
+            
+            # Reset app file variables
+            app_directory_path=""
+            terminal_command=""
+            has_terminal_launch=false
+            
+            debug_log "$function_name" "Processing: $app_id ($display_name)"
+            
+            # Check for app directory with metadata
+            if registry_check_app_files "$app_id" > /dev/null 2>&1; then
+                debug_log "$function_name" "Found app definition for: $app_id"
+                
+                app_directory_path=$(registry_get_app_directory_path "$app_id")
+                local json_file="${app_directory_path}/metadata.json"
+                
+                # Extract terminal command from JSON
+                terminal_command=$(json_get_terminal_command "$json_file")
+                
+                if [[ -n "$terminal_command" ]]; then
+                    has_terminal_launch=true
+                    debug_log "$function_name" "Extracted terminal_command: $terminal_command"
+                    
+                    # Store launch options in database
+                    registry_store_launch_options "$app_id" "$app_directory_path"
+                else
+                    debug_log "$function_name" "No terminal command found in metadata"
+                    has_terminal_launch=false
+                fi
+            else
+                debug_log "$function_name" "No app definition found for: $app_id"
+            fi
+            
+            # Add application to database with all metadata
+            if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
+                                  "$app_directory_path" "$terminal_command" "" \
+                                  "$has_terminal_launch" "$has_desktop_launch"; then
+                debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
+                ((app_count++))
+            else
+                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
+            fi
+            
+        done < <(find "$location" -maxdepth 1 -name "*.desktop" -type f -print0 2>/dev/null)
+    done
+    
+    echo "" >&3
+    echo "Scan complete: $app_count applications added to registry" >&3
+    debug_log "$function_name" "Scan complete: $app_count applications processed"
+    debug_function_exit "$function_name"
+    
+    return 0
+}
 
 registry_validate_app_metadata() {
     local app_dir="$1"
@@ -93,7 +196,7 @@ registry_validate_app_metadata() {
 
 registry_validate_all_app_files() {
     local function_name="registry_validate_all_app_files"
-    local app_definitions_dir="${LIB_DIR}/app-definitions"
+    local app_definitions_dir="${LIB_DIR}/app-definitions/apps"
     local total_apps=0
     local valid_apps=0
     local invalid_apps=0
@@ -105,7 +208,7 @@ registry_validate_all_app_files() {
     echo "Validating application definitions in: $app_definitions_dir" >&3
     echo "" >&3
     
-    # Iterate through all directories in app-definitions
+    # Iterate through all directories in app-definitions/apps
     for app_dir in "$app_definitions_dir"/*/; do
         # Skip if no directories found (glob doesn't match)
         [[ ! -d "$app_dir" ]] && continue
@@ -145,132 +248,6 @@ registry_validate_all_app_files() {
     fi
 }
 
-registry_scan_applications() {
-    local function_name="registry_scan_applications"
-    local app_count=0
-    local app_id=""
-    local display_name=""
-    local desktop_file_path=""
-    local app_file_path=""
-    local terminal_command=""
-    local has_terminal_launch=false
-    local has_desktop_launch=false
-    
-    debug_function_enter "$function_name"
-    
-    # Track processed app_ids to handle duplicates (prefer user local > system)
-    declare -A processed_apps
-    
-    # Iterate through desktop file locations in reverse priority order
-    # (process system locations first, so user local overrides them)
-    for location in "${DESKTOP_FILE_LOCATIONS[@]}"; do
-        if [[ ! -d "$location" ]]; then
-            debug_log "$function_name" "Skipping non-existent location: $location"
-            continue
-        fi
-        
-        debug_log "$function_name" "Scanning location: $location"
-        
-        # Find all .desktop files in this location
-        while IFS= read -r -d '' desktop_file; do
-            # Extract app_id from filename (basename without .desktop)
-            app_id=$(basename "$desktop_file" .desktop)
-            
-            # Skip if NoDisplay=true
-            if grep -q "^NoDisplay=true" "$desktop_file" 2>/dev/null; then
-                debug_log "$function_name" "Skipping (NoDisplay=true): $app_id"
-                continue
-            fi
-            
-            # Check if we've already processed this app_id
-            if [[ -v processed_apps[$app_id] ]]; then
-                debug_log "$function_name" "Skipping duplicate (already processed): $app_id from $desktop_file"
-                continue
-            fi
-            
-            # Mark as processed
-            processed_apps[$app_id]=1
-            
-            # Extract display name from .desktop file
-            display_name=$(grep "^Name=" "$desktop_file" | head -1 | cut -d'=' -f2-)
-            if [[ -z "$display_name" ]]; then
-                debug_log "$function_name" "Warning: No Name field in $desktop_file, using app_id"
-                display_name="$app_id"
-            fi
-            
-            desktop_file_path="$desktop_file"
-            has_desktop_launch=true
-            
-            # Reset app file variables
-            app_file_path=""
-            terminal_command=""
-            has_terminal_launch=false
-            
-            debug_log "$function_name" "Processing: $app_id ($display_name)"
-            
-            # Check for app directory with metadata
-            if registry_check_app_files "$app_id" > /dev/null 2>&1; then
-                debug_log "$function_name" "Found app definition for: $app_id"
-                
-                app_file_path=$(registry_get_app_directory_path "$app_id")
-                local json_file="${app_file_path}/metadata.json"
-                
-                # Extract terminal command from JSON
-                terminal_command=$(json_get_terminal_command "$json_file")
-                
-                if [[ -n "$terminal_command" ]]; then
-                    has_terminal_launch=true
-                    debug_log "$function_name" "Extracted terminal_command: $terminal_command"
-                    
-                    # Store launch options in database
-                    registry_store_launch_options "$app_id" "$app_file_path"
-                else
-                    debug_log "$function_name" "No terminal command found in metadata"
-                    has_terminal_launch=false
-                fi
-            else
-                debug_log "$function_name" "No app definition found for: $app_id"
-            fi
-            
-            # Add application to database with all metadata
-            if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
-                                  "$app_file_path" "$terminal_command" "" \
-                                  "$has_terminal_launch" "$has_desktop_launch"; then
-                debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
-                ((app_count++))
-            else
-                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
-            fi
-            
-        done < <(find "$location" -maxdepth 1 -name "*.desktop" -type f -print0 2>/dev/null)
-    done
-    
-    echo "" >&3
-    echo "Scan complete: $app_count applications added to registry" >&3
-    debug_log "$function_name" "Scan complete: $app_count applications processed"
-    debug_function_exit "$function_name"
-    
-    return 0
-}
-
-registry_get_app_directory_path() {
-    local app_id="$1"
-    local function_name="registry_get_app_directory_path"
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$app_id" "app_id" || return 1
-    
-    # Return path to app directory
-    local app_dir="${LIB_DIR}/app-definitions/${app_id}"
-    
-    debug_log "$function_name" "App directory: $app_dir"
-    debug_function_exit "$function_name"
-    
-    echo "$app_dir"
-    return 0
-}
-
 registry_check_app_files() {
     local app_id="$1"
     local function_name="registry_check_app_file"
@@ -282,7 +259,7 @@ registry_check_app_files() {
 
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    app_dir=$(registry_get_app_file_path "$app_id")
+    app_dir=$(registry_get_app_directory_path "$app_id")
     json_file="${app_dir}/metadata.json"
     functions_file="${app_dir}/functions.sh"
     
@@ -301,14 +278,32 @@ registry_check_app_files() {
     fi
 }
 
+registry_get_app_directory_path() {
+    local app_id="$1"
+    local function_name="registry_get_app_directory_path"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    
+    # Return path to app directory
+    local app_dir="${LIB_DIR}/app-definitions/apps/${app_id}"
+    
+    debug_log "$function_name" "App directory: $app_dir"
+    debug_function_exit "$function_name"
+    
+    echo "$app_dir"
+    return 0
+}
+
 registry_store_launch_options() {
     local app_id="$1"
     local app_dir="$2"
-    local function_name="registry_store_launch_options"
+    local func_name="registry_store_launch_options"
     local json_file=""
     local launch_options_count=0
     
-    debug_function_enter "$function_name" "$@"
+    debug_function_enter "$func_name" "$@"
 
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$app_dir" "app_dir" || return 1
@@ -324,8 +319,8 @@ registry_store_launch_options() {
     launch_options_count=$(json_get_launch_options_count "$json_file")
     
     if [[ $launch_options_count -eq 0 ]]; then
-        debug_log "$function_name" "No launch options to store for $app_id"
-        debug_function_exit "$function_name"
+        debug_log "$func_name" "No launch options to store for $app_id"
+        debug_function_exit "$func_name"
         return 0
     fi
     
@@ -335,52 +330,60 @@ registry_store_launch_options() {
     local i=0
     
     while [[ $i -lt $launch_options_count ]]; do
-        local func_name
-        local description
+        local function_name=""
+        local description=""
         
-        func_name=$(json_get_launch_option_function_name "$json_file" "$i")
+        function_name=$(json_get_launch_option_function_name "$json_file" "$i")
         description=$(json_get_launch_option_description "$json_file" "$i")
         
-        if db_add_launch_option "$app_id" "$func_name" "$description" "$order"; then
-            debug_log "$function_name" "Stored launch option: $app_id.$func_name"
+        if db_add_launch_option "$app_id" "$function_name" "$description" "$order"; then
+            debug_log "$func_name" "Stored launch option: $app_id.$function_name"
             ((options_stored++))
+
+            # Get the ID of the launch option we just added
+            local option_id=""
+            option_id=$(db_get_launch_option_id "$app_id" "$function_name")
             
-            # Store parameters for this launch option
-            local parameters
-            parameters=$(json_get_launch_option_parameters "$json_file" "$i")
-            
-            if [[ "$parameters" != "[]" && "$parameters" != "null" ]]; then
-                local param_count
-                param_count=$(echo "$parameters" | jq 'length')
+            if [[ $? -ne 0 || -z "$option_id" ]]; then
+                debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to retrieve launch option ID for $app_id.$function_name"
+            else
+                # Store parameters for this launch option
+                local parameters=""
+                parameters=$(json_get_launch_option_parameters "$json_file" "$i")
                 
-                local j=0
-                while [[ $j -lt $param_count ]]; do
-                    local param_name
-                    local param_desc
+                if [[ "$parameters" != "[]" && "$parameters" != "null" ]]; then
+                    local param_count=""
+                    param_count=$(echo "$parameters" | jq 'length')
                     
-                    param_name=$(echo "$parameters" | jq -r ".[$j].name")
-                    param_desc=$(echo "$parameters" | jq -r ".[$j].description")
-                    
-                    if db_add_launch_parameter "$app_id" "$func_name" "$param_name" "$param_desc" "$j"; then
-                        debug_log "$function_name" "Stored parameter: $app_id.$func_name.$param_name"
-                    else
-                        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store parameter: $app_id.$func_name.$param_name"
-                    fi
-                    
-                    ((j++))
-                done
+                    local j=0
+                    while [[ $j -lt $param_count ]]; do
+                        local param_name=""
+                        local param_desc=""
+                        
+                        param_name=$(echo "$parameters" | jq -r ".[$j].name")
+                        param_desc=$(echo "$parameters" | jq -r ".[$j].description")
+                        
+                        if db_add_launch_parameter "$app_id" "$option_id" "$param_name" "$param_desc" "$j"; then
+                            debug_log "$func_name" "Stored parameter: $app_id.$function_name.$param_name"
+                        else
+                            debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store parameter: $app_id.$function_name.$param_name"
+                        fi
+                        
+                        ((j++))
+                    done
+                fi
             fi
             
             ((order++))
         else
-            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$func_name"
+            debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$function_name"
         fi
         
         ((i++))
     done
     
-    debug_log "$function_name" "Stored $options_stored launch options for $app_id"
-    debug_function_exit "$function_name"
+    debug_log "$func_name" "Stored $options_stored launch options for $app_id"
+    debug_function_exit "$func_name"
     return 0
 }
 

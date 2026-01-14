@@ -33,29 +33,31 @@ db_create_workspace() {
     return 0
 }
 
-db_workspace_not_exists() {
+db_delete_workspace() {
     local workspace_name="$1"
-    local function_name="db_workspace_not_exists"
-    local count=""
+    local function_name="db_delete_workspace"
+    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    db_workspace_exists "$workspace_name" || return 1
     
-    # Check existence
-    count=$(sqlite3 "$KDOITALL_DB" \
+    # Delete workspace
+    changes=$(sqlite3 "$KDOITALL_DB" \
         -cmd ".param init" \
         -cmd ".param set :workspace_name '$workspace_name'" \
-        "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name = :workspace_name;" 2>/dev/null)
+        "DELETE FROM workspace_definitions WHERE workspace_name = :workspace_name;
+         SELECT changes();" 2>/dev/null)
     
-    if [[ "$count" -eq 1 ]]; then
-        debug_log "$function_name" "Workspace exists: $workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    else
-        debug_log "$function_name" "Workspace does not exist: $workspace_name"
+    if [[ "$changes" -eq 1 ]]; then
+        debug_log "$function_name" "Deleted workspace: $workspace_name"
         debug_function_exit "$function_name"
         return 0
+    else
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete workspace: $workspace_name"
+        debug_function_exit "$function_name"
+        return 1
     fi
 }
 
@@ -82,6 +84,32 @@ db_workspace_exists() {
         debug_log "$function_name" "Workspace does not exist: $workspace_name"
         debug_function_exit "$function_name"
         return 1
+    fi
+}
+
+db_workspace_not_exists() {
+    local workspace_name="$1"
+    local function_name="db_workspace_not_exists"
+    local count=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    
+    # Check existence
+    count=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name = :workspace_name;" 2>/dev/null)
+    
+    if [[ "$count" -eq 1 ]]; then
+        debug_log "$function_name" "Workspace exists: $workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    else
+        debug_log "$function_name" "Workspace does not exist: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
     fi
 }
 
@@ -133,37 +161,9 @@ db_get_workspace() {
     return 0
 }
 
-db_delete_workspace() {
+db_set_workspace_last_opened() {
     local workspace_name="$1"
-    local function_name="db_delete_workspace"
-    local changes=""
-    
-    debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
-    db_workspace_exists "$workspace_name" || return 1
-    
-    # Delete workspace
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :workspace_name '$workspace_name'" \
-        "DELETE FROM workspace_definitions WHERE workspace_name = :workspace_name;
-         SELECT changes();" 2>/dev/null)
-    
-    if [[ "$changes" -eq 1 ]]; then
-        debug_log "$function_name" "Deleted workspace: $workspace_name"
-        debug_function_exit "$function_name"
-        return 0
-    else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete workspace: $workspace_name"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-}
-
-db_update_workspace_last_opened() {
-    local workspace_name="$1"
-    local function_name="db_update_workspace_last_opened"
+    local function_name="db_set_workspace_last_opened"
     local changes=""
     
     debug_function_enter "$function_name" "$@"
@@ -222,4 +222,32 @@ db_set_workspace_active() {
         debug_function_exit "$function_name"
         return 1
     fi
+}
+
+db_get_workspace_is_active() {
+    local workspace_name="$1"
+    local function_name="db_get_workspace_is_active"
+    local is_active=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    
+    is_active=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        "SELECT is_active 
+         FROM workspace_definitions 
+         WHERE workspace_name = :workspace_name;" 2>/dev/null)
+    
+    if [[ -z "$is_active" ]]; then
+        debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Workspace '$workspace_name' is_active: $is_active"
+    debug_function_exit "$function_name"
+    echo "$is_active"
+    return 0
 }

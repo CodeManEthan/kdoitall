@@ -2,12 +2,12 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_CREATE_LOADED" || return 0
 
-# shellcheck source=generate.sh
-source "${LIB_DIR}/commands/workspace/generate.sh"
+# shellcheck source=../../workspace/generator.sh
+source "${LIB_DIR}/workspace/generator.sh"
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
-# shellcheck source=../../db/app-registry.sh
-source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=../../db/app.sh
+source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../../db/launch-options.sh
 source "${LIB_DIR}/db/launch-options.sh"
 # shellcheck source=../../utils/workspace-validators.sh
@@ -133,7 +133,7 @@ add_application_to_workspace() {
     
     debug_function_enter "$function_name" "$@"
 
-    validate_name_ref_parameter_pass "$3" "apps_array_ref" || return 1
+    validate_parameter_pass "$3" "apps_array_ref" || return 1
     local -n apps_array_ref="$3"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
@@ -290,8 +290,8 @@ select_application() {
 choose_launch_type() {
     local app_id="$1"
     local app_info=""
-    local has_terminal=""
-    local has_desktop=""
+    local has_terminal_launch=""
+    local has_desktop_launch=""
     local function_name="choose_launch_type"
     
     debug_function_enter "$function_name" "$@"
@@ -299,16 +299,16 @@ choose_launch_type() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     app_info=$(db_get_application "$app_id")
-    has_terminal=$(echo "$app_info" | cut -d'|' -f7)
-    has_desktop=$(echo "$app_info" | cut -d'|' -f8)
+    has_terminal_launch=$(echo "$app_info" | cut -d'|' -f7)
+    has_desktop_launch=$(echo "$app_info" | cut -d'|' -f8)
     
     # If only one type available, use it
-    if [[ ("$has_terminal" == "1" || "$has_terminal" == "TRUE") && ("$has_desktop" == "0" || "$has_desktop" == "FALSE") ]]; then
+    if [[ ("$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE") && ("$has_desktop_launch" == "0" || "$has_desktop_launch" == "FALSE") ]]; then
         debug_log "$function_name" "Only terminal launch available"
         debug_function_exit "$function_name"
         echo "$LAUNCH_TYPE_TERMINAL"
         return 0
-    elif [[ ("$has_desktop" == "1" || "$has_desktop" == "TRUE") && ("$has_terminal" == "0" || "$has_terminal" == "FALSE") ]]; then
+    elif [[ ("$has_desktop_launch" == "1" || "$has_desktop_launch" == "TRUE") && ("$has_terminal_launch" == "0" || "$has_terminal_launch" == "FALSE") ]]; then
         debug_log "$function_name" "Only desktop launch available"
         debug_function_exit "$function_name"
         echo "$LAUNCH_TYPE_DESKTOP"
@@ -394,9 +394,9 @@ configure_positioning() {
     # position_ref="$3"
     local function_name="configure_positioning"
 
-    validate_name_ref_parameter_pass "$1" "desktop_ref" || return 1
-    validate_name_ref_parameter_pass "$2" "screen_ref" || return 1
-    validate_name_ref_parameter_pass "$3" "position_ref" || return 1
+    validate_parameter_pass "$1" "desktop_ref" || return 1
+    validate_parameter_pass "$2" "screen_ref" || return 1
+    validate_parameter_pass "$3" "position_ref" || return 1
     local -n desktop_ref="$1"
     local -n screen_ref="$2"
     local -n position_ref="$3"

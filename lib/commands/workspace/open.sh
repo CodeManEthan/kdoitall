@@ -4,8 +4,8 @@ check_and_set_guard "_KDOITALL_WORKSPACE_OPEN_LOADED" || return 0
 
 # shellcheck source=../../app/safe-mode.sh
 source "${LIB_DIR}/app/safe-mode.sh"
-# shellcheck source=../../db/safe-mode.sh
-source "${LIB_DIR}/db/safe-mode.sh"
+# shellcheck source=../../db/app.sh
+source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
 
@@ -134,7 +134,7 @@ workspace_open() {
     
     # Update database metadata
     db_set_workspace_active "$workspace_name" "TRUE"
-    db_update_workspace_last_opened "$workspace_name"
+    db_set_workspace_last_opened "$workspace_name"
     
     echo "Workspace '$workspace_name' opened successfully" >&3
     debug_log "$function_name" "Workspace opened and database updated"

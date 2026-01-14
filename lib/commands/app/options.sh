@@ -2,8 +2,8 @@
 
 check_and_set_guard "_KDOITALL_APP_OPTIONS_COMMAND_LOADED" || return 0
 
-# shellcheck source=../../app/registry.sh
-source "${LIB_DIR}/app/registry.sh"
+# shellcheck source=../../utils/display.sh
+source "${LIB_DIR}/utils/display.sh"
 
 app_options() {
     local function_name="app_options"
@@ -20,7 +20,7 @@ app_options() {
     fi
     
     # Call the registry launch options function
-    if registry_get_launch_options "$app_id"; then
+    if display_launch_options "$app_id"; then
         debug_function_exit "$function_name"
         return 0
     else

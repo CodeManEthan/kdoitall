@@ -1,0 +1,19 @@
+{
+  "app_id": "org.mozilla.firefox",
+  "app_class": "org.mozilla.firefox",
+  "terminal_command": "firefox",
+  "launch_mode": "LAUNCH_MODE_MULTI",
+  "launch_type": "LAUNCH_TYPE_TERMINAL",
+  "launch_options": [
+    {
+      "function_name": "launch_firefox_window",
+      "description": "Open URL",
+      "parameters": [
+        {
+          "name": "URL",
+          "description": "Website URL"
+        }
+      ]
+    }
+  ]
+}

@@ -1,18 +1,46 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/debug.sh
-# core/error-codes.sh
-# core/ydotool.sh
-# core/ydotool.sh
-
 check_and_set_guard "_KDOITALL_SCREEN_LOADED" || return 0
 
 # shellcheck source=../core/screen-detection.sh
 source "${LIB_DIR}/core/screen-detection.sh"
 # shellcheck source=window.sh
 source "${LIB_DIR}/window-management/window.sh"
+
+calculate_screen_origin() {
+    local screen_ref="$1"
+    local function_name="calculate_screen_origin"
+    local output_num=""
+    local screen_x=""
+    local screen_y=""
+    
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
+    
+    # Resolve screen reference to output number
+    output_num=$(resolve_screen_reference "$screen_ref")
+    if [[ -z "$output_num" ]]; then
+        debug_error "$function_name" "$ERR_SCREEN_RESOLUTION_FAILED" "Cannot resolve '$screen_ref'"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    # Get coordinates from detected info
+    screen_x=$(get_screen_info "$output_num" "X")
+    screen_y=$(get_screen_info "$output_num" "Y")
+    
+    if [[ -z "$screen_x" || -z "$screen_y" ]]; then
+        debug_error "$function_name" "$ERR_SCREEN_COORDINATES_NOT_FOUND" "Output $output_num"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Screen '$screen_ref' (Output $output_num) origin: ($screen_x, $screen_y)"
+    debug_function_exit "$function_name"
+    
+    echo "${screen_x},${screen_y}"
+}
 
 validate_screen_number() {
     local screen="$1"
@@ -56,8 +84,6 @@ validate_screen_number() {
     debug_function_exit "$function_name"
 }
 
-# Validate and resolve a screen reference (number, name, or alias)
-# Returns: output number on success, empty on failure
 validate_screen_reference() {
     local screen_ref="$1"
     local output_num=""
@@ -81,49 +107,10 @@ validate_screen_reference() {
     echo "$output_num"
 }
 
-# Calculate the absolute origin (top-left X,Y coordinates) of a screen
-# Returns: "X,Y" on success, empty on failure
-calculate_screen_origin() {
-    local screen_ref="$1"
-    local function_name="calculate_screen_origin"
-    local output_num=""
-    local screen_x=""
-    local screen_y=""
-    
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$screen_ref" "screen_ref" || return 1
-    
-    # Resolve screen reference to output number
-    output_num=$(resolve_screen_reference "$screen_ref")
-    if [[ -z "$output_num" ]]; then
-        debug_error "$function_name" "$ERR_SCREEN_RESOLUTION_FAILED" "Cannot resolve '$screen_ref'"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Get coordinates from detected info
-    screen_x=$(get_screen_info "$output_num" "X")
-    screen_y=$(get_screen_info "$output_num" "Y")
-    
-    if [[ -z "$screen_x" || -z "$screen_y" ]]; then
-        debug_error "$function_name" "$ERR_SCREEN_COORDINATES_NOT_FOUND" "Output $output_num"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    debug_log "$function_name" "Screen '$screen_ref' (Output $output_num) origin: ($screen_x, $screen_y)"
-    debug_function_exit "$function_name"
-    
-    echo "${screen_x},${screen_y}"
-}
-
-# Move a window to a specific screen using absolute coordinates
-# Supports output numbers, screen names, and aliases
-move_window_to_screen_by_uuid() {
+move_window_to_screen() {
     local uuid="$1"
     local screen_ref="$2"
-    local function_name="move_window_to_screen_by_uuid"
+    local function_name="move_window_to_screen"
     local output_num=""
     local screen_origin=""
     local screen_x=""
@@ -157,17 +144,17 @@ move_window_to_screen_by_uuid() {
     debug_log "$function_name" "Moving window to screen '$screen_ref' (Output $output_num) at absolute ($screen_x, $screen_y)"
     
     # Move window to the screen's origin (top-left corner) using absolute coordinates
-    move_window_by_uuid "$uuid" "$screen_x" "$screen_y"
+    move_window "$uuid" "$screen_x" "$screen_y"
     
     debug_log "$function_name" "Moved window '$uuid' to screen '$screen_ref'"
     debug_function_exit "$function_name"
 }
 
-move_window_to_position_by_uuid() {
+move_window_to_position() {
     local uuid="$1"
     local screen_ref="$2"
     local position_mode="$3"
-    local function_name="move_window_to_position_by_uuid"
+    local function_name="move_window_to_position"
     local output_num=""
     local screen_width=""
     local screen_height=""
@@ -308,8 +295,8 @@ move_window_to_position_by_uuid() {
     debug_log "$function_name" "$position_mode size: width=$width height=$height"
 
     # Move and resize the window using ABSOLUTE coordinates
-    move_window_by_uuid "$uuid" "$absolute_x" "$absolute_y"
-    size_window_by_uuid "$uuid" "$width" "$height"
+    move_window "$uuid" "$absolute_x" "$absolute_y"
+    size_window "$uuid" "$width" "$height"
 
     debug_log "$function_name" "Moved window '$uuid' to $position_mode on screen '$screen_ref'"
     debug_function_exit "$function_name"

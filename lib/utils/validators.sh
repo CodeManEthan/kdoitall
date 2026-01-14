@@ -94,17 +94,17 @@ validate_parameter_pass() {
     fi
 }
 
-validate_name_ref_parameter_pass() {
-    local parameter="$1"
-    local parameter_name="$2"
+validate_global_array_populated() {
+    local -n array_ref="$1"
+    local array_name="$2"
+    local function_name="validate_global_array_populated"
     
-    if [[ -z "$parameter" ]]; then
-        local function_name="validate_name_ref_parameter_pass"
-
-        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "$parameter_name"
-        debug_function_exit "$function_name"
+    if [[ ${#array_ref[@]} -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_INVALID_STATE" "$array_name is empty"
         return 1
     fi
+    
+    return 0
 }
 
 validate_file_exists() {

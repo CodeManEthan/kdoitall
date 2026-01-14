@@ -5,20 +5,23 @@ check_and_set_guard "_KDOITALL_UTILS_DISPLAY_LOADED" || return 0
 # Source required database functions
 # shellcheck source=../db/window-info.sh
 source "${LIB_DIR}/db/window-info.sh"
+# shellcheck source=../db/launch-options.sh
+source "${LIB_DIR}/db/launch-options.sh"
+# shellcheck source=../db/app.sh
+source "${LIB_DIR}/db/app.sh"
 
 display_tracked_windows() {
     local function_name="display_tracked_windows"
-    local -a db_uuids
-    local -a db_classes
-    local -a db_titles
     
     debug_function_enter "$function_name"
     
-    mapfile -t db_uuids < <(db_get_existing_window_uuids)
-    mapfile -t db_classes < <(db_get_existing_window_classes)
-    mapfile -t db_titles < <(db_get_existing_window_titles)
+    # Populate global arrays
+    db_get_all_windows
     
-    if [[ ${#db_uuids[@]} -eq 0 ]]; then
+    # Validate that arrays are populated
+    validate_global_array_populated DB_UUIDS "DB_UUIDS" || return 1
+    
+    if [[ ${#DB_UUIDS[@]} -eq 0 ]]; then
         echo "No windows currently tracked in database."
         debug_function_exit "$function_name"
         return 0
@@ -30,11 +33,11 @@ display_tracked_windows() {
     
     # Display each window
     local i
-    for i in "${!db_uuids[@]}"; do
+    for i in "${!DB_UUIDS[@]}"; do
         printf "%-19s %-30s %s\n" \
-            "${db_uuids[$i]}" \
-            "${db_classes[$i]}" \
-            "${db_titles[$i]}"
+            "${DB_UUIDS[$i]}" \
+            "${DB_CLASSES[$i]}" \
+            "${DB_TITLES[$i]}"
     done
     
     debug_function_exit "$function_name"
@@ -149,21 +152,20 @@ display_application_info() {
     fi
     
     # Parse the pipe-delimited output
-    # Format: app_id|display_name|desktop_file_path|app_file_path|terminal_command|app_class|has_terminal|has_desktop|last_validated
     IFS='|' read -r _ display_name desktop_file_path \
-        app_file_path terminal_command app_class \
-        has_terminal has_desktop last_validated \
+        app_directory_path terminal_command app_class \
+        has_terminal_launch has_desktop_launch last_validated \
         safe_mode_completed safe_mode_timestamp \
-        launch_mode supports_pid_validation expected_executable_path \
-        expected_process_name window_title_pattern \
-        expected_launch_time_ms <<< "$app_info"
+        launch_mode supports_pid_validation executable_path \
+        process_name window_title_pattern \
+        launch_time_ms <<< "$app_info"
     
     # Convert boolean values for display
     local terminal_status="Not Available"
-    [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && terminal_status="Available"
+    [[ "$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE" ]] && terminal_status="Available"
     
     local desktop_status="Not Available"
-    [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="Available"
+    [[ "$has_desktop_launch" == "1" || "$has_desktop_launch" == "TRUE" ]] && desktop_status="Available"
     
     local safe_mode_status="Not Completed"
     [[ "$safe_mode_completed" == "1" || "$safe_mode_completed" == "TRUE" ]] && safe_mode_status="Completed"
@@ -180,8 +182,8 @@ display_application_info() {
     echo "Desktop File:        $desktop_file_path" >&3
     
     # Show app file path if available
-    if [[ -n "$app_file_path" ]]; then
-        echo "App File:            $app_file_path" >&3
+    if [[ -n "$app_directory_path" ]]; then
+        echo "App Directory:            $app_directory_path" >&3
     fi
     
     # Show terminal command if available
@@ -220,20 +222,20 @@ display_application_info() {
         echo "PID Validation:      $pid_validation_status" >&3
     fi
 
-    if [[ -n "$expected_executable_path" ]]; then
-        echo "Executable Path:     $expected_executable_path" >&3
+    if [[ -n "$executable_path" ]]; then
+        echo "Executable Path:     $executable_path" >&3
     fi
 
-    if [[ -n "$expected_process_name" ]]; then
-        echo "Process Name:        $expected_process_name" >&3
+    if [[ -n "$process_name" ]]; then
+        echo "Process Name:        $process_name" >&3
     fi
 
     if [[ -n "$window_title_pattern" ]]; then
         echo "Window Title:        $window_title_pattern" >&3
     fi
 
-    if [[ -n "$expected_launch_time_ms" ]]; then
-        echo "Launch Time:         $expected_launch_time_ms ms" >&3
+    if [[ -n "$launch_time_ms" ]]; then
+        echo "Launch Time:         $launch_time_ms ms" >&3
     fi
 
     debug_function_exit "$function_name"
@@ -283,17 +285,16 @@ display_applications_list() {
     printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})" >&3
     
     # Parse and display results from db_list_applications
-    # Format: app_id|display_name|has_terminal_launch|has_desktop_launch
-    while IFS='|' read -r app_id display_name has_terminal has_desktop; do
+    while IFS='|' read -r app_id display_name has_terminal_launch has_desktop_launch; do
         # Skip empty lines
         [[ -z "$app_id" ]] && continue
         
         # Convert boolean to symbols
         local terminal_status="✗"
-        [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && terminal_status="✓"
+        [[ "$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE" ]] && terminal_status="✓"
         
         local desktop_status="✗"
-        [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && desktop_status="✓"
+        [[ "$has_desktop_launch" == "1" || "$has_desktop_launch" == "TRUE" ]] && desktop_status="✓"
         
         # Truncate display_name if too long
         local display_short="$display_name"

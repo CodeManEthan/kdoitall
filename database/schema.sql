@@ -34,22 +34,22 @@ CREATE TABLE applications (
     app_id TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
     desktop_file_path TEXT,
+    app_class TEXT,
+    window_title_pattern TEXT,
+    launch_mode TEXT,
     has_terminal_launch BOOLEAN DEFAULT FALSE,
     has_desktop_launch BOOLEAN DEFAULT FALSE,
-    app_class TEXT,
-    app_directory_path TEXT,
-    terminal_command TEXT, 
-    last_validated TIMESTAMP,
-    safe_mode_completed BOOLEAN DEFAULT FALSE,
-    safe_mode_timestamp TIMESTAMP,
-    launch_mode TEXT,
     supports_pid_validation BOOLEAN DEFAULT FALSE,
     executable_path TEXT,
     process_name TEXT,
-    window_title_pattern TEXT,
     launch_time_ms INTEGER,
     last_launch_time_ms INTEGER,
-    launch_time_samples INTEGER DEFAULT 0
+    launch_time_samples INTEGER DEFAULT 0,
+    safe_mode_completed BOOLEAN DEFAULT FALSE,
+    safe_mode_timestamp TIMESTAMP,
+    app_directory_path TEXT,
+    terminal_command TEXT, 
+    last_validated TIMESTAMP
 );
 
 CREATE TABLE launch_options (
@@ -65,13 +65,13 @@ CREATE TABLE launch_options (
 CREATE TABLE launch_parameters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     app_id TEXT NOT NULL,
-    function_id TEXT NOT NULL,
+    function_id INTEGER NOT NULL,
     parameter_name TEXT NOT NULL,
     description TEXT NOT NULL,
     display_order INTEGER NOT NULL,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE CASCADE,
     FOREIGN KEY (function_id) REFERENCES launch_options(id) ON DELETE CASCADE,
-    UNIQUE(app_id, function_name)
+    UNIQUE(app_id, function_id, parameter_name)
 );
 
 CREATE INDEX idx_launch_options_app_id ON launch_options(app_id);

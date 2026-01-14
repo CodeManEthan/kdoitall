@@ -2,8 +2,8 @@
 
 check_and_set_guard "_KDOITALL_APP_INFO_COMMAND_LOADED" || return 0
 
-# shellcheck source=../../app/registry.sh
-source "${LIB_DIR}/app/registry.sh"
+# shellcheck source=../../utils/display.sh
+source "${LIB_DIR}/utils/display.sh"
 
 app_info() {
     local function_name="app_info"
@@ -20,7 +20,7 @@ app_info() {
     fi
     
     # Call the registry info function
-    if registry_get_application_info "$app_id"; then
+    if display_application_info "$app_id"; then
         debug_function_exit "$function_name"
         return 0
     else

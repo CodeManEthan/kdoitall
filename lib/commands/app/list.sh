@@ -2,8 +2,8 @@
 
 check_and_set_guard "_KDOITALL_APP_LIST_COMMAND_LOADED" || return 0
 
-# shellcheck source=../../app/registry.sh
-source "${LIB_DIR}/app/registry.sh"
+# shellcheck source=../../utils/display.sh
+source "${LIB_DIR}/utils/display.sh"
 
 app_list() {
     local function_name="app_list"
@@ -25,7 +25,7 @@ app_list() {
     esac
     
     # Call the registry list function
-    if registry_list_applications "$filter"; then
+    if display_applications_list "$filter"; then
         debug_function_exit "$function_name"
         return 0
     else

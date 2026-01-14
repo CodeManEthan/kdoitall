@@ -23,7 +23,6 @@ _load_app_metadata() {
     LAUNCH_TYPE=$(jq -r '.launch_type' "$json_file")
 }
 
-# Load metadata when file is sourced
 _load_app_metadata
 
 launch_vscode_window() {
@@ -35,7 +34,7 @@ launch_vscode_window() {
     local directory_path="$6"
     
     local launch_command=""
-    local window_title=""
+    local window_title_pattern=""
     local function_name="launch_vscode_window"
 
     debug_function_enter "$function_name" "$@"
@@ -46,12 +45,12 @@ launch_vscode_window() {
 
     local directory=""
     directory=$(basename "$directory_path")
-    window_title="$directory - Visual Studio Code"
-    window_title=$(safe_name "$window_title")
+    window_title_pattern="$directory - Visual Studio Code"
+    window_title_pattern=$(safe_name "$window_title_pattern")
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "$launch_command" \
-    "$$APP_CLASS" "$window_title" ""
+    "$APP_CLASS" "$window_title_pattern" ""
 
     debug_function_exit "$function_name"
 }
@@ -65,7 +64,7 @@ launch_vscode_workspace_window() {
     local workspace_path="$6"
 
     local launch_command=""
-    local window_title=""
+    local window_title_pattern=""
     local function_name="launch_vscode_workspace_window"
 
     debug_function_enter "$function_name" "$@"
@@ -76,12 +75,12 @@ launch_vscode_workspace_window() {
 
     local workspace=""
     workspace=$(basename "$workspace_path" .code-workspace)
-    window_title="$workspace (Workspace) - Visual Studio Code"
-    window_title=$(safe_name "$window_title")
+    window_title_pattern="$workspace (Workspace) - Visual Studio Code"
+    window_title_pattern=$(safe_name "$window_title_pattern")
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "$launch_command" \
-    "$APP_CLASS" "$window_title" ""
+    "$APP_CLASS" "$window_title_pattern" ""
 
     debug_function_exit "$function_name"
 }

@@ -1,62 +1,39 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/debug.sh
-# core/error_codes.sh
-
 check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 
-get_uuid_by_window_title() {
-    local window_title="$1"
-    local uuid=""
-    local function_name="get_uuid_by_window_title"
+# shellcheck source=../db/window-info.sh
+source "${LIB_DIR}/db/window-info.sh"
 
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$window_title" "window_title" || return 1
-
-    uuid=$(kdotool search --name "$window_title")
-
-    if [[ -z "$uuid" ]]; then
-        debug_error "$function_name" "$ERR_UUID_NOT_FOUND"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    debug_log "$function_name" "'$window_title' → '$uuid'"
-
-    debug_function_exit "$function_name"
-    echo "$uuid"    
-}
+export -ga CURRENT_UUIDS=()
+export -ga CURRENT_CLASSES=()
+export -ga CURRENT_TITLES=()
 
 get_uuid_by_process_of_elimination() {
     local class="$1"  # Optional class parameter for validation
     local is_retry="${2:-FALSE}"
-    local -a current_uuids=()
-    local -a db_uuids=()
     local new_uuid=""
     local found_count=0
     local function_name="get_uuid_by_process_of_elimination"
 
     debug_function_enter "$function_name" "$@"
 
-    # Get all current window UUIDs from kdotool
-    mapfile -t current_uuids < <(get_existing_windows_uuid)
+    # Get all current window UUIDs from kdotool (populates CURRENT_UUIDS)
+    get_existing_windows_uuid
     
-    # Get all UUIDs from database
-    mapfile -t db_uuids < <(sqlite3 "$KDOITALL_DB" "SELECT uuid FROM app_windows WHERE uuid IS NOT NULL")
+    # Get all UUIDs from database (populates DB_UUIDS)
+    db_get_existing_window_uuids
     
-    debug_log "$function_name" "Current windows: ${#current_uuids[@]}, Database windows: ${#db_uuids[@]}"
+    debug_log "$function_name" "Current windows: ${#CURRENT_UUIDS[@]}, Database windows: ${#DB_UUIDS[@]}"
     
     # Build lookup table of database UUIDs
     declare -A db_lookup
-    for uuid in "${db_uuids[@]}"; do
+    for uuid in "${DB_UUIDS[@]}"; do
         db_lookup["$uuid"]=1
     done
     
     # Find UUIDs that exist in current windows but not in database
-    for uuid in "${current_uuids[@]}"; do
+    for uuid in "${CURRENT_UUIDS[@]}"; do
         if [[ ! -v db_lookup[$uuid] ]]; then
             new_uuid="$uuid"
             ((found_count++))
@@ -113,26 +90,11 @@ get_uuid_by_process_of_elimination_with_retry() {
     while (( $(echo "$elapsed < $max_wait_seconds" | bc -l) )); do
         ((attempt++))
         
-        # Attempt to get UUID
+        # Attempt to get UUID (class validation happens inside this function)
         uuid=$(get_uuid_by_process_of_elimination "$class" "TRUE")
         
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed}s (attempt #$attempt)"
-
-            # Validate class if provided
-            if [[ -n "$class" ]]; then
-                local found_class=""
-                found_class=$(get_window_class_by_uuid "$uuid")
-                
-                if [[ "$class" != "$found_class" ]]; then
-                    debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
-                    debug_function_exit "$function_name"
-                    return 1
-                fi
-                
-                debug_log "$function_name" "Class validation passed: '$class' matches for UUID '$uuid'"
-            fi
-
             debug_function_exit "$function_name"
             echo "$uuid"
             return 0
@@ -151,34 +113,177 @@ get_uuid_by_process_of_elimination_with_retry() {
     return 1
 }
 
-get_window_title_by_uuid() {
-    local uuid="$1" 
-    local window_title=""
-    local function_name="get_window_title_by_uuid"
+get_existing_windows_uuid() {
+    local function_name="get_existing_windows_uuid"
 
-    debug_function_enter "$function_name" "$@"
+    debug_function_enter "$function_name"
 
-    validate_parameter_pass "$uuid" "uuid" || return 1
+    CURRENT_UUIDS=()
 
-    # Get window title
-    window_title=$(kdotool getwindowname "$uuid")
+    mapfile -t CURRENT_UUIDS < <(kdotool search)
 
-    if [[ -z "$window_title" ]]; then
-        debug_error "$function_name" "$ERR_WINDOW_TITLE_NOT_FOUND" "$uuid"
+    if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No windows found"
+        debug_function_exit "$function_name"
+        return 0  # Not an error - just no windows open
+    fi
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+get_existing_windows_class() {
+    local uuid=""
+    local class=""
+    local function_name="get_existing_windows_class"
+
+    debug_function_enter "$function_name"
+
+    # Reset global array
+    CURRENT_CLASSES=()
+
+    # Require CURRENT_UUIDS to be populated
+    if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_INVALID_STATE" "CURRENT_UUIDS is empty - call get_existing_windows_uuid first"
         debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name" "'$uuid' → '$window_title'"
+    # Use the global CURRENT_UUIDS array
+    for uuid in "${CURRENT_UUIDS[@]}"; do
+        class=$(kdotool getwindowclassname "$uuid")
+        class="${class:-N/A}"
+        CURRENT_CLASSES+=("$class")
+    done
 
+    debug_log "$function_name" "Retrieved ${#CURRENT_CLASSES[@]} window classes"
     debug_function_exit "$function_name"
-    echo "$window_title"
+    return 0
 }
 
-get_window_class_by_uuid() {
+get_existing_windows_title() {
+    local uuid=""
+    local title=""
+    local function_name="get_existing_windows_title"
+
+    debug_function_enter "$function_name"
+
+    # Reset global array
+    CURRENT_TITLES=()
+
+    # Require CURRENT_UUIDS to be populated
+    if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_INVALID_STATE" "CURRENT_UUIDS is empty - call get_existing_windows_uuid first"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Use the global CURRENT_UUIDS array
+    for uuid in "${CURRENT_UUIDS[@]}"; do
+        title=$(kdotool getwindowname "$uuid")
+        title="${title:-N/A}"
+        CURRENT_TITLES+=("$title")
+    done
+
+    debug_log "$function_name" "Retrieved ${#CURRENT_TITLES[@]} window titles"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+get_uuid() {
+    local class="$1"
+    local window_title="$2"
+    local -a matching_uuids=()
+    local uuid=""
+    local function_name="get_uuid"
+
+    debug_function_enter "$function_name" "$@"
+
+    # Need at least one search criterion
+    if [[ -z "$class" && -z "$window_title" ]]; then
+        debug_error "$function_name" "$ERR_INVALID_ARGUMENT" "Must provide at least class or window_title"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Step 1: Search by class if provided
+    if [[ -n "$class" ]]; then
+        debug_log "$function_name" "Searching for windows with class: '$class'"
+        mapfile -t matching_uuids < <(kdotool search --class "$class")
+
+        if [[ ${#matching_uuids[@]} -eq 0 ]]; then
+            debug_log "$function_name" "No windows found with class '$class'"
+            debug_function_exit "$function_name"
+            return 0
+        fi
+
+        debug_log "$function_name" "Found ${#matching_uuids[@]} window(s) with class '$class'"
+    else
+        # No class filter - get all windows
+        debug_log "$function_name" "No class filter, searching all windows"
+        mapfile -t matching_uuids < <(kdotool search)
+    fi
+
+    # Step 2: Filter by window title if provided and we have multiple matches
+    if [[ -n "$window_title" && ${#matching_uuids[@]} -gt 1 ]]; then
+        debug_log "$function_name" "Filtering ${#matching_uuids[@]} windows by title: '$window_title'"
+        
+        local -a title_matches=()
+        local current_title=""
+        
+        for uuid in "${matching_uuids[@]}"; do
+            current_title=$(kdotool getwindowname "$uuid")
+            if [[ "$current_title" == "$window_title" ]]; then
+                title_matches+=("$uuid")
+                debug_log "$function_name" "Title match: UUID '$uuid' has title '$current_title'"
+            fi
+        done
+        
+        matching_uuids=("${title_matches[@]}")
+        
+        if [[ ${#matching_uuids[@]} -eq 0 ]]; then
+            debug_log "$function_name" "No windows found matching both class '$class' and title '$window_title'"
+            debug_function_exit "$function_name"
+            return 0
+        fi
+        
+        debug_log "$function_name" "Found ${#matching_uuids[@]} window(s) matching filters"
+    elif [[ -n "$window_title" && ${#matching_uuids[@]} -eq 1 ]]; then
+        # Validate title for the single match
+        local current_title=""
+        current_title=$(kdotool getwindowname "${matching_uuids[0]}")
+        
+        if [[ "$current_title" != "$window_title" ]]; then
+            debug_log "$function_name" "Window has class '$class' but title is '$current_title', not '$window_title'"
+            debug_function_exit "$function_name"
+            return 0
+        fi
+        
+        debug_log "$function_name" "Single window matches both class and title"
+    fi
+
+    # Step 3: Return result based on match count
+    if [[ ${#matching_uuids[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No windows found"
+        debug_function_exit "$function_name"
+        return 0
+    elif [[ ${#matching_uuids[@]} -eq 1 ]]; then
+        uuid="${matching_uuids[0]}"
+        debug_log "$function_name" "Found exactly one UUID: '$uuid'"
+        debug_function_exit "$function_name"
+        echo "$uuid"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_MULTIPLE_WINDOWS_FOUND" "Found ${#matching_uuids[@]} windows"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+get_window_class() {
     local uuid="$1" 
     local class=""
-    local function_name="get_window_class_by_uuid"
+    local function_name="get_window_class"
 
     debug_function_enter "$function_name" "$@"
 
@@ -199,10 +304,34 @@ get_window_class_by_uuid() {
     echo "$class"
 }
 
-get_window_pid_by_uuid() {
+get_window_title() {
+    local uuid="$1" 
+    local window_title=""
+    local function_name="get_window_title"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$uuid" "uuid" || return 1
+
+    # Get window title
+    window_title=$(kdotool getwindowname "$uuid")
+
+    if [[ -z "$window_title" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_TITLE_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "'$uuid' → '$window_title'"
+
+    debug_function_exit "$function_name"
+    echo "$window_title"
+}
+
+get_window_pid() {
     local uuid="$1" 
     local pid=""
-    local function_name="get_window_pid_by_uuid"
+    local function_name="get_window_pid"
 
     debug_function_enter "$function_name" "$@"
 
@@ -223,10 +352,10 @@ get_window_pid_by_uuid() {
     echo "$pid"
 }
 
-get_process_name_by_pid() {
+get_process_name() {
     local pid="$1"
     local process_name=""
-    local function_name="get_process_name_by_pid"
+    local function_name="get_process_name"
     
     debug_function_enter "$function_name" "$@"
     
@@ -248,10 +377,10 @@ get_process_name_by_pid() {
     return 0
 }
 
-get_executable_path_by_pid() {
+get_executable_path() {
     local pid="$1"
     local executable_path=""
-    local function_name="get_executable_path_by_pid"
+    local function_name="get_executable_path"
     
     debug_function_enter "$function_name" "$@"
     
@@ -273,10 +402,10 @@ get_executable_path_by_pid() {
     return 0
 }
 
-get_window_size_by_uuid() {
+get_window_size() {
     local uuid="$1" 
     local window_size=""
-    local function_name="get_window_size_by_uuid"
+    local function_name="get_window_size"
 
     debug_function_enter "$function_name" "$@"
 
@@ -297,10 +426,10 @@ get_window_size_by_uuid() {
     echo "$window_size"
 }
 
-get_window_position_by_uuid() {
+get_window_position() {
     local uuid="$1" 
     local window_position=""
-    local function_name="get_window_position_by_uuid"
+    local function_name="get_window_position"
 
     debug_function_enter "$function_name" "$@"
 
@@ -321,89 +450,31 @@ get_window_position_by_uuid() {
     echo "$window_position"
 }
 
-get_existing_windows_uuid() {
-    local -a uuids=()
-    local function_name="get_existing_windows_uuid"
-
-    debug_function_enter "$function_name"
-
-    mapfile -t uuids < <(kdotool search)
-
-    if [[ ${#uuids[@]} -eq 0 ]]; then
-        debug_log "$function_name" "No windows found"
-        debug_function_exit "$function_name"
-        return 0  # Not an error - just no windows open
-    fi
-
-    debug_function_exit "$function_name"
-    printf '%s\n' "${uuids[@]}"
-}
-
-get_existing_windows_class_by_uuids() {
-    local uuid=""
-    local class=""
-    local -a classes=()
-    local function_name="get_existing_windows_class_by_uuids"
-
-    debug_function_enter "$function_name"
-
-    for uuid in "$@"; do  # Accept UUIDs as separate arguments
-        class=$(kdotool getwindowclassname "$uuid")
-        class="${class:-N/A}"
-        classes+=("$class")
-        printf '%s\n' "${class:-N/A}"
-    done
-
-    debug_function_exit "$function_name"
-}
-
-check_window_exists_by_window_title_and_class() {
-    local window_title="$1"
-    local class="$2"
-    local uuid=""
-    local function_name="check_window_exists_by_window_title_and_class"
+window_exists() {
+    local uuid="$1"
+    local function_name="window_exists"
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$window_title" "window_title" || return 1
+    validate_parameter_pass "$uuid" "uuid" || return 1
 
-    # Search for window by title
-    uuid=$(kdotool search --name "$window_title" | head -1)
-
-    if [[ -z "$uuid" ]]; then
-        debug_log "$function_name" "No window found with title '$window_title'"
-        debug_function_exit "$function_name"
-        return 0
-    fi
-
-    debug_log "$function_name" "Found window '$uuid' with title '$window_title'"
-
-    # Only verify class if provided
-    if [[ -n "$class" ]]; then
-        local found_class=""
-        found_class=$(get_window_class_by_uuid "$uuid")
-
-        if [[ "$class" != "$found_class" ]]; then
-            debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$uuid'"
+    # Check if UUID exists in CURRENT_UUIDS global array
+    for current_uuid in "${CURRENT_UUIDS[@]}"; do
+        if [[ "$current_uuid" == "$uuid" ]]; then
+            debug_log "$function_name" "Window '$uuid' exists"
             debug_function_exit "$function_name"
-            return 0  # Return empty (no UUID) because class doesn't match
+            return 0
         fi
+    done
 
-        debug_log "$function_name" "Class matches: '$class'"
-    else
-        debug_log "$function_name" "No class validation requested (class not provided)"
-    fi
-
-    debug_log "$function_name" "Class matches: '$class'"
-    
+    debug_log "$function_name" "Window '$uuid' does not exist"
     debug_function_exit "$function_name"
-    echo "$uuid"
-    return 0
+    return 1
 }
 
-activate_window_by_uuid() {
+activate_window() {
     local uuid="$1"
-    local function_name="activate_window_by_uuid"
+    local function_name="activate_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -417,9 +488,9 @@ activate_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-raise_window_by_uuid() {
+raise_window() {
     local uuid="$1"
-    local function_name="raise_window_by_uuid"
+    local function_name="raise_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -433,11 +504,11 @@ raise_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-move_window_by_uuid() {
+move_window() {
     local uuid="$1"
     local x="$2"
     local y="$3"
-    local function_name="move_window_by_uuid"
+    local function_name="move_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -451,11 +522,11 @@ move_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-size_window_by_uuid() {
+size_window() {
     local uuid="$1"
     local width="$2"
     local height="$3"
-    local function_name="size_window_by_uuid"
+    local function_name="size_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -469,9 +540,9 @@ size_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-minimize_window_by_uuid() {
+minimize_window() {
     local uuid="$1"
-    local function_name="minimize_window_by_uuid"
+    local function_name="minimize_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -485,9 +556,9 @@ minimize_window_by_uuid() {
     debug_function_exit "$function_name"
 }
 
-close_window_by_uuid() {
+close_window() {
     local uuid="$1"
-    local function_name="close_window_by_uuid"
+    local function_name="close_window"
 
     debug_function_enter "$function_name" "$@"
 

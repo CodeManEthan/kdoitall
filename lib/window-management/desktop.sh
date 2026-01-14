@@ -1,11 +1,53 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/debug.sh
-# core/error_codes.sh
-
 check_and_set_guard "_KDOITALL_DESKTOP_LOADED" || return 0
+
+get_desktop_for_window() {
+    local uuid="$1"
+    local desktop=""
+    local function_name="get_desktop_for_window"
+    
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$uuid" "uuid" || return 1
+
+    # Get Desktop for Window
+    desktop=$(kdotool get_desktop_for_window "$uuid")
+    
+    if [[ -z "$desktop" ]]; then
+        debug_error "$function_name" "$ERR_DESKTOP_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Pass Desktop Number
+    debug_log "$function_name" "'$uuid' is on desktop $desktop"
+
+    debug_function_exit "$function_name"
+    echo "$desktop"
+}
+
+get_current_desktop() {
+    local desktop=""
+    local function_name="get_desktop_for_window"
+    
+    debug_function_enter "$function_name"
+
+    # Get Desktop for Window
+    desktop=$(kdotool get_desktop)
+    
+    if [[ -z "$desktop" ]]; then
+        debug_error "$function_name" "$ERR_DESKTOP_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Pass Desktop Number
+    debug_log "$function_name" "Current desktop is $desktop"
+
+    debug_function_exit "$function_name"
+    echo "$desktop"
+}
 
 validate_desktop_number() {
     local desktop="$1"
@@ -51,31 +93,6 @@ validate_desktop_number() {
     debug_function_exit "$function_name"
 }
 
-get_desktop_for_window_by_uuid() {
-    local uuid="$1"
-    local desktop=""
-    local function_name="get_desktop_for_window_by_uuid"
-    
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$uuid" "uuid" || return 1
-
-    # Get Desktop for Window
-    desktop=$(kdotool get_desktop_for_window "$uuid")
-    
-    if [[ -z "$desktop" ]]; then
-        debug_error "$function_name" "$ERR_DESKTOP_NOT_FOUND" "$uuid"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Pass Desktop Number
-    debug_log "$function_name" "'$uuid' is on desktop $desktop"
-
-    debug_function_exit "$function_name"
-    echo "$desktop"
-}
-
 set_current_desktop() {
     local desktop="$1"
     local function_name="set_current_desktop"
@@ -93,10 +110,10 @@ set_current_desktop() {
 
 }
 
-move_window_to_desktop_by_uuid() {
+move_window_to_desktop() {
     local uuid="$1" 
     local desktop="$2"
-    local function_name="move_window_to_desktop_by_uuid"
+    local function_name="move_window_to_desktop"
 
     debug_function_enter "$function_name" "$@"
 

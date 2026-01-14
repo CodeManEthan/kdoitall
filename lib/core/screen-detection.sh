@@ -2,9 +2,6 @@
 
 check_and_set_guard "_KDOITALL_SCREEN_DETECTION_LOADED" || return 0
 
-# shellcheck source=lib/utils/workspace-validators.sh
-source "${LIB_DIR}/utils/workspace-validators.sh"
-
 # Global variable to store detected desktop count
 declare -g DETECTED_DESKTOP_COUNT=0
 # Global associative array to store screen information
@@ -120,6 +117,55 @@ detect_screens() {
     return 0
 }
 
+refresh_screens() {
+    local function_name="refresh_screens"
+    
+    debug_function_enter "$function_name"
+    
+    if detect_screens; then
+        debug_log "$function_name" "Screen configuration refreshed: $DETECTED_SCREEN_COUNT screens"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_SCREEN_REFRESH_FAILED"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+list_detected_screens() {
+    local function_name="list_detected_screens"
+    local out=""
+    
+    debug_function_enter "$function_name"
+    
+    if [[ $DETECTED_SCREEN_COUNT -eq 0 ]]; then
+        debug_log "$function_name" "No screens detected. Run detect_screens() first."
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    echo "Detected Screens: $DETECTED_SCREEN_COUNT"
+    echo "----------------------------------------"
+    
+    for ((out=1; out<=20; out++)); do
+        # Check if this output exists before trying to access its ENABLED status
+        if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+            local name="${SCREEN_INFO[${out}_NAME]}"
+            local width="${SCREEN_INFO[${out}_WIDTH]}"
+            local height="${SCREEN_INFO[${out}_HEIGHT]}"
+            local x="${SCREEN_INFO[${out}_X]}"
+            local y="${SCREEN_INFO[${out}_Y]}"
+            
+            echo "Output $out: $name"
+            echo "  Resolution: ${width}x${height}"
+            echo "  Position: ($x, $y)"
+        fi
+    done
+    
+    debug_function_exit "$function_name"
+}
+
 get_screen_info() {
     local output_num="$1"
     local property="$2"
@@ -129,7 +175,6 @@ get_screen_info() {
     # Properties: NAME, UUID, ENABLED, X, Y, WIDTH, HEIGHT
     echo "$value"
 }
-
 
 resolve_screen_reference() {
     local screen_ref="$1"
@@ -193,51 +238,5 @@ resolve_screen_reference() {
     return 1
 }
 
-refresh_screens() {
-    local function_name="refresh_screens"
-    
-    debug_function_enter "$function_name"
-    
-    if detect_screens; then
-        debug_log "$function_name" "Screen configuration refreshed: $DETECTED_SCREEN_COUNT screens"
-        debug_function_exit "$function_name"
-        return 0
-    else
-        debug_error "$function_name" "$ERR_SCREEN_REFRESH_FAILED"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-}
 
-list_detected_screens() {
-    local function_name="list_detected_screens"
-    local out=""
-    
-    debug_function_enter "$function_name"
-    
-    if [[ $DETECTED_SCREEN_COUNT -eq 0 ]]; then
-        debug_log "$function_name" "No screens detected. Run detect_screens() first."
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    echo "Detected Screens: $DETECTED_SCREEN_COUNT"
-    echo "----------------------------------------"
-    
-    for ((out=1; out<=20; out++)); do
-        # Check if this output exists before trying to access its ENABLED status
-        if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
-            local name="${SCREEN_INFO[${out}_NAME]}"
-            local width="${SCREEN_INFO[${out}_WIDTH]}"
-            local height="${SCREEN_INFO[${out}_HEIGHT]}"
-            local x="${SCREEN_INFO[${out}_X]}"
-            local y="${SCREEN_INFO[${out}_Y]}"
-            
-            echo "Output $out: $name"
-            echo "  Resolution: ${width}x${height}"
-            echo "  Position: ($x, $y)"
-        fi
-    done
-    
-    debug_function_exit "$function_name"
-}
+

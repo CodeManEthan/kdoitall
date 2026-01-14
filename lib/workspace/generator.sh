@@ -2,10 +2,8 @@
 
 check_and_set_guard "_KDOITALL_WORKSPACE_GENERATE_LOADED" || return 0
 
-# shellcheck source=../../core/core.sh
+# shellcheck source=../core/core.sh
 source "${LIB_DIR}/core/core.sh"
-# shellcheck source=../../db/app-registry.sh
-source "${LIB_DIR}/db/app-registry.sh"
 
 generate_workspace_scripts() {
     local workspace_name="$1"
@@ -14,7 +12,7 @@ generate_workspace_scripts() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_name_ref_parameter_pass "$2" "apps_array_ref" || return 1
+    validate_parameter_pass "$2" "apps_array_ref" || return 1
     # shellcheck disable=SC2034
     local -n apps_array_ref="$2"
 
@@ -62,7 +60,7 @@ generate_open_script() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
+    validate_parameter_pass "$3" "apps_ref" || return 1
     local -n apps_ref="$3"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
@@ -99,10 +97,10 @@ EOF_HEADER
 
         # Check if it's a terminal launch by checking if launch_function is NOT launch_by_app_id
         if [[ "$launch_function" != "launch_by_app_id" ]]; then
-            local app_file_path=""
-            app_file_path=$(db_get_app_file_path "$app_id")
-            if [[ -n "$app_file_path" ]]; then
-                app_files_to_source["$app_file_path"]=1
+            local app_directory_path=""
+            app_directory_path=$(db_get_app_directory_path "$app_id")
+            if [[ -n "$app_directory_path" ]]; then
+                app_files_to_source["${app_directory_path}/functions.sh"]=1
             fi
         fi
     done
@@ -167,7 +165,7 @@ generate_close_script() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_name_ref_parameter_pass "$3" "apps_ref" || return 1
+    validate_parameter_pass "$3" "apps_ref" || return 1
     local -n apps_ref="$3"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1

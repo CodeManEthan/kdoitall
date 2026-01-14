@@ -10,8 +10,8 @@ source "${LIB_DIR}/window-management/screen.sh"
 source "${LIB_DIR}/window-management/window.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
-# shellcheck source=../db/safe-mode.sh
-source "${LIB_DIR}/db/safe-mode.sh"
+# shellcheck source=../db/window-info.sh
+source "${LIB_DIR}/db/window-info.sh"
 
 execute_launch_window() {
     local workspace_name="$1"
@@ -24,10 +24,11 @@ execute_launch_window() {
     local launch_type="$8"
     local launch_command="$9"
     local class="${10}"
-    local window_title="${11}"
+    local window_title_pattern="${11}"
     local launch_time="${12}"
     local function_name="launch_window"
     local uuid=""
+    local window_title=""
     
     debug_function_enter "$function_name" "$@"
 
@@ -48,16 +49,18 @@ execute_launch_window() {
     # Check Window Exists (If SINGLE or UNIQUE Launch Mode)
     if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
         debug_log "$function_name" "Check Window Exists"
-        uuid=$(check_window_exists_by_window_title_and_class "$window_title" "$class")
+        uuid=$(get_uuid "$class" "$window_title_pattern")
     fi
 
     # Detect if Window exists
     if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ) ]]; then
         debug_log "$function_name" "Window already exists - $uuid."
 
+        window_title=$(get_window_title "$uuid")
+
         # Claim Window in Database
         debug_log "$function_name" "Claim Window in app_windows table."
-        db_claim_window "$workspace_name" "$window_name" "$uuid"
+        db_claim_window "$workspace_name" "$window_name" "$uuid" "$window_title"
     else
         debug_log "$function_name" "Launch Window"
 
@@ -71,22 +74,24 @@ execute_launch_window() {
             detect_and_store_class "$uuid" "$app_id"
         fi
 
+        window_title=$(get_window_title "$uuid")
+
         # Add Window to Database
         debug_log "$function_name" "Add Window to app_windows table."
-        db_add_window "$workspace_name" "$window_name" "$uuid" "$class" 
+        db_add_window "$workspace_name" "$window_name" "$uuid" "$class" "$window_title" 
     fi
 
     # Move Window to Desktop
     debug_log "$function_name" "Move Window to Desktop"
-    move_window_to_desktop_by_uuid "$uuid" "$desktop"
+    move_window_to_desktop "$uuid" "$desktop"
 
     # Move Window to Screen
     debug_log "$function_name" "Move Window to Screen"
-    move_window_to_screen_by_uuid "$uuid" "$screen"
+    move_window_to_screen "$uuid" "$screen"
 
     # Move Window to Position
     debug_log "$function_name" "Move Window to Position"
-    move_window_to_position_by_uuid "$uuid" "$screen" "$position"
+    move_window_to_position "$uuid" "$screen" "$position"
 
     debug_function_exit "$function_name"
 }
@@ -100,7 +105,7 @@ execute_close_window() {
 
     validate_parameter_pass "$window_name" "window_name" || return 1
 
-    uuid=$(db_get_uuid_by_window_name "$window_name")
+    uuid=$(db_get_uuid "$window_name")
 
     if [[ -z "$uuid" ]]; then
         debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
@@ -108,7 +113,7 @@ execute_close_window() {
         return 1
     fi
 
-    close_window_by_uuid "$uuid"
+    close_window "$uuid"
 
     db_delete_window "$window_name"
 
@@ -116,41 +121,37 @@ execute_close_window() {
 }
 
 auto_detect_windows() {
-    local -a existing_uuids=()
-    local -a existing_classes=()
-    local -a db_uuids=()
     local function_name="auto_detect_windows"
 
     debug_function_enter "$function_name"
     
-    # Get all currently existing window UUIDs
     debug_log "$function_name" "===== GET WINDOWS FROM KDOTOOL ====="
-    mapfile -t existing_uuids < <(get_existing_windows_uuid)
+    get_existing_windows_uuid
 
-    # Get all currently existing window classes
     debug_log "$function_name" "===== GET CLASSES FROM KDOTOOL ====="
-    # shellcheck disable=SC2034
-    mapfile -t existing_classes < <(get_existing_windows_class_by_uuids "${existing_uuids[@]}")
+    get_existing_windows_class
     
-    # Get all UUIDs from the database
-    debug_log "$function_name" "===== GET UUIDS FROM DATABASE ====="
-    # shellcheck disable=SC2034
-    mapfile -t db_uuids < <(sqlite3 "$KDOITALL_DB" "SELECT uuid FROM app_windows WHERE uuid IS NOT NULL")
+    debug_log "$function_name" "===== GET TITLES FROM KDOTOOL ====="
+    get_existing_windows_title
+
+    debug_log "$function_name" "===== GET DATA FROM DATABASE ====="
+    db_get_all_windows
 
     debug_log "$function_name" "===== KDOTOOL RESULTS ====="
-    debug_array existing_uuids
-    debug_array existing_classes
+    debug_array CURRENT_UUIDS
+    debug_array CURRENT_CLASSES
+    debug_array CURRENT_TITLES
     
     debug_log "$function_name" "===== DATABASE RESULTS ====="
-    debug_array db_uuids
+    debug_array DB_UUIDS
+    debug_array DB_CLASSES
+    debug_array DB_TITLES
 
-    # Delete stale windows from database
     debug_log "$function_name" "===== DELETE STALE WINDOWS ====="
-    db_delete_stale_windows existing_uuids db_uuids
+    db_delete_stale_windows
     
-    # Add new windows to database
     debug_log "$function_name" "===== ADD NEW WINDOWS ====="
-    db_add_existing_windows existing_uuids existing_classes
+    db_add_existing_windows
 
     debug_function_exit "$function_name"
 }
@@ -165,7 +166,7 @@ launch_by_app_id() {
     local launch_mode=""
     local launch_type=""
     local class=""
-    local window_title=""
+    local window_title_pattern=""
     local launch_command=""
     local launch_time=""
     
@@ -181,9 +182,9 @@ launch_by_app_id() {
     launch_type="$LAUNCH_TYPE_DESKTOP"
 
     class=$(db_get_app_class "$app_id")
-    window_title=$(db_get_title_pattern "$app_id")
+    window_title_pattern=$(db_get_window_title_pattern "$app_id")
     launch_mode=$(db_get_launch_mode "$app_id")
-    launch_time=$(db_get_expected_launch_time "$app_id")
+    launch_time=$(db_get_launch_time "$app_id")
 
     if [[ -z "$launch_mode" ]]; then
         launch_mode="$LAUNCH_MODE_UNKNOWN"
@@ -193,7 +194,7 @@ launch_by_app_id() {
 
      execute_launch_window \
      "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \
-     "$launch_mode" "$launch_type" "$launch_command" "$class" "$window_title" "$launch_time"
+     "$launch_mode" "$launch_type" "$launch_command" "$class" "$window_title_pattern" "$launch_time"
 }
 
 detect_and_store_class() {
@@ -206,7 +207,7 @@ detect_and_store_class() {
     
     # Detect actual window class from the launched window
     local detected_class=""
-    detected_class=$(get_window_class_by_uuid "$uuid")
+    detected_class=$(get_window_class "$uuid")
     
     if [[ -n "$detected_class" ]]; then
         # Store in database for future use

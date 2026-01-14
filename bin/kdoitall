@@ -54,6 +54,8 @@ done
 # ============================================================================
 # LAYER 2 - Core Utilities (depend only on foundation)
 # ============================================================================
+# shellcheck source=/config/config.sh
+source "${KDOITALL_ROOT}/config/config.sh"
 # shellcheck source=../lib/core/common.sh
 source "${LIB_DIR}/core/common.sh"
 # shellcheck source=../lib/utils/checks.sh
