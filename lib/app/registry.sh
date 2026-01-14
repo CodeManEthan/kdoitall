@@ -286,14 +286,13 @@ registry_get_app_directory_path() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    # Return path to app directory
+    # Return normalized path to app directory
     local app_dir="${LIB_DIR}/app-definitions/apps/${app_id}"
-    
-    debug_log "$function_name" "App directory: $app_dir"
+    app_dir=$(realpath "$app_dir")
+
+    debug_log "$function_name" "App directory path: $app_dir"
     debug_function_exit "$function_name"
-    
     echo "$app_dir"
-    return 0
 }
 
 registry_store_launch_options() {

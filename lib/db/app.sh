@@ -766,6 +766,75 @@ db_set_safe_mode_completed() {
     return 0
 }
 
+db_set_requires_safe_mode() {
+    local app_id="$1"
+    local requires="$2"  # TRUE or FALSE
+    local function_name="db_set_requires_safe_mode"
+    local changes=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$requires" "requires" || return 1
+    
+    requires=$(normalize_boolean "$requires")
+    
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :requires '$requires'" \
+        "UPDATE applications 
+         SET requires_safe_mode = :requires
+         WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+    
+    if [[ "$changes" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Set requires_safe_mode=$requires for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_get_pending_safe_mode_apps() {
+    local function_name="db_get_pending_safe_mode_apps"
+    local result=""
+    
+    debug_function_enter "$function_name"
+    
+    # Get apps that require safe mode but haven't completed it
+    result=$(sqlite3 "$KDOITALL_DB" \
+        "SELECT app_id, display_name 
+         FROM applications 
+         WHERE requires_safe_mode = TRUE 
+         AND safe_mode_completed = FALSE
+         ORDER BY display_name;" 2>/dev/null)
+    
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+db_count_pending_safe_mode_apps() {
+    local function_name="db_count_pending_safe_mode_apps"
+    local count=""
+    
+    debug_function_enter "$function_name"
+    
+    count=$(sqlite3 "$KDOITALL_DB" \
+        "SELECT COUNT(*) 
+         FROM applications 
+         WHERE requires_safe_mode = TRUE 
+         AND safe_mode_completed = FALSE;" 2>/dev/null)
+    
+    debug_function_exit "$function_name"
+    echo "$count"
+    return 0
+}
+
 db_update_validation_timestamp() {
     local app_id="$1"
     local function_name="db_update_validation_timestamp"

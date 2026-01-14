@@ -2,9 +2,9 @@
 
 check_and_set_guard "_KDOITALL_DB_WINDOW_INFO_LOADED" || return 0
 
-export -ga DB_UUIDS=()
-export -ga DB_CLASSES=()
-export -ga DB_TITLES=()
+export -a DB_UUIDS=()
+export -a DB_CLASSES=()
+export -a DB_TITLES=()
 
 db_get_all_windows() {
     local function_name="db_get_all_windows"
@@ -17,8 +17,10 @@ db_get_all_windows() {
     DB_TITLES=()
     
     # Get all data in a single query with tab-separated values
+    # NOTE: .mode tabs forces tab-separated output
     local query_result=""
     query_result=$(sqlite3 "$KDOITALL_DB" \
+        ".mode tabs" \
         "SELECT uuid, class, COALESCE(window_title, 'N/A') 
          FROM app_windows 
          WHERE uuid IS NOT NULL;" 2>/dev/null)

@@ -83,11 +83,15 @@ export ERR_DESKTOP_FILE_PARSE_FAILED=83
 export ERR_NO_DESKTOP_FILES_FOUND=84
 export ERR_APP_ID_INVALID=85
 export ERR_DATABASE_ERROR=86
+export ERR_INVALID_JSON=87
+export ERR_INVALID_VALUE=88
+export ERR_FUNCTION_NOT_FOUND=89
 
 readonly ERR_APP_FILE_NOT_FOUND ERR_APP_FILE_PARSE_FAILED
 readonly ERR_APP_METADATA_MISSING ERR_DESKTOP_FILE_PARSE_FAILED
 readonly ERR_NO_DESKTOP_FILES_FOUND ERR_APP_ID_INVALID
 readonly ERR_DATABASE_ERROR
+readonly ERR_INVALID_JSON ERR_INVALID_VALUE ERR_FUNCTION_NOT_FOUND
 
 # Workspace-related errors
 export ERR_WORKSPACE_EXISTS=90
@@ -174,6 +178,9 @@ declare -A ERROR_MESSAGES=(
     [$ERR_NO_DESKTOP_FILES_FOUND]="No desktop files found"
     [$ERR_APP_ID_INVALID]="Invalid application ID"
     [$ERR_DATABASE_ERROR]="Database operation failed"
+    [$ERR_INVALID_JSON]="Invalid JSON syntax"
+    [$ERR_INVALID_VALUE]="Invalid value or format"
+    [$ERR_FUNCTION_NOT_FOUND]="Function not found in file"
 
     # Workspace
     [ERR_WORKSPACE_EXISTS]="Workspace already exists"

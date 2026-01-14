@@ -3,8 +3,30 @@
 check_and_set_guard "_KDOITALL_WORKSPACE_COMMAND_LOADED" || return 0
 
 workspace_command() {
-    local subcommand="$1"
-    shift
+    local function_name="workspace_command"
+    local subcommand=""
+    local -a args=()
+    
+    # Parse arguments, filtering out global flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --debug|--verbose)
+                # Skip global flags - already handled by main script
+                shift
+                ;;
+            *)
+                if [[ -z "$subcommand" ]]; then
+                    subcommand="$1"
+                    shift
+                else
+                    args+=("$1")
+                    shift
+                fi
+                ;;
+        esac
+    done
+
+    debug_log "$function_name" "subcommand='$subcommand', args=(${args[*]:-}), args count=${#args[@]}"
     
     # Validate subcommand provided
     if [[ -z "$subcommand" ]]; then
@@ -18,27 +40,27 @@ workspace_command() {
         create)
             # shellcheck source=create.sh
             source "${LIB_DIR}/commands/workspace/create.sh"
-            workspace_create "$@"
+            workspace_create "${args[@]}"
             ;;
         list)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/workspace/list.sh"
-            workspace_list "$@"
+            workspace_list "${args[@]}"
             ;;
         open)
             # shellcheck source=open.sh
             source "${LIB_DIR}/commands/workspace/open.sh"
-            workspace_open "$@"
+            workspace_open "${args[@]}"
             ;;
         close)
             # shellcheck source=close.sh
             source "${LIB_DIR}/commands/workspace/close.sh"
-            workspace_close "$@"
+            workspace_close "${args[@]}"
             ;;
         delete)
             # shellcheck source=delete.sh
             source "${LIB_DIR}/commands/workspace/delete.sh"
-            workspace_delete "$@"
+            workspace_delete "${args[@]}"
             ;;
         *)
             echo "Error: Unknown workspace subcommand: $subcommand" >&2

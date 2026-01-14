@@ -26,7 +26,7 @@ execute_launch_window() {
     local class="${10}"
     local window_title_pattern="${11}"
     local launch_time="${12}"
-    local function_name="launch_window"
+    local function_name="execute_launch_window"
     local uuid=""
     local window_title=""
     
@@ -71,7 +71,7 @@ execute_launch_window() {
 
         # Detect and store app_class if not already stored
         if [[ -n "$app_id" && -z "$class" ]]; then
-            detect_and_store_class "$uuid" "$app_id"
+            class=$(detect_and_store_class "$uuid" "$app_id")
         fi
 
         window_title=$(get_window_title "$uuid")
@@ -99,7 +99,7 @@ execute_launch_window() {
 execute_close_window() {
     local window_name="$1"
     local uuid=""
-    local function_name="close-window"
+    local function_name="execute_close_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -169,8 +169,9 @@ launch_by_app_id() {
     local window_title_pattern=""
     local launch_command=""
     local launch_time=""
-    
     local function_name="launch_by_app_id"
+
+    debug_function_enter "$function_name"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_parameter_pass "$window_name" "window_name" || return 1
@@ -180,6 +181,8 @@ launch_by_app_id() {
     validate_parameter_pass "$position" "position" || return 1
 
     launch_type="$LAUNCH_TYPE_DESKTOP"
+
+    debug_log "$function_name" "Obtain application properties from database."
 
     class=$(db_get_app_class "$app_id")
     window_title_pattern=$(db_get_window_title_pattern "$app_id")
@@ -195,6 +198,8 @@ launch_by_app_id() {
      execute_launch_window \
      "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \
      "$launch_mode" "$launch_type" "$launch_command" "$class" "$window_title_pattern" "$launch_time"
+
+     debug_function_exit "$function_name"
 }
 
 detect_and_store_class() {

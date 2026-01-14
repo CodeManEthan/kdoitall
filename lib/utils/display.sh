@@ -15,9 +15,6 @@ display_tracked_windows() {
     
     debug_function_enter "$function_name"
     
-    # Populate global arrays
-    db_get_all_windows
-    
     # Validate that arrays are populated
     validate_global_array_populated DB_UUIDS "DB_UUIDS" || return 1
     
@@ -183,7 +180,7 @@ display_application_info() {
     
     # Show app file path if available
     if [[ -n "$app_directory_path" ]]; then
-        echo "App Directory:            $app_directory_path" >&3
+        echo "App Directory:       $app_directory_path" >&3
     fi
     
     # Show terminal command if available
@@ -196,6 +193,13 @@ display_application_info() {
         echo "Window Class:        $app_class" >&3
     else
         echo "Window Class:        Not yet detected" >&3
+    fi
+
+    # Show window title pattern if detected
+    if [[ -n "$window_title_pattern" ]]; then
+        echo "Title Pattern:       $window_title_pattern" >&3
+    else
+        echo "Title Pattern:       Not yet detected" >&3
     fi
     
     echo "" >&3
@@ -216,18 +220,24 @@ display_application_info() {
 
     if [[ -n "$launch_mode" ]]; then
         echo "Launch Mode:         $launch_mode" >&3
+    else
+        echo "Launch Mode:         Unknown" >&3
     fi
     
     if [[ -n "$supports_pid_validation" ]]; then
         echo "PID Validation:      $pid_validation_status" >&3
-    fi
-
-    if [[ -n "$executable_path" ]]; then
-        echo "Executable Path:     $executable_path" >&3
-    fi
-
-    if [[ -n "$process_name" ]]; then
-        echo "Process Name:        $process_name" >&3
+        if [[ -n "$executable_path" ]]; then
+            echo "Executable Path:     $executable_path" >&3
+        else
+            echo "Executable Path:     Not Found" >&3
+        fi
+        if [[ -n "$process_name" ]]; then
+            echo "Process Name:        $process_name" >&3
+        else
+            echo "Process Name:        Not Found" >&3
+        fi
+    else
+        echo "PID Validation:      Not Completed" >&3
     fi
 
     if [[ -n "$window_title_pattern" ]]; then

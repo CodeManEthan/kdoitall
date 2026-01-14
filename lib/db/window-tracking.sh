@@ -172,20 +172,18 @@ db_delete_stale_windows() {
     # Delete UUIDs that don't exist anymore
     for uuid_to_delete in "${DB_UUIDS[@]}"; do
         if [[ ! -v existing_lookup[$uuid_to_delete] ]]; then
-            sqlite3 "$KDOITALL_DB" \
+            # Execute DELETE and get changes count in same session
+            local changes=""
+            changes=$(sqlite3 "$KDOITALL_DB" \
                 -cmd ".param init" \
                 -cmd ".param set :uuid '$uuid_to_delete'" \
-                "DELETE FROM app_windows WHERE uuid = :uuid;"
-            
-            # Check if row was actually deleted
-            local changes=""
-            changes=$(sqlite3 "$KDOITALL_DB" "SELECT changes()")
+                "DELETE FROM app_windows WHERE uuid = :uuid; SELECT changes();")
             
             if [ "$changes" -eq 1 ]; then
                 debug_log "$function_name" "DELETED: Stale window with uuid='$uuid_to_delete'"
                 echo "Deleted stale window: $uuid_to_delete"
             else
-                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database"
+                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database (changes=$changes)"
             fi
         else
             debug_log "$function_name" "KEPT: uuid='$uuid_to_delete' still exists"

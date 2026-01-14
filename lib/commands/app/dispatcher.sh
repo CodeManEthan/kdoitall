@@ -3,47 +3,61 @@
 check_and_set_guard "_KDOITALL_APP_COMMAND_LOADED" || return 0
 
 app_command() {
-    local subcommand="$1"
-    shift
+    local function_name="app_command"
+    local subcommand=""
+    local -a args=()
     
-    # Validate subcommand provided
-    if [[ -z "$subcommand" ]]; then
-        echo "Error: App subcommand required" >&2
-        app_show_help
-        return 1
-    fi
+    # Parse arguments, filtering out global flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --debug|--verbose)
+                shift
+                ;;
+            *)
+                if [[ -z "$subcommand" ]]; then
+                    subcommand="$1"
+                    shift
+                else
+                    args+=("$1")
+                    shift
+                fi
+                ;;
+        esac
+    done
+
+    debug_log "$function_name" "subcommand='$subcommand', args=(${args[*]:-}), args count=${#args[@]}"
     
     # Dispatch to appropriate handler
     case "$subcommand" in
         scan)
             # shellcheck source=scan.sh
             source "${LIB_DIR}/commands/app/scan.sh"
-            app_scan "$@"
+            app_scan "${args[@]}"
             ;;
         list)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/app/list.sh"
-            app_list "$@"
+            app_list "${args[@]}"
             ;;
         info)
             # shellcheck source=info.sh
             source "${LIB_DIR}/commands/app/info.sh"
-            app_info "$@"
+            app_info "${args[@]}"
             ;;
         validate)
             # shellcheck source=validate.sh
             source "${LIB_DIR}/commands/app/validate.sh"
-            app_validate "$@"
+            app_validate "${args[@]}"
             ;;
         options)
             # shellcheck source=options.sh
             source "${LIB_DIR}/commands/app/options.sh"
-            app_options "$@"
+            app_options "${args[@]}"
             ;;
         safe-mode)
             # shellcheck source=safe-mode.sh
             source "${LIB_DIR}/commands/app/safe-mode.sh"
-            app_safe_mode "$@"
+            app_safe_mode "${args[@]}"
             ;;
         *)
             echo "Error: Unknown app subcommand: $subcommand" >&2

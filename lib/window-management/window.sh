@@ -5,9 +5,9 @@ check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 # shellcheck source=../db/window-info.sh
 source "${LIB_DIR}/db/window-info.sh"
 
-export -ga CURRENT_UUIDS=()
-export -ga CURRENT_CLASSES=()
-export -ga CURRENT_TITLES=()
+export -a CURRENT_UUIDS=()
+export -a CURRENT_CLASSES=()
+export -a CURRENT_TITLES=()
 
 get_uuid_by_process_of_elimination() {
     local class="$1"  # Optional class parameter for validation
@@ -128,6 +128,7 @@ get_existing_windows_uuid() {
         return 0  # Not an error - just no windows open
     fi
 
+    debug_log "$function_name" "Retrieved ${#CURRENT_UUIDS[@]} uuids"
     debug_function_exit "$function_name"
     return 0
 }

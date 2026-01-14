@@ -22,7 +22,7 @@ safe_mode_launch_and_detect() {
     
     # Get display name
     local display_name
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
     
     # Use launch time measurement for detection
     local new_uuid
@@ -161,6 +161,9 @@ detect_safe_mode_apps() {
             if [[ "$has_custom_file" == "false" ]] && \
                [[ "$safe_mode_done" != "1" ]]; then
                 safe_mode_apps+=("$app_id")
+
+                db_set_requires_safe_mode "$app_id" "TRUE"
+
                 debug_log "$function_name" "App needs safe mode: $app_id"
             fi
         fi
@@ -189,12 +192,11 @@ prompt_safe_mode() {
     echo "The following applications have not been validated yet:" >&3
     echo "" >&3
     
-    # List applications with display names and commands
+    # List applications with display names
     for app_id in "${apps[@]}"; do
         local display_name
-        display_name=$(db_get_app_display_name "$app_id")
-        echo "  • $app_id ($display_name)" >&3
-        echo "    Command: kdoitall app safe-mode $app_id" >&3
+        display_name=$(db_get_display_name "$app_id")
+        echo "  • $display_name ($app_id)" >&3
     done
     
     echo "" >&3
@@ -202,20 +204,46 @@ prompt_safe_mode() {
     echo "reliable window detection. This only needs to be done ONCE" >&3
     echo "per application." >&3
     echo "" >&3
-    echo "You can run safe mode for each app using the commands above," >&3
-    echo "or choose one of these options:" >&3
+    echo "Run this command to validate these apps:" >&3
+    echo "  kdoitall app safe-mode" >&3
+    echo "" >&3
+    echo "This will show you a menu to select which app to validate." >&3
     echo "" >&3
     echo "Options:" >&3
     echo "  [E] End workspace open (recommended - run safe mode first)" >&3
     echo "  [O] Open workspace anyway (will ask again next time)" >&3
-    echo "  [S] Skip these apps (don't ask again for these specific apps)" >&3
-    echo "  [N] Never ask for safe mode again (disable for all apps)" >&3
+    echo "  [S] Skip these apps (mark as completed without validation)" >&3
     echo "" >&3
     
     # Get user choice
     local choice
     read -r -p "Choice: " choice
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
+    
+    case "$choice" in
+        e)
+            debug_function_exit "$function_name" "User chose to end"
+            return 1
+            ;;
+        o)
+            debug_function_exit "$function_name" "User chose to continue"
+            return 0
+            ;;
+        s)
+            # Mark all as completed (skip validation)
+            for app_id in "${apps[@]}"; do
+                db_set_safe_mode_completed "$app_id"
+            done
+            echo "Apps marked as completed." >&3
+            debug_function_exit "$function_name" "User skipped validation"
+            return 0
+            ;;
+        *)
+            echo "Invalid choice. Ending workspace open." >&3
+            debug_function_exit "$function_name" "Invalid choice"
+            return 1
+            ;;
+    esac
 }
 
 prepare_safe_mode_environment() {
@@ -279,7 +307,7 @@ safe_mode_measure_launch_time() {
     
     # Get display name
     local display_name=""
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
@@ -378,7 +406,7 @@ safe_mode_verify_window() {
     local display_name
     class=$(get_window_class "$uuid")
     title=$(get_window_title "$uuid")
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
     
     # Display detection results
     echo "" >&3
@@ -425,7 +453,7 @@ safe_mode_analyze_title_pattern() {
     
     # Get display name
     local display_name
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
@@ -664,7 +692,7 @@ safe_mode_test_multi_instance() {
     
     # Get display name
     local display_name=""
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
 
     local class=""
     class=$(db_get_app_class "$app_id")
@@ -876,7 +904,7 @@ safe_mode_test_for_unique_mode() {
     debug_function_enter "$function_name" "$@"
     
     local display_name
-    display_name=$(db_get_app_display_name "$app_id")
+    display_name=$(db_get_display_name "$app_id")
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
