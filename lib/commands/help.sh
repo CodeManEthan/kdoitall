@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Licensed under GPL-3.0-or-later. See LICENSE file.
+# Copyright (C) 2025 Ethan Plunk
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 check_and_set_guard "_KDOITALL_HELP_LOADED" || return 0
 
@@ -45,7 +46,7 @@ EXAMPLES:
     # Close a workspace
     kdoitall workspace close my-dev-workspace
 
-For more information, visit: https://github.com/j-ethan-plunk/kdoitall
+For more information, visit: https://github.com/CodeManEthan/kdoitall
 
 EOF
 }

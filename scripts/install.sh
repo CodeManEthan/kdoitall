@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Part of kdoitall - KDE Desktop Automation Tool
+# Copyright (C) 2025 Ethan Plunk
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+set -euo pipefail
+
+# --- Determine project root ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# --- Verify we're in the right place ---
+if [[ ! -f "$PROJECT_ROOT/bin/kdoitall" ]]; then
+    echo "Error: Cannot find kdoitall project. Run this script from the project directory." >&2
+    exit 1
+fi
+
+# --- Check bash version ---
+if ((BASH_VERSINFO[0] < 4)); then
+    echo "Error: Bash 4.0+ is required (found ${BASH_VERSION})" >&2
+    exit 1
+fi
+
+echo "Installing kdoitall..."
+echo ""
+
+# --- Check dependencies ---
+echo "Checking dependencies..."
+source "$PROJECT_ROOT/lib/utils/checks.sh"
+check_dependencies
+
+# --- Define directories ---
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall"
+BIN_DIR="$HOME/.local/bin"
+
+# --- Create directories ---
+mkdir -p "$DATA_DIR"
+mkdir -p "$DATA_DIR/workspaces"
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$BIN_DIR"
+
+# --- Initialize database ---
+SCHEMA_FILE="$PROJECT_ROOT/database/schema.sql"
+DB_FILE="$DATA_DIR/kdoitall.db"
+
+if [[ ! -f "$DB_FILE" ]]; then
+    if command -v sqlite3 &> /dev/null; then
+        sqlite3 "$DB_FILE" < "$SCHEMA_FILE"
+        echo "✓ Initialized database: $DB_FILE"
+    else
+        echo "⚠ sqlite3 not found — skipping database initialization" >&2
+    fi
+else
+    echo "✓ Database already exists: $DB_FILE"
+fi
+
+# --- Create exec wrapper ---
+cat > "$BIN_DIR/kdoitall" << EOF
+#!/bin/bash
+exec "$PROJECT_ROOT/bin/kdoitall" "\$@"
+EOF
+chmod +x "$BIN_DIR/kdoitall"
+echo "✓ Installed kdoitall to $BIN_DIR/kdoitall"
+
+# --- Check PATH ---
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    echo ""
+    echo "⚠ $BIN_DIR is not on your PATH"
+    echo "  Add this to your shell profile (~/.bashrc or ~/.bash_profile):"
+    echo ""
+    echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo ""
+fi
+
+# --- Summary ---
+echo ""
+echo "✓ Created data directory:   $DATA_DIR/"
+echo "✓ Created config directory: $CONFIG_DIR/"
+echo ""
+echo "Next steps:"
+echo "  1. Run 'kdoitall app scan' to discover installed applications"
+echo "  2. Run 'kdoitall workspace create <name>' to create your first workspace"

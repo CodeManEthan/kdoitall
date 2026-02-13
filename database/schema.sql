@@ -1,5 +1,8 @@
-/* Part of kdoitall - KDE Desktop Automation Tool
-   Licensed under GPL-3.0-or-later. See LICENSE file.*/
+/* 
+Part of kdoitall - KDE Desktop Automation Tool
+Copyright (C) 2025 Ethan Plunk
+SPDX-License-Identifier: GPL-3.0-or-later
+*/
 
 PRAGMA foreign_keys = ON;
 
