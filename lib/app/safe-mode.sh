@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_LOADED" || return 0
 
 # Source required modules
@@ -264,17 +267,16 @@ prepare_safe_mode_environment() {
     echo "2. Use a standalone terminal application, NOT a terminal" >&3
     echo "   embedded in another app (like VS Code's integrated terminal)" >&3
     echo "" >&3
+    echo "3. Avoid hovering your mouse over the panel/taskbar during" >&3
+    echo "   the launch process, as window previews can interfere with" >&3
+    echo "   safe mode detection" >&3
+    echo "" >&3
     
     # Show current windows using auto_detect_windows and display function
     echo "Current windows on your system:" >&3
     echo "" >&3
     auto_detect_windows
     display_tracked_windows
-    
-    echo "" >&3
-    echo "TIP: You can note which window is your current terminal" >&3
-    echo "     to help with verification later." >&3
-    echo "" >&3
     
     read -r -p "Press [Enter] when ready, or [C] to cancel: " ready
     ready=$(echo "$ready" | tr '[:upper:]' '[:lower:]')

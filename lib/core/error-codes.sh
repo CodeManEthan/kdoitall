@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 # Parameters
 export ERR_MISSING_PARAMETER=1
 export ERR_INVALID_PARAMETER=2

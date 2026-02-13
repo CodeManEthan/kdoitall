@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_DB_WINDOW_INFO_LOADED" || return 0
 
 export -a DB_UUIDS=()
@@ -15,7 +18,7 @@ db_get_all_windows() {
     DB_UUIDS=()
     DB_CLASSES=()
     DB_TITLES=()
-    
+
     # Get all data in a single query with tab-separated values
     # NOTE: .mode tabs forces tab-separated output
     local query_result=""
@@ -25,6 +28,10 @@ db_get_all_windows() {
          FROM app_windows 
          WHERE uuid IS NOT NULL;" 2>/dev/null)
     
+    local uuid
+    local class
+    local window_title
+
     # Parse the tab-separated output into arrays
     while IFS=$'\t' read -r uuid class window_title; do
         DB_UUIDS+=("$uuid")

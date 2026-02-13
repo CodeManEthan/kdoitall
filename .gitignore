@@ -1,0 +1,7 @@
+*.db
+*.swp
+*.swo
+*~
+__pycache__/
+CLAUDE.md
+*.code-workspace

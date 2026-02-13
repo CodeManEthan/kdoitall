@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_CORE_LOADED" || return 0
 
 # shellcheck source=../window-management/desktop.sh
@@ -42,9 +45,13 @@ execute_launch_window() {
     validate_parameter_pass "$launch_type" "launch_type" || return 1
     validate_parameter_pass "$launch_command" "launch_command" || return 1
 
+    debug_log "$function_name" "BEFORE DETECT WINDOWS: Class: '$class'"
+
     # Refresh database with current windows
     debug_log "$function_name" "Auto Detect Windows"
     auto_detect_windows
+
+    debug_log "$function_name" "AFTER DETECT WINDOWS: Class: '$class'"
 
     # Check Window Exists (If SINGLE or UNIQUE Launch Mode)
     if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
@@ -57,6 +64,8 @@ execute_launch_window() {
         debug_log "$function_name" "Window already exists - $uuid."
 
         window_title=$(get_window_title "$uuid")
+
+        raise_window "$uuid"
 
         # Claim Window in Database
         debug_log "$function_name" "Claim Window in app_windows table."
@@ -193,7 +202,7 @@ launch_by_app_id() {
         launch_mode="$LAUNCH_MODE_UNKNOWN"
     fi
 
-    launch_command="gtk-launch $app_id &"
+    launch_command="gtk-launch $app_id > /dev/null 2>&1 & disown"
 
      execute_launch_window \
      "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \

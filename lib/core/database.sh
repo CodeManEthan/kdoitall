@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 # shellcheck source=../db/window-tracking.sh
 source "${LIB_DIR}/db/window-tracking.sh"
 

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_DB_WORKSPACE_LOADED" || return 0
 
 db_create_workspace() {
@@ -104,6 +107,7 @@ db_workspace_not_exists() {
     
     if [[ "$count" -eq 1 ]]; then
         debug_log "$function_name" "Workspace exists: $workspace_name"
+        echo "Workspace name already exists." >&3
         debug_function_exit "$function_name"
         return 1
     else

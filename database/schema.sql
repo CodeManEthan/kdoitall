@@ -1,3 +1,6 @@
+/* Part of kdoitall - KDE Desktop Automation Tool
+   Licensed under GPL-3.0-or-later. See LICENSE file.*/
+
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE workspace_definitions (

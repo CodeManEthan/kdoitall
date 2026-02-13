@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_APPLICATION_REGISTRY_LOADED" || return 0
 
 # shellcheck source=../db/app.sh
@@ -25,7 +28,7 @@ registry_scan_applications() {
     debug_function_enter "$function_name"
     
     # Track processed app_ids to handle duplicates (prefer user local > system)
-    declare -A processed_apps
+    local -A processed_apps
     
     # Iterate through desktop file locations in reverse priority order
     # (process system locations first, so user local overrides them)

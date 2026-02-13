@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_SCREEN_DETECTION_LOADED" || return 0
 
 # Global variable to store detected desktop count
@@ -110,9 +113,6 @@ detect_screens() {
     
     debug_log "$function_name" "Detected $DETECTED_SCREEN_COUNT enabled screen(s)"
     
-    # Update NUM_SCREENS to match detected count
-    export NUM_SCREENS="$DETECTED_SCREEN_COUNT"
-    
     debug_function_exit "$function_name"
     return 0
 }
@@ -145,8 +145,8 @@ list_detected_screens() {
         return 1
     fi
     
-    echo "Detected Screens: $DETECTED_SCREEN_COUNT"
-    echo "----------------------------------------"
+    echo "Detected Screens: $DETECTED_SCREEN_COUNT" >&3
+    echo "----------------------------------------" >&3
     
     for ((out=1; out<=20; out++)); do
         # Check if this output exists before trying to access its ENABLED status
@@ -157,9 +157,9 @@ list_detected_screens() {
             local x="${SCREEN_INFO[${out}_X]}"
             local y="${SCREEN_INFO[${out}_Y]}"
             
-            echo "Output $out: $name"
-            echo "  Resolution: ${width}x${height}"
-            echo "  Position: ($x, $y)"
+            echo "Output $out: $name" >&3
+            echo "  Resolution: ${width}x${height}" >&3
+            echo "  Position: ($x, $y)" >&3
         fi
     done
     

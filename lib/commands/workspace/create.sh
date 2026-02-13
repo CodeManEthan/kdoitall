@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_WORKSPACE_CREATE_LOADED" || return 0
 
 # shellcheck source=../../workspace/generator.sh
@@ -12,6 +15,16 @@ source "${LIB_DIR}/db/app.sh"
 source "${LIB_DIR}/db/launch-options.sh"
 # shellcheck source=../../utils/workspace-validators.sh
 source "${LIB_DIR}/utils/workspace-validators.sh"
+
+# State constants for workflow
+readonly STATE_SELECT_APP=1
+readonly STATE_LAUNCH_TYPE=2
+readonly STATE_DESKTOP=3
+readonly STATE_SCREEN=4
+readonly STATE_POSITION=5
+readonly STATE_LAUNCH_FUNC=6
+readonly STATE_PARAMETERS=7
+readonly STATE_COMPLETE=8
 
 workspace_create() {
     local workspace_name="$1"
@@ -40,13 +53,9 @@ workspace_create() {
         echo "" >&3
         
         if ! add_application_to_workspace "$workspace_name" "$display_order" WORKSPACE_APPS; then
-            echo "Error adding application. Try again? (y/n)" >&3
-            read -r retry
-            if [[ "$retry" == "y" ]]; then
-                continue
-            else
-                break
-            fi
+            echo "" >&3
+            echo "Application addition cancelled." >&3
+            break
         fi
         
         ((display_order++))
@@ -129,6 +138,7 @@ add_application_to_workspace() {
     local screen_number=""
     local position=""
     local parameters=""
+    local current_state="$STATE_SELECT_APP"
     local function_name="add_application_to_workspace"
     
     debug_function_enter "$function_name" "$@"
@@ -139,86 +149,165 @@ add_application_to_workspace() {
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_parameter_pass "$display_order" "display_order" || return 1
     
-    # Step 1: Select application
-    echo "Step 1: Select Application" >&3
-    echo "--------------------------" >&3
-    if ! app_id=$(select_application); then
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Get the display name for the selected app
-    local display_name=""
-    display_name=$(db_get_display_name "$app_id")
-
-    # Count existing instances of this app_id in the workspace
-    local instance_count=1
-    for app_entry in "${apps_array_ref[@]}"; do
-        local existing_app_id=""
-        existing_app_id=$(echo "$app_entry" | cut -d'|' -f1)
-        
-        if [[ "$existing_app_id" == "$app_id" ]]; then
-            ((instance_count++))
-        fi
+    # State machine loop - navigate through configuration steps
+    while [[ "$current_state" != "$STATE_COMPLETE" ]]; do
+        case "$current_state" in
+            "$STATE_SELECT_APP")
+                echo "Step 1: Select Application" >&3
+                echo "--------------------------" >&3
+                
+                if ! app_id=$(select_application_with_retry); then
+                    debug_function_exit "$function_name"
+                    return 1
+                fi
+                
+                # Get display name and generate window name
+                local display_name=""
+                display_name=$(db_get_display_name "$app_id")
+                
+                local instance_count=1
+                for app_entry in "${apps_array_ref[@]}"; do
+                    local existing_app_id=""
+                    existing_app_id=$(echo "$app_entry" | cut -d'|' -f1)
+                    
+                    if [[ "$existing_app_id" == "$app_id" ]]; then
+                        ((instance_count++))
+                    fi
+                done
+                
+                local sanitized_display_name=""
+                sanitized_display_name=$(echo "$display_name" | \
+                    tr '[:upper:]' '[:lower:]' | \
+                    tr ' _' '-' | \
+                    sed 's/[^a-z0-9-]//g' | \
+                    sed 's/--*/-/g')
+                
+                window_name="${workspace_name}-${sanitized_display_name}-${instance_count}"
+                validate_window_name "$window_name" || return 1
+                
+                current_state="$STATE_LAUNCH_TYPE"
+                ;;
+                
+            "$STATE_LAUNCH_TYPE")
+                echo "" >&3
+                echo "Step 2: Launch Type" >&3
+                echo "-------------------" >&3
+                
+                if ! launch_type=$(choose_launch_type_with_retry "$app_id"); then
+                    # User chose to go back or cancel
+                    if [[ "$launch_type" == "BACK" ]]; then
+                        current_state="$STATE_SELECT_APP"
+                        continue
+                    else
+                        debug_function_exit "$function_name"
+                        return 1
+                    fi
+                fi
+                
+                current_state="$STATE_DESKTOP"
+                ;;
+                
+            "$STATE_DESKTOP")
+                echo "" >&3
+                echo "Step 3: Window Positioning" >&3
+                echo "--------------------------" >&3
+                
+                if ! desktop_number=$(select_desktop_with_retry); then
+                    # User chose to go back or cancel
+                    if [[ "$desktop_number" == "BACK" ]]; then
+                        current_state="$STATE_LAUNCH_TYPE"
+                        continue
+                    elif [[ "$desktop_number" == "CHANGE_APP" ]]; then
+                        current_state="$STATE_SELECT_APP"
+                        continue
+                    else
+                        debug_function_exit "$function_name"
+                        return 1
+                    fi
+                fi
+                
+                current_state="$STATE_SCREEN"
+                ;;
+                
+            "$STATE_SCREEN")
+                if ! screen_number=$(select_screen_with_retry); then
+                    # User chose to go back or cancel
+                    if [[ "$screen_number" == "BACK" ]]; then
+                        current_state="$STATE_DESKTOP"
+                        continue
+                    elif [[ "$screen_number" == "CHANGE_APP" ]]; then
+                        current_state="$STATE_SELECT_APP"
+                        continue
+                    else
+                        debug_function_exit "$function_name"
+                        return 1
+                    fi
+                fi
+                
+                current_state="$STATE_POSITION"
+                ;;
+                
+            "$STATE_POSITION")
+                if ! position=$(select_position_with_retry); then
+                    # User chose to go back or cancel
+                    if [[ "$position" == "BACK" ]]; then
+                        current_state="$STATE_SCREEN"
+                        continue
+                    elif [[ "$position" == "CHANGE_APP" ]]; then
+                        current_state="$STATE_SELECT_APP"
+                        continue
+                    else
+                        debug_function_exit "$function_name"
+                        return 1
+                    fi
+                fi
+                
+                # Determine next state based on launch type
+                if [[ "$launch_type" == "$LAUNCH_TYPE_TERMINAL" ]]; then
+                    current_state="$STATE_LAUNCH_FUNC"
+                else
+                    # Desktop launch - set function and skip to complete
+                    launch_function="launch_by_app_id"
+                    parameters=""
+                    current_state="$STATE_COMPLETE"
+                fi
+                ;;
+                
+            "$STATE_LAUNCH_FUNC")
+                echo "" >&3
+                echo "Step 4: Launch Function" >&3
+                echo "-----------------------" >&3
+                
+                if ! launch_function=$(select_launch_function_with_retry "$app_id"); then
+                    # User chose to go back or cancel
+                    if [[ "$launch_function" == "BACK" ]]; then
+                        current_state="$STATE_POSITION"
+                        continue
+                    elif [[ "$launch_function" == "CHANGE_APP" ]]; then
+                        current_state="$STATE_SELECT_APP"
+                        continue
+                    else
+                        debug_function_exit "$function_name"
+                        return 1
+                    fi
+                fi
+                
+                current_state="$STATE_PARAMETERS"
+                ;;
+                
+            "$STATE_PARAMETERS")
+                echo "" >&3
+                echo "Step 5: Function Parameters" >&3
+                echo "---------------------------" >&3
+                echo "Enter parameters for this function (space-separated):" >&3
+                echo "  Example: /path/to/project" >&3
+                echo "  (press Enter to skip if no parameters needed)" >&3
+                read -r parameters
+                
+                current_state="$STATE_COMPLETE"
+                ;;
+        esac
     done
-
-    # Sanitize display name:
-    local sanitized_display_name=""
-    sanitized_display_name=$(echo "$display_name" | \
-        tr '[:upper:]' '[:lower:]' | \
-        tr ' _' '-' | \
-        sed 's/[^a-z0-9-]//g' | \
-        sed 's/--*/-/g')
-
-    # Generate window name automatically
-    window_name="${workspace_name}-${sanitized_display_name}-${instance_count}"
-    
-    validate_window_name "$window_name" || return 1
-    
-    # Step 2: Choose launch type (to determine launch function)
-    echo "" >&3
-    echo "Step 2: Launch Type" >&3
-    echo "-------------------" >&3
-    if ! launch_type=$(choose_launch_type "$app_id"); then
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Step 3: Configure positioning
-    echo "" >&3
-    echo "Step 3: Window Positioning" >&3
-    echo "--------------------------" >&3
-    if ! configure_positioning desktop_number screen_number position; then
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Step 4: Determine launch function based on launch type
-    if [[ "$launch_type" == "$LAUNCH_TYPE_DESKTOP" ]]; then
-        # For desktop launches, use launch_by_app_id
-        launch_function="launch_by_app_id"
-    else
-        # For terminal launches, user selects from app-specific launch options
-        echo "" >&3
-        echo "Step 4: Launch Function" >&3
-        echo "-----------------------" >&3
-        if ! launch_function=$(select_launch_function "$app_id"); then
-            debug_function_exit "$function_name"
-            return 1
-        fi
-    fi
-    
-    # Step 5: Terminal-specific parameters
-    if [[ "$launch_type" == "$LAUNCH_TYPE_TERMINAL" ]]; then
-        # Prompt for parameters
-        echo "" >&3
-        echo "Step 5: Function Parameters" >&3
-        echo "---------------------------" >&3
-        echo "Enter parameters for this function (space-separated):" >&3
-        echo "  Example: /path/to/project" >&3
-        echo "  (press Enter to skip if no parameters needed)" >&3
-        read -r parameters
-    fi
     
     # Store in array for script generation
     # Format: app_id|window_name|launch_function|desktop|screen|position|parameters
@@ -229,6 +318,327 @@ add_application_to_workspace() {
     
     debug_function_exit "$function_name"
     return 0
+}
+
+select_application_with_retry() {
+    local function_name="select_application_with_retry"
+    
+    debug_function_enter "$function_name"
+    
+    while true; do
+        local app_id=""
+        app_id=$(select_application)
+        local exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            debug_function_exit "$function_name"
+            echo "$app_id"
+            return 0
+        fi
+        
+        # Selection failed
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again" >&3
+        echo "2) Cancel" >&3
+        read -r choice
+        
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1 or 2." >&3
+                ;;
+        esac
+    done
+}
+
+choose_launch_type_with_retry() {
+    local app_id="$1"
+    local function_name="choose_launch_type_with_retry"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    while true; do
+        local launch_type=""
+        launch_type=$(choose_launch_type "$app_id")
+        local exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            debug_function_exit "$function_name"
+            echo "$launch_type"
+            return 0
+        fi
+        
+        # Selection failed
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again" >&3
+        echo "2) Go back to application selection" >&3
+        echo "3) Cancel" >&3
+        read -r choice
+        
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                echo "BACK"
+                return 1
+                ;;
+            3)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1, 2, or 3." >&3
+                ;;
+        esac
+    done
+}
+
+select_desktop_with_retry() {
+    local function_name="select_desktop_with_retry"
+    
+    debug_function_enter "$function_name"
+    
+    while true; do
+        echo "Detected virtual desktops: $DETECTED_DESKTOP_COUNT" >&3
+        echo "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):" >&3
+        read -r desktop_number
+        
+        # Validate input
+        if [[ "$desktop_number" =~ ^[0-9]+$ ]] && \
+           [ "$desktop_number" -ge 1 ] && \
+           [ "$desktop_number" -le "$DETECTED_DESKTOP_COUNT" ]; then
+            debug_log "$function_name" "Selected desktop: $desktop_number"
+            debug_function_exit "$function_name"
+            echo "$desktop_number"
+            return 0
+        fi
+        
+        # Invalid input
+        echo "" >&3
+        echo "Error: Invalid desktop number (entered: $desktop_number, valid range: 1-$DETECTED_DESKTOP_COUNT)" >&3
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again (re-enter desktop number)" >&3
+        echo "2) Go back to launch type selection" >&3
+        echo "3) Choose different application" >&3
+        echo "4) Cancel" >&3
+        read -r choice
+        
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                echo "BACK"
+                return 1
+                ;;
+            3)
+                debug_function_exit "$function_name"
+                echo "CHANGE_APP"
+                return 1
+                ;;
+            4)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
+                ;;
+        esac
+    done
+}
+
+select_screen_with_retry() {
+    local function_name="select_screen_with_retry"
+    
+    debug_function_enter "$function_name"
+    
+    while true; do
+        echo "" >&3
+        echo "Detected screens:" >&3
+        list_detected_screens
+        echo "" >&3
+        echo "Enter screen number (1-$DETECTED_SCREEN_COUNT):" >&3
+        read -r screen_number
+        
+        # Validate input
+        if [[ "$screen_number" =~ ^[0-9]+$ ]] && \
+           [ "$screen_number" -ge 1 ] && \
+           [ "$screen_number" -le "$DETECTED_SCREEN_COUNT" ]; then
+            debug_log "$function_name" "Selected screen: $screen_number"
+            debug_function_exit "$function_name"
+            echo "$screen_number"
+            return 0
+        fi
+        
+        # Invalid input
+        echo "" >&3
+        echo "Error: Invalid screen number (entered: $screen_number, valid range: 1-$DETECTED_SCREEN_COUNT)" >&3
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again (re-enter screen number)" >&3
+        echo "2) Go back to desktop selection" >&3
+        echo "3) Choose different application" >&3
+        echo "4) Cancel" >&3
+        read -r choice
+        
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                echo "BACK"
+                return 1
+                ;;
+            3)
+                debug_function_exit "$function_name"
+                echo "CHANGE_APP"
+                return 1
+                ;;
+            4)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
+                ;;
+        esac
+    done
+}
+
+select_position_with_retry() {
+    local function_name="select_position_with_retry"
+    
+    debug_function_enter "$function_name"
+    
+    while true; do
+        echo "" >&3
+        echo "Available positions:" >&3
+        echo "  1) Fullscreen" >&3
+        echo "  2) Right Half" >&3
+        echo "  3) Left Half" >&3
+        echo "  4) Top Half" >&3
+        echo "  5) Bottom Half" >&3
+        echo "  6) Top Left" >&3
+        echo "  7) Top Right" >&3
+        echo "  8) Bottom Left" >&3
+        echo "  9) Bottom Right" >&3
+        echo " 10) Left Third" >&3
+        echo " 11) Middle Third" >&3
+        echo " 12) Right Third" >&3
+        read -r pos_choice
+        
+        local position=""
+        case "$pos_choice" in
+            1) position="FULLSCREEN" ;;
+            2) position="RIGHTHALF" ;;
+            3) position="LEFTHALF" ;;
+            4) position="TOPHALF" ;;
+            5) position="BOTTOMHALF" ;;
+            6) position="TOPLEFT" ;;
+            7) position="TOPRIGHT" ;;
+            8) position="BOTTOMLEFT" ;;
+            9) position="BOTTOMRIGHT" ;;
+            10) position="LEFTTHIRD" ;;
+            11) position="MIDDLETHIRD" ;;
+            12) position="RIGHTTHIRD" ;;
+            *)
+                # Invalid input
+                echo "" >&3
+                echo "Error: Invalid position choice (entered: $pos_choice, valid range: 1-12)" >&3
+                echo "" >&3
+                echo "What would you like to do?" >&3
+                echo "1) Try again (re-select position)" >&3
+                echo "2) Go back to screen selection" >&3
+                echo "3) Choose different application" >&3
+                echo "4) Cancel" >&3
+                read -r choice
+                
+                case "$choice" in
+                    1) continue ;;
+                    2)
+                        debug_function_exit "$function_name"
+                        echo "BACK"
+                        return 1
+                        ;;
+                    3)
+                        debug_function_exit "$function_name"
+                        echo "CHANGE_APP"
+                        return 1
+                        ;;
+                    4)
+                        debug_function_exit "$function_name"
+                        return 1
+                        ;;
+                    *)
+                        echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
+                        continue
+                        ;;
+                esac
+                ;;
+        esac
+        
+        # Valid position selected
+        if [[ -n "$position" ]]; then
+            debug_log "$function_name" "Selected position: $position"
+            debug_function_exit "$function_name"
+            echo "$position"
+            return 0
+        fi
+    done
+}
+
+select_launch_function_with_retry() {
+    local app_id="$1"
+    local function_name="select_launch_function_with_retry"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    while true; do
+        local launch_function=""
+        launch_function=$(select_launch_function "$app_id")
+        local exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            debug_function_exit "$function_name"
+            echo "$launch_function"
+            return 0
+        fi
+        
+        # Selection failed
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again" >&3
+        echo "2) Go back to position selection" >&3
+        echo "3) Choose different application" >&3
+        echo "4) Cancel" >&3
+        read -r choice
+        
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                echo "BACK"
+                return 1
+                ;;
+            3)
+                debug_function_exit "$function_name"
+                echo "CHANGE_APP"
+                return 1
+                ;;
+            4)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
+                ;;
+        esac
+    done
 }
 
 select_application() {
@@ -387,92 +797,3 @@ select_launch_function() {
     debug_function_exit "$function_name"
     echo "$selected_function"
 }
-
-configure_positioning() {
-    # desktop_ref="$1"
-    # screen_ref="$2"
-    # position_ref="$3"
-    local function_name="configure_positioning"
-
-    validate_parameter_pass "$1" "desktop_ref" || return 1
-    validate_parameter_pass "$2" "screen_ref" || return 1
-    validate_parameter_pass "$3" "position_ref" || return 1
-    local -n desktop_ref="$1"
-    local -n screen_ref="$2"
-    local -n position_ref="$3"
-    
-    debug_function_enter "$function_name" "$@"
-    
-    # Desktop selection
-    echo "Detected virtual desktops: $DETECTED_DESKTOP_COUNT" >&3
-    echo "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):" >&3
-    read -r desktop_ref
-    
-    if ! [[ "$desktop_ref" =~ ^[0-9]+$ ]] || \
-       [ "$desktop_ref" -lt 1 ] || \
-       [ "$desktop_ref" -gt "$DETECTED_DESKTOP_COUNT" ]; then
-        echo "Error: Invalid desktop number" >&2
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Screen selection
-    echo "" >&3
-    echo "Detected screens:" >&3
-    list_detected_screens
-    echo "" >&3
-    echo "Enter screen number (1-$DETECTED_SCREEN_COUNT):" >&3
-    read -r screen_ref
-    
-    if ! [[ "$screen_ref" =~ ^[0-9]+$ ]] || \
-       [ "$screen_ref" -lt 1 ] || \
-       [ "$screen_ref" -gt "$DETECTED_SCREEN_COUNT" ]; then
-        echo "Error: Invalid screen number" >&2
-        debug_function_exit "$function_name"
-        return 1
-    fi
-    
-    # Position selection
-    echo "" >&3
-    echo "Available positions:" >&3
-    echo "  1) Fullscreen" >&3
-    echo "  2) Right Half" >&3
-    echo "  3) Left Half" >&3
-    echo "  4) Top Half" >&3
-    echo "  5) Bottom Half" >&3
-    echo "  6) Top Left" >&3
-    echo "  7) Top Right" >&3
-    echo "  8) Bottom Left" >&3
-    echo "  9) Bottom Right" >&3
-    echo " 10) Left Third" >&3
-    echo " 11) Middle Third" >&3
-    echo " 12) Right Third" >&3
-    read -r pos_choice
-    
-    case "$pos_choice" in
-        1) position_ref="FULLSCREEN" ;;
-        2) position_ref="RIGHTHALF" ;;
-        3) position_ref="LEFTHALF" ;;
-        4) position_ref="TOPHALF" ;;
-        5) position_ref="BOTTOMHALF" ;;
-        6) position_ref="TOPLEFT" ;;
-        7) position_ref="TOPRIGHT" ;;
-        8) position_ref="BOTTOMLEFT" ;;
-        9) position_ref="BOTTOMRIGHT" ;;
-        10) position_ref="LEFTTHIRD" ;;
-        11) position_ref="MIDDLETHIRD" ;;
-        12) position_ref="RIGHTTHIRD" ;;
-        *) 
-            echo "Error: Invalid choice" >&2
-            debug_function_exit "$function_name"
-            return 1
-            ;;
-    esac
-    
-    debug_log "$function_name" "Position configured: desktop=$desktop_ref, screen=$screen_ref, position=$position_ref"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-
-

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_COMMAND_LOADED" || return 0
 
 # shellcheck source=../../app/safe-mode.sh

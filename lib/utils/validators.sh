@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Sources: 
-# core/debug.sh
-# core/error_codes.sh
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
 
 safe_name() {
     local name="$1"

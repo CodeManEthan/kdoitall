@@ -1,7 +1,9 @@
 #!/bin/bash
 
-check_and_set_guard "_KDOITALL_APP_DEF_VALIDATOR_LOADED" || return 0
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
 
+check_and_set_guard "_KDOITALL_APP_DEF_VALIDATOR_LOADED" || return 0
 
 json_validate_metadata() {
     local json_file="$1"

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 
 # shellcheck source=../db/window-info.sh
@@ -27,7 +30,7 @@ get_uuid_by_process_of_elimination() {
     debug_log "$function_name" "Current windows: ${#CURRENT_UUIDS[@]}, Database windows: ${#DB_UUIDS[@]}"
     
     # Build lookup table of database UUIDs
-    declare -A db_lookup
+    local -A db_lookup
     for uuid in "${DB_UUIDS[@]}"; do
         db_lookup["$uuid"]=1
     done
@@ -58,7 +61,7 @@ get_uuid_by_process_of_elimination() {
     # Validate class if provided
     if [[ -n "$class" ]]; then
         local found_class=""
-        found_class=$(get_window_class_by_uuid "$new_uuid")
+        found_class=$(get_window_class "$new_uuid")
         
         if [[ "$class" != "$found_class" ]]; then
             debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$new_uuid'"
@@ -225,8 +228,8 @@ get_uuid() {
         mapfile -t matching_uuids < <(kdotool search)
     fi
 
-    # Step 2: Filter by window title if provided and we have multiple matches
-    if [[ -n "$window_title" && ${#matching_uuids[@]} -gt 1 ]]; then
+    # Step 2: Filter by window title if provided
+    if [[ -n "$window_title" ]]; then
         debug_log "$function_name" "Filtering ${#matching_uuids[@]} windows by title: '$window_title'"
         
         local -a title_matches=()
@@ -243,24 +246,12 @@ get_uuid() {
         matching_uuids=("${title_matches[@]}")
         
         if [[ ${#matching_uuids[@]} -eq 0 ]]; then
-            debug_log "$function_name" "No windows found matching both class '$class' and title '$window_title'"
+            debug_log "$function_name" "No windows found matching title '$window_title'"
             debug_function_exit "$function_name"
             return 0
         fi
         
         debug_log "$function_name" "Found ${#matching_uuids[@]} window(s) matching filters"
-    elif [[ -n "$window_title" && ${#matching_uuids[@]} -eq 1 ]]; then
-        # Validate title for the single match
-        local current_title=""
-        current_title=$(kdotool getwindowname "${matching_uuids[0]}")
-        
-        if [[ "$current_title" != "$window_title" ]]; then
-            debug_log "$function_name" "Window has class '$class' but title is '$current_title', not '$window_title'"
-            debug_function_exit "$function_name"
-            return 0
-        fi
-        
-        debug_log "$function_name" "Single window matches both class and title"
     fi
 
     # Step 3: Return result based on match count

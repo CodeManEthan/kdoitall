@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Sources:
-# core/common.sh
-# core/debug.sh
-# core/error_codes.sh
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
 
 # Common key codes
 declare -A KEYS=(

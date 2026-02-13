@@ -1,5 +1,7 @@
 #!/bin/bash
-# Dependency checking functions
+
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
 
 check_dependencies() {
     local -a missing=()

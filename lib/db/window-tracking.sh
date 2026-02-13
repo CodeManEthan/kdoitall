@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Part of kdoitall - KDE Desktop Automation Tool
+# Licensed under GPL-3.0-or-later. See LICENSE file.
+
 check_and_set_guard "_KDOITALL_DB_WINDOW_TRACKING_LOADED" || return 0
 
 db_add_window() {
@@ -71,7 +74,7 @@ db_claim_window() {
         -cmd ".param set :window_title '$window_title'" \
         "UPDATE app_windows 
          SET window_name = :window,
-             workspace_name = :workspace
+             workspace_name = :workspace,
              window_title = :window_title
          WHERE uuid = :uuid;"
 
@@ -85,7 +88,7 @@ db_add_existing_windows() {
     local function_name="db_add_existing_windows"
 
     # Track class counts for unique naming
-    declare -A class_counts
+    local -A class_counts
 
     debug_function_enter "$function_name"
 
