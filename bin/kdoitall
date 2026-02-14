@@ -160,6 +160,12 @@ case "$COMMAND" in
         source "${LIB_DIR}/commands/app/dispatcher.sh"
         app_command "$@"
         ;;
+
+    screen)
+        # shellcheck source=../lib/commands/screen/dispatcher.sh
+        source "${LIB_DIR}/commands/screen/dispatcher.sh"
+        screen_command "$@"
+        ;;
     *)
         echo "Error: Unknown command: $COMMAND" >&2
         echo "Run 'kdoitall --help' for usage information" >&2

@@ -19,13 +19,14 @@ source "${LIB_DIR}/utils/workspace-validators.sh"
 
 # State constants for workflow
 readonly STATE_SELECT_APP=1
-readonly STATE_LAUNCH_TYPE=2
-readonly STATE_DESKTOP=3
-readonly STATE_SCREEN=4
-readonly STATE_POSITION=5
-readonly STATE_LAUNCH_FUNC=6
-readonly STATE_PARAMETERS=7
-readonly STATE_COMPLETE=8
+readonly STATE_WINDOW_NAME=2
+readonly STATE_LAUNCH_TYPE=3
+readonly STATE_DESKTOP=4
+readonly STATE_SCREEN=5
+readonly STATE_POSITION=6
+readonly STATE_LAUNCH_FUNC=7
+readonly STATE_PARAMETERS=8
+readonly STATE_COMPLETE=9
 
 workspace_create() {
     local workspace_name="$1"
@@ -140,6 +141,8 @@ add_application_to_workspace() {
     local position=""
     local parameters=""
     local current_state="$STATE_SELECT_APP"
+    local launch_type_interactive=false
+    local step_offset=0
     local function_name="add_application_to_workspace"
     
     debug_function_enter "$function_name" "$@"
@@ -184,20 +187,99 @@ add_application_to_workspace() {
                     sed 's/--*/-/g')
                 
                 window_name="${workspace_name}-${sanitized_display_name}-${instance_count}"
-                validate_window_name "$window_name" || return 1
                 
+                current_state="$STATE_WINDOW_NAME"
+                ;;
+                
+            "$STATE_WINDOW_NAME")
+                echo "" >&3
+                echo "Step 2: Window Name" >&3
+                echo "-------------------" >&3
+                echo "Window name [$window_name]:" >&3
+                read -r custom_name
+
+                if [[ -n "$custom_name" ]]; then
+                    window_name="$custom_name"
+                fi
+
+                if ! validate_window_name "$window_name"; then
+                    echo "" >&3
+                    echo "What would you like to do?" >&3
+                    echo "1) Try again (re-enter window name)" >&3
+                    echo "2) Go back to application selection" >&3
+                    echo "3) Cancel" >&3
+                    read -r choice
+
+                    case "$choice" in
+                        1) continue ;;
+                        2)
+                            current_state="$STATE_SELECT_APP"
+                            continue
+                            ;;
+                        3)
+                            debug_function_exit "$function_name"
+                            return 1
+                            ;;
+                        *)
+                            echo "Invalid choice. Please select 1, 2, or 3." >&3
+                            continue
+                            ;;
+                    esac
+                fi
+
+                if ! validate_window_name_unique "$window_name" apps_array_ref; then
+                    echo "" >&3
+                    echo "What would you like to do?" >&3
+                    echo "1) Try again (re-enter window name)" >&3
+                    echo "2) Go back to application selection" >&3
+                    echo "3) Cancel" >&3
+                    read -r choice
+
+                    case "$choice" in
+                        1) continue ;;
+                        2)
+                            current_state="$STATE_SELECT_APP"
+                            continue
+                            ;;
+                        3)
+                            debug_function_exit "$function_name"
+                            return 1
+                            ;;
+                        *)
+                            echo "Invalid choice. Please select 1, 2, or 3." >&3
+                            continue
+                            ;;
+                    esac
+                fi
+
                 current_state="$STATE_LAUNCH_TYPE"
                 ;;
                 
             "$STATE_LAUNCH_TYPE")
-                echo "" >&3
-                echo "Step 2: Launch Type" >&3
-                echo "-------------------" >&3
-                
+                # Check if user input is needed for launch type
+                local app_info_lt=""
+                app_info_lt=$(db_get_application "$app_id")
+                local has_terminal_lt=""
+                has_terminal_lt=$(echo "$app_info_lt" | cut -d'|' -f7)
+                local has_desktop_lt=""
+                has_desktop_lt=$(echo "$app_info_lt" | cut -d'|' -f8)
+
+                if [[ ("$has_terminal_lt" == "1" || "$has_terminal_lt" == "TRUE") && \
+                      ("$has_desktop_lt" == "1" || "$has_desktop_lt" == "TRUE") ]]; then
+                    launch_type_interactive=true
+                    step_offset=0
+                    echo "" >&3
+                    echo "Step 3: Launch Type" >&3
+                    echo "-------------------" >&3
+                else
+                    launch_type_interactive=false
+                    step_offset=-1
+                fi
+
                 if ! launch_type=$(choose_launch_type_with_retry "$app_id"); then
                     # User chose to go back or cancel
                     if [[ "$launch_type" == "BACK" ]]; then
-                        current_state="$STATE_SELECT_APP"
+                        current_state="$STATE_WINDOW_NAME"
                         continue
                     else
                         debug_function_exit "$function_name"
@@ -210,13 +292,17 @@ add_application_to_workspace() {
                 
             "$STATE_DESKTOP")
                 echo "" >&3
-                echo "Step 3: Window Positioning" >&3
+                echo "Step $((4 + step_offset)): Window Positioning" >&3
                 echo "--------------------------" >&3
                 
                 if ! desktop_number=$(select_desktop_with_retry); then
                     # User chose to go back or cancel
                     if [[ "$desktop_number" == "BACK" ]]; then
-                        current_state="$STATE_LAUNCH_TYPE"
+                        if [[ "$launch_type_interactive" == true ]]; then
+                            current_state="$STATE_LAUNCH_TYPE"
+                        else
+                            current_state="$STATE_WINDOW_NAME"
+                        fi
                         continue
                     elif [[ "$desktop_number" == "CHANGE_APP" ]]; then
                         current_state="$STATE_SELECT_APP"
@@ -276,7 +362,7 @@ add_application_to_workspace() {
                 
             "$STATE_LAUNCH_FUNC")
                 echo "" >&3
-                echo "Step 4: Launch Function" >&3
+                echo "Step $((5 + step_offset)): Launch Function" >&3
                 echo "-----------------------" >&3
                 
                 if ! launch_function=$(select_launch_function_with_retry "$app_id"); then
@@ -298,7 +384,7 @@ add_application_to_workspace() {
                 
             "$STATE_PARAMETERS")
                 echo "" >&3
-                echo "Step 5: Function Parameters" >&3
+                echo "Step $((6 + step_offset)): Function Parameters" >&3
                 echo "---------------------------" >&3
                 echo "Enter parameters for this function (space-separated):" >&3
                 echo "  Example: /path/to/project" >&3
@@ -462,27 +548,43 @@ select_screen_with_retry() {
     while true; do
         echo "" >&3
         echo "Detected screens:" >&3
-        list_detected_screens
-        echo "" >&3
-        echo "Enter screen number (1-$DETECTED_SCREEN_COUNT):" >&3
-        read -r screen_number
         
-        # Validate input
-        if [[ "$screen_number" =~ ^[0-9]+$ ]] && \
-           [ "$screen_number" -ge 1 ] && \
-           [ "$screen_number" -le "$DETECTED_SCREEN_COUNT" ]; then
-            debug_log "$function_name" "Selected screen: $screen_number"
+        # Display screens with aliases
+        local out=""
+        for ((out=1; out<=20; out++)); do
+            if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+                local name="${SCREEN_INFO[${out}_NAME]}"
+                local aliases=""
+                aliases=$(db_get_aliases_for_target "$name")
+                
+                local alias_display=""
+                if [[ -n "$aliases" ]]; then
+                    alias_display=" (aliases: $(echo "$aliases" | paste -sd ', '))"
+                fi
+                
+                echo "  $out: ${name}${alias_display}" >&3
+            fi
+        done
+        
+        echo "" >&3
+        echo "Enter screen (number, name, or alias):" >&3
+        read -r screen_input
+        
+        # Validate input via resolve_screen_reference
+        local resolved_screen=""
+        if resolved_screen=$(resolve_screen_reference "$screen_input"); then
+            debug_log "$function_name" "Selected screen: $resolved_screen (from input: $screen_input)"
             debug_function_exit "$function_name"
-            echo "$screen_number"
+            echo "$resolved_screen"
             return 0
         fi
         
         # Invalid input
         echo "" >&3
-        echo "Error: Invalid screen number (entered: $screen_number, valid range: 1-$DETECTED_SCREEN_COUNT)" >&3
+        echo "Error: Invalid screen reference: $screen_input" >&3
         echo "" >&3
         echo "What would you like to do?" >&3
-        echo "1) Try again (re-enter screen number)" >&3
+        echo "1) Try again (re-enter screen)" >&3
         echo "2) Go back to desktop selection" >&3
         echo "3) Choose different application" >&3
         echo "4) Cancel" >&3

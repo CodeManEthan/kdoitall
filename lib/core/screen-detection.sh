@@ -6,6 +6,9 @@
 
 check_and_set_guard "_KDOITALL_SCREEN_DETECTION_LOADED" || return 0
 
+# shellcheck source=../db/screen.sh
+source "${LIB_DIR}/db/screen.sh"
+
 # Global variable to store detected desktop count
 declare -g DETECTED_DESKTOP_COUNT=0
 # Global associative array to store screen information
@@ -215,22 +218,17 @@ resolve_screen_reference() {
         fi
     done
     
-    # Tier 3: Check if it's an alias (load from config file)
-    local alias_file="${KDOITALL_CONFIG}/screen-aliases"
-    if [[ -f "$alias_file" ]]; then
-        local alias_target=""
-        alias_target=$(grep "^${screen_ref}=" "$alias_file" 2>/dev/null | cut -d= -f2)
-        
-        if [[ -n "$alias_target" ]]; then
-            debug_log "$function_name" "Tier 3: Found alias '$screen_ref' -> '$alias_target'"
-            # Recursively resolve in case alias points to another alias or name
-            local resolved=""
-            resolved=$(resolve_screen_reference "$alias_target")
-            if [[ -n "$resolved" ]]; then
-                debug_function_exit "$function_name"
-                echo "$resolved"
-                return 0
-            fi
+    # Tier 3: Check if it's an alias (load from database)
+    local alias_target=""
+    if alias_target=$(db_get_screen_alias "$screen_ref"); then
+        debug_log "$function_name" "Tier 3: Found alias '$screen_ref' -> '$alias_target'"
+        # Recursively resolve in case alias points to a name
+        local resolved=""
+        resolved=$(resolve_screen_reference "$alias_target")
+        if [[ -n "$resolved" ]]; then
+            debug_function_exit "$function_name"
+            echo "$resolved"
+            return 0
         fi
     fi
     

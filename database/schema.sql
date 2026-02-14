@@ -96,3 +96,8 @@ BEGIN
     )
     WHERE id = NEW.id;
 END;
+
+CREATE TABLE screen_aliases (
+    alias TEXT PRIMARY KEY,
+    target TEXT NOT NULL
+);

@@ -33,6 +33,11 @@ APPLICATION COMMANDS:
     app validate              Validate all application definition files
     app options <app_id>      Show launch options for an application
 
+SCREEN COMMANDS:
+    screen list                        List detected screens with aliases
+    screen alias <alias> <target>      Set a screen alias
+    screen alias remove <alias>        Remove a screen alias
+
 EXAMPLES:
     # Create a new workspace
     kdoitall workspace create my-dev-workspace
