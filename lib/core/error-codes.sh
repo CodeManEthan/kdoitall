@@ -109,6 +109,16 @@ export ERR_NO_APPLICATIONS=96
 readonly ERR_WORKSPACE_EXISTS ERR_WORKSPACE_NOT_FOUND ERR_INVALID_WORKSPACE_NAME ERR_INVALID_WINDOW_NAME
 readonly ERR_WORKSPACE_INSERT_FAILED ERR_SCRIPT_GENERATION_FAILED ERR_NO_APPLICATIONS
 
+# Window command errors
+export ERR_WINDOW_NOT_TRACKED=100
+export ERR_WINDOW_DEFINITION_NOT_FOUND=101
+export ERR_WINDOW_ALREADY_OPEN=102
+export ERR_INVALID_POSITION=103
+export ERR_MULTIPLE_WINDOWS_FOUND=104
+
+readonly ERR_WINDOW_NOT_TRACKED ERR_WINDOW_DEFINITION_NOT_FOUND
+readonly ERR_WINDOW_ALREADY_OPEN ERR_INVALID_POSITION ERR_MULTIPLE_WINDOWS_FOUND
+
 # Safe mode errors
 export ERR_SAFE_MODE_CANCELLED=120
 export ERR_SAFE_MODE_FAILED=121
@@ -201,6 +211,13 @@ declare -A ERROR_MESSAGES=(
     [$ERR_SAFE_MODE_NO_WINDOW]="No window appeared after launch"
     [$ERR_SAFE_MODE_MULTI_WINDOWS]="Multiple windows detected"
     [$ERR_SAFE_MODE_REJECTED]="User rejected detected window"
+
+    # Window Commands
+    [$ERR_WINDOW_NOT_TRACKED]="Window not found in tracked windows"
+    [$ERR_WINDOW_DEFINITION_NOT_FOUND]="Window definition not found (was it created with this version?)"
+    [$ERR_WINDOW_ALREADY_OPEN]="Window is already open"
+    [$ERR_INVALID_POSITION]="Invalid position"
+    [$ERR_MULTIPLE_WINDOWS_FOUND]="Multiple windows found when one expected"
 )
 
 export ERROR_MESSAGES

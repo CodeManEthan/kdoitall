@@ -8,6 +8,8 @@ check_and_set_guard "_KDOITALL_WORKSPACE_GENERATE_LOADED" || return 0
 
 # shellcheck source=../core/core.sh
 source "${LIB_DIR}/core/core.sh"
+# shellcheck source=../db/window-definitions.sh
+source "${LIB_DIR}/db/window-definitions.sh"
 
 generate_workspace_scripts() {
     local workspace_name="$1"
@@ -42,6 +44,13 @@ generate_workspace_scripts() {
     # Generate close script
     if ! generate_close_script "$workspace_name" "$close_script" apps_array_ref; then
         debug_error "$function_name" "Failed to generate close script"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Store window definitions in database for re-open support
+    if ! store_window_definitions "$workspace_name" apps_array_ref; then
+        debug_error "$function_name" "Failed to store window definitions"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -225,6 +234,38 @@ EOF_HEADER
     done
 
     debug_log "$function_name" "Generated close script: $script_path"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+
+store_window_definitions() {
+    local workspace_name="$1"
+    local function_name="store_window_definitions"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$2" "apps_ref" || return 1
+    local -n apps_ref="$2"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    # Clear any existing definitions for this workspace (handles re-creation)
+    db_delete_window_definitions_for_workspace "$workspace_name"
+
+    local display_order=0
+    for app_config in "${apps_ref[@]}"; do
+        IFS='|' read -r app_id window_name launch_function \
+                        desktop screen position parameters <<< "$app_config"
+
+        db_add_window_definition \
+            "$window_name" "$workspace_name" "$app_id" "$launch_function" \
+            "$desktop" "$screen" "$position" "$parameters" "$display_order"
+
+        ((display_order++))
+    done
+
+    debug_log "$function_name" "Stored $display_order window definitions for workspace: $workspace_name"
     debug_function_exit "$function_name"
     return 0
 }

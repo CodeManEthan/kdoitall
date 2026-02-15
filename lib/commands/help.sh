@@ -38,6 +38,15 @@ SCREEN COMMANDS:
     screen alias <alias> <target>      Set a screen alias
     screen alias remove <alias>        Remove a screen alias
 
+WINDOW COMMANDS:
+    window list [workspace]                     List tracked windows
+    window status <window-name>                 Show window details
+    window close <window-name>                  Close a specific window
+    window open <window-name>                   Re-open a previously closed window
+    window move <window-name> <screen> <pos>    Move/reposition a window
+    window focus <window-name>                  Bring window to front
+    window minimize <window-name>               Minimize window
+
 EXAMPLES:
     # Create a new workspace
     kdoitall workspace create my-dev-workspace
@@ -50,6 +59,16 @@ EXAMPLES:
 
     # Close a workspace
     kdoitall workspace close my-dev-workspace
+
+    # List tracked windows
+    kdoitall window list
+
+    # Show window details
+    kdoitall window status my-dev-firefox-1
+
+    # Close and re-open a window
+    kdoitall window close my-dev-firefox-1
+    kdoitall window open my-dev-firefox-1
 
 For more information, visit: https://github.com/CodeManEthan/kdoitall
 

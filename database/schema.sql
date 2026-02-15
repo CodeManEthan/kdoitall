@@ -101,3 +101,17 @@ CREATE TABLE screen_aliases (
     alias TEXT PRIMARY KEY,
     target TEXT NOT NULL
 );
+
+CREATE TABLE window_definitions (
+    window_name TEXT PRIMARY KEY,
+    workspace_name TEXT NOT NULL,
+    app_id TEXT NOT NULL,
+    launch_function TEXT NOT NULL,
+    desktop INTEGER NOT NULL,
+    screen TEXT NOT NULL,
+    position TEXT NOT NULL,
+    parameters TEXT,
+    display_order INTEGER DEFAULT 0,
+    FOREIGN KEY (workspace_name) REFERENCES workspace_definitions(workspace_name) ON DELETE CASCADE,
+    FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
+);
