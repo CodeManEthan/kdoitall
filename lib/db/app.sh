@@ -411,8 +411,8 @@ db_set_launch_mode() {
     validate_parameter_pass "$launch_mode" "launch_mode" || return 1
     
     # Validate launch_mode value
-    if [[ "$launch_mode" != "multi" && "$launch_mode" != "single" && "$launch_mode" != "unique" && "$launch_mode" != "unknown" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_PARAMETER" "launch_mode must be 'multi', 'unique', 'single' or 'unknown', got: $launch_mode"
+    if [[ "$launch_mode" != "multi" && "$launch_mode" != "single" && "$launch_mode" != "unique" && "$launch_mode" != "unknown" && "$launch_mode" != "single_or_unique" ]]; then
+        debug_error "$function_name" "$ERR_INVALID_PARAMETER" "launch_mode must be 'multi', 'unique', 'single', 'single_or_unique' or 'unknown', got: $launch_mode"
         debug_function_exit "$function_name"
         return 1
     fi

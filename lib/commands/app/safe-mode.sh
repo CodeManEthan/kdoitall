@@ -95,12 +95,6 @@ app_safe_mode() {
         echo "Starting safe mode for: $selected_app_id" >&3
         echo "" >&3
         
-        # Run safe mode preparation
-        if ! prepare_safe_mode_environment; then
-            echo "Safe mode cancelled." >&3
-            continue
-        fi
-        
         # Run safe mode for selected app
         if safe_mode_launch_and_detect "$selected_app_id"; then
             echo "" >&3

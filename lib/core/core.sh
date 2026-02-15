@@ -55,13 +55,13 @@ execute_launch_window() {
     debug_log "$function_name" "AFTER DETECT WINDOWS: Class: '$class'"
 
     # Check Window Exists (If SINGLE or UNIQUE Launch Mode)
-    if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
+    if [[ "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE_OR_UNIQUE" ]]; then
         debug_log "$function_name" "Check Window Exists"
         uuid=$(get_uuid "$class" "$window_title_pattern")
     fi
 
     # Detect if Window exists
-    if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" ) ]]; then
+    if [[ -n "$uuid" && ( "$launch_mode" == "$LAUNCH_MODE_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE" || "$launch_mode" == "$LAUNCH_MODE_SINGLE_OR_UNIQUE" ) ]]; then
         debug_log "$function_name" "Window already exists - $uuid."
 
         window_title=$(get_window_title "$uuid")

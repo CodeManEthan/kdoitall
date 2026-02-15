@@ -42,7 +42,7 @@ json_validate_metadata() {
     # Validate launch_mode enum
     local launch_mode=""
     launch_mode=$(jq -r '.launch_mode // empty' "$json_file")
-    if [[ -n "$launch_mode" ]] && [[ "$launch_mode" != "LAUNCH_MODE_SINGLE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_UNIQUE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_MULTI" ]]; then
+    if [[ -n "$launch_mode" ]] && [[ "$launch_mode" != "LAUNCH_MODE_SINGLE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_UNIQUE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_MULTI" ]] && [[ "$launch_mode" != "LAUNCH_MODE_SINGLE_OR_UNIQUE" ]]; then
         debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid launch_mode: $launch_mode"
         return 1
     fi

@@ -29,8 +29,9 @@ export LAUNCH_MODE_MULTI="multi"    # Multiple windows always allowed
 export LAUNCH_MODE_SINGLE="single"  # Only one instance allowed
 export LAUNCH_MODE_UNIQUE="unique"  # Multiple windows, but not the same
 export LAUNCH_MODE_UNKNOWN="unknown"
+export LAUNCH_MODE_SINGLE_OR_UNIQUE="single_or_unique"  # Not multi, but unknown if single or unique
 
-readonly LAUNCH_MODE_MULTI LAUNCH_MODE_SINGLE LAUNCH_MODE_UNIQUE LAUNCH_MODE_UNKNOWN
+readonly LAUNCH_MODE_MULTI LAUNCH_MODE_SINGLE LAUNCH_MODE_UNIQUE LAUNCH_MODE_UNKNOWN LAUNCH_MODE_SINGLE_OR_UNIQUE
 
 # Application launch types
 export LAUNCH_TYPE_TERMINAL="terminal"
