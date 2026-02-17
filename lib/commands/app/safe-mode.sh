@@ -12,9 +12,54 @@ source "${LIB_DIR}/app/safe-mode.sh"
 source "${LIB_DIR}/db/app.sh"
 
 app_safe_mode() {
+    local subcommand="${1:-}"
+    local app_id="${2:-}"
     local function_name="app_safe_mode"
     
-    debug_function_enter "$function_name"
+    debug_function_enter "$function_name" "$@"
+
+    # Handle skip/reset subcommands
+    case "$subcommand" in
+        skip)
+            if [[ -z "$app_id" ]]; then
+                echo "Usage: kdoitall app safe-mode skip <app_id>" >&3
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            if ! db_application_exists "$app_id"; then
+                echo "Error: Application '$app_id' not found in database." >&3
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            db_set_safe_mode_completed "$app_id"
+            local display_name
+            display_name=$(db_get_display_name "$app_id")
+            echo "✓ Safe mode skipped for $display_name ($app_id)" >&3
+            debug_function_exit "$function_name"
+            return 0
+            ;;
+        reset)
+            if [[ -z "$app_id" ]]; then
+                echo "Usage: kdoitall app safe-mode reset <app_id>" >&3
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            if ! db_application_exists "$app_id"; then
+                echo "Error: Application '$app_id' not found in database." >&3
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            db_clear_safe_mode_data "$app_id"
+            local display_name
+            display_name=$(db_get_display_name "$app_id")
+            echo "✓ Safe mode data cleared for $display_name ($app_id)" >&3
+            echo "  This app will be prompted for safe mode on next workspace open." >&3
+            debug_function_exit "$function_name"
+            return 0
+            ;;
+    esac
+    
+    # --- Interactive menu ---
     
     # Check if there are any apps needing safe mode
     local pending_count

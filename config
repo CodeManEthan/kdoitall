@@ -12,3 +12,8 @@ readonly DESKTOP_FILE_LOCATIONS=(
 )
 
 export DESKTOP_FILE_LOCATIONS
+
+# Safe-mode prompting during workspace open
+SAFE_MODE_PROMPTING="enabled"
+
+export SAFE_MODE_PROMPTING

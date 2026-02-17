@@ -215,72 +215,225 @@ detect_safe_mode_apps() {
 prompt_safe_mode() {
     local -a apps=("$@")
     local function_name="prompt_safe_mode"
-    local app_count=${#apps[@]}
-    
-    debug_function_enter "$function_name" "App count: $app_count"
-    debug_array "apps"
-    
-    # Display header
+
+    debug_function_enter "$function_name" "App count: ${#apps[@]}"
+
+    while true; do
+        # If all apps were removed via disable sub-menu, proceed to open
+        if [[ ${#apps[@]} -eq 0 ]]; then
+            debug_function_exit "$function_name" "All apps disabled"
+            echo "open"
+            return 0
+        fi
+
+        echo "" >&3
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "⚠️  SAFE MODE RECOMMENDED" >&3
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+        echo "" >&3
+        echo "The following applications have not been validated:" >&3
+        echo "" >&3
+
+        for app_id in "${apps[@]}"; do
+            local display_name
+            display_name=$(db_get_display_name "$app_id")
+            echo "  • $display_name ($app_id)" >&3
+        done
+
+        echo "" >&3
+        echo "Safe mode is a one-time process that ensures reliable window detection." >&3
+        echo "" >&3
+        echo "Options:" >&3
+        echo "  [A] Accept — run safe mode now, then open workspace" >&3
+        echo "  [S] Skip — open workspace anyway (will ask again next time)" >&3
+        echo "  [D] Disable — turn off safe-mode prompts" >&3
+        echo "  [Q] Quit — cancel" >&3
+        echo "" >&3
+
+        local choice
+        read -r -p "Choice: " choice
+        choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
+
+        case "$choice" in
+            a)
+                debug_function_exit "$function_name" "Accept"
+                echo "accept"
+                return 0
+                ;;
+            s)
+                debug_function_exit "$function_name" "Skip"
+                echo "skip"
+                return 0
+                ;;
+            d)
+                # Enter disable sub-menu
+                local disable_result
+                disable_result=$(prompt_safe_mode_disable_menu apps)
+                case "$disable_result" in
+                    open)
+                        debug_function_exit "$function_name" "Disabled — proceeding to open"
+                        echo "open"
+                        return 0
+                        ;;
+                    back)
+                        # Continue main loop (apps array may have been modified)
+                        continue
+                        ;;
+                esac
+                ;;
+            q)
+                debug_function_exit "$function_name" "Quit"
+                echo "quit"
+                return 0
+                ;;
+            *)
+                echo "Invalid choice. Please select A, S, D, or Q." >&3
+                continue
+                ;;
+        esac
+    done
+}
+
+prompt_safe_mode_disable_menu() {
+    local -n apps_ref="$1"
+    local function_name="prompt_safe_mode_disable_menu"
+
+    debug_function_enter "$function_name"
+
     echo "" >&3
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
-    echo "⚠️  SAFE MODE RECOMMENDED" >&3
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+    echo "Disable safe-mode prompting:" >&3
     echo "" >&3
-    echo "The following applications have not been validated yet:" >&3
-    echo "" >&3
-    
-    # List applications with display names
-    for app_id in "${apps[@]}"; do
+    echo "  [D] Disable safe-mode prompting globally" >&3
+
+    local i=1
+    for app_id in "${apps_ref[@]}"; do
         local display_name
         display_name=$(db_get_display_name "$app_id")
-        echo "  • $display_name ($app_id)" >&3
+        echo "  [$i] $display_name ($app_id) — skip this app only" >&3
+        ((i++))
     done
-    
+
+    echo "  [A] All listed apps — skip all apps shown above" >&3
+    echo "  [B] Back" >&3
     echo "" >&3
-    echo "Safe mode guides you through a controlled launch to ensure" >&3
-    echo "reliable window detection. This only needs to be done ONCE" >&3
-    echo "per application." >&3
-    echo "" >&3
-    echo "Run this command to validate these apps:" >&3
-    echo "  kdoitall app safe-mode" >&3
-    echo "" >&3
-    echo "This will show you a menu to select which app to validate." >&3
-    echo "" >&3
-    echo "Options:" >&3
-    echo "  [E] End workspace open (recommended - run safe mode first)" >&3
-    echo "  [O] Open workspace anyway (will ask again next time)" >&3
-    echo "  [S] Skip these apps (mark as completed without validation)" >&3
-    echo "" >&3
-    
-    # Get user choice
+
     local choice
     read -r -p "Choice: " choice
     choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
-    
+
     case "$choice" in
-        e)
-            debug_function_exit "$function_name" "User chose to end"
-            return 1
-            ;;
-        o)
-            debug_function_exit "$function_name" "User chose to continue"
+        d)
+            # Disable globally via config file
+            safe_mode_disable_globally
+            debug_function_exit "$function_name" "Disabled globally"
+            echo "open"
             return 0
             ;;
-        s)
-            # Mark all as completed (skip validation)
-            for app_id in "${apps[@]}"; do
+        a)
+            # Mark all listed apps as completed
+            for app_id in "${apps_ref[@]}"; do
                 db_set_safe_mode_completed "$app_id"
             done
-            echo "Apps marked as completed." >&3
-            debug_function_exit "$function_name" "User skipped validation"
+            apps_ref=()
+            echo "" >&3
+            echo "✓ Safe mode skipped for all listed apps." >&3
+            debug_function_exit "$function_name" "All apps skipped"
+            echo "open"
+            return 0
+            ;;
+        b)
+            debug_function_exit "$function_name" "Back"
+            echo "back"
             return 0
             ;;
         *)
-            echo "Invalid choice. Ending workspace open." >&3
+            # Check if it's a number selecting a specific app
+            if [[ "$choice" =~ ^[0-9]+$ ]] && \
+               [[ "$choice" -ge 1 ]] && \
+               [[ "$choice" -le "${#apps_ref[@]}" ]]; then
+                local idx=$((choice - 1))
+                local selected_app="${apps_ref[$idx]}"
+                local selected_name
+                selected_name=$(db_get_display_name "$selected_app")
+
+                db_set_safe_mode_completed "$selected_app"
+
+                # Remove from array
+                apps_ref=("${apps_ref[@]:0:$idx}" "${apps_ref[@]:$((idx + 1))}")
+
+                echo "" >&3
+                echo "✓ Safe mode skipped for $selected_name." >&3
+
+                if [[ ${#apps_ref[@]} -eq 0 ]]; then
+                    debug_function_exit "$function_name" "All apps removed"
+                    echo "open"
+                    return 0
+                fi
+
+                debug_function_exit "$function_name" "App removed, returning to main"
+                echo "back"
+                return 0
+            fi
+
+            echo "Invalid choice." >&3
             debug_function_exit "$function_name" "Invalid choice"
-            return 1
+            echo "back"
+            return 0
             ;;
     esac
+}
+
+safe_mode_disable_globally() {
+    local function_name="safe_mode_disable_globally"
+    local config_file="$KDOITALL_CONFIG"
+    local config_dir
+    config_dir=$(dirname "$config_file")
+
+    debug_function_enter "$function_name"
+
+    # Ensure config directory exists
+    mkdir -p "$config_dir"
+
+    if [[ -f "$config_file" ]]; then
+        # Check if SAFE_MODE_PROMPTING line exists (commented or uncommented)
+        if grep -q '^#\s*SAFE_MODE_PROMPTING=' "$config_file"; then
+            # Replace commented line with active disabled setting
+            sed -i 's/^#\s*SAFE_MODE_PROMPTING=.*/SAFE_MODE_PROMPTING="disabled"/' "$config_file"
+        elif grep -q '^SAFE_MODE_PROMPTING=' "$config_file"; then
+            # Replace existing uncommented line
+            sed -i 's/^SAFE_MODE_PROMPTING=.*/SAFE_MODE_PROMPTING="disabled"/' "$config_file"
+        else
+            # Append setting
+            echo '' >> "$config_file"
+            echo 'SAFE_MODE_PROMPTING="disabled"' >> "$config_file"
+        fi
+    else
+        # Create config file with the setting
+        cat > "$config_file" << 'CONFIGEOF'
+#!/bin/bash
+
+# kdoitall user configuration
+SAFE_MODE_PROMPTING="disabled"
+CONFIGEOF
+    fi
+
+    # Re-source and verify
+    # shellcheck source=/dev/null
+    source "$config_file"
+
+    if [[ "${SAFE_MODE_PROMPTING:-}" == "disabled" ]]; then
+        echo "" >&3
+        echo "✓ Safe-mode prompting disabled in $config_file" >&3
+        echo "  Re-enable by changing SAFE_MODE_PROMPTING to \"enabled\" in that file." >&3
+    else
+        echo "" >&3
+        echo "⚠️  Failed to update config file automatically." >&3
+        echo "  Manually edit $config_file and set:" >&3
+        echo "    SAFE_MODE_PROMPTING=\"disabled\"" >&3
+    fi
+
+    debug_function_exit "$function_name"
+    return 0
 }
 
 safe_mode_measure_launch_time() {

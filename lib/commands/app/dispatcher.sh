@@ -82,6 +82,9 @@ App Subcommands:
   info <app_id>     Show detailed information about a specific application
   validate          Validate all application definition files
   options <app_id>  Show launch options for an application
+  safe-mode              Interactive safe-mode validation menu
+  safe-mode skip <id>    Mark app as validated without running safe-mode
+  safe-mode reset <id>   Clear safe-mode data (will prompt again)
 
 Examples:
   kdoitall app scan

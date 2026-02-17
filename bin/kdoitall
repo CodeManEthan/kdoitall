@@ -71,10 +71,17 @@ done
 # ============================================================================
 # LAYER 2 - Core Utilities (depend only on foundation)
 # ============================================================================
-# shellcheck source=/config/config.sh
-source "${KDOITALL_ROOT}/config/config.sh"
+# shellcheck source=../config
+source "${KDOITALL_ROOT}/config"
 # shellcheck source=../lib/core/common.sh
 source "${LIB_DIR}/core/common.sh"
+
+# Source user config overrides (if exists)
+if [[ -f "$KDOITALL_CONFIG" ]]; then
+    # shellcheck source=/dev/null
+    source "$KDOITALL_CONFIG"
+fi
+
 # shellcheck source=../lib/utils/checks.sh
 source "${LIB_DIR}/utils/checks.sh"
 # shellcheck source=../lib/utils/validators.sh

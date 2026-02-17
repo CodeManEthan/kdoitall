@@ -44,55 +44,44 @@ workspace_open() {
         return 1
     fi
 
-    # Check for safe mode apps
-    local -a safe_mode_apps=()
-    mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
-    
-    if [[ ${#safe_mode_apps[@]} -gt 0 && -n "${safe_mode_apps[0]}" ]]; then
-        # Prompt user with options
-        prompt_safe_mode "${safe_mode_apps[@]}"
+    # Check for safe mode apps (skip if prompting is disabled)
+    if [[ "${SAFE_MODE_PROMPTING:-enabled}" == "enabled" ]]; then
+        local -a safe_mode_apps=()
+        mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
 
-        # Get user choice
-        local choice
-        read -r -p "Choice: " choice
-        choice=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
-        
-        case "$choice" in
-            e)
-                # End - exit workspace open
-                echo "Please run safe mode for each app using the commands shown above." >&3
-                echo "Then run 'kdoitall workspace open $workspace_name' again." >&3
-                debug_function_exit "$function_name"
-                return 0
-                ;;
-            o)
-                # Open anyway - will ask again next time
-                echo "Opening workspace without safe mode validation..." >&3
-                echo "Note: Window detection may be unreliable for unvalidated apps." >&3
-                ;;
-            s)
-                # Skip these specific apps - mark as completed
-                for app_id in "${safe_mode_apps[@]}"; do
-                    db_set_safe_mode_completed "$app_id"
-                done
-                echo "Safe mode disabled for these apps. Opening workspace..." >&3
-                ;;
-            n)
-                # Never ask again - set global config
-                # TODO: Implement global config setting
-                echo "Safe mode prompts disabled globally." >&3
-                for app_id in "${safe_mode_apps[@]}"; do
-                    db_set_safe_mode_completed "$app_id"
-                done
-                echo "Opening workspace..." >&3
-                ;;
-            *)
-                # Invalid choice - default to end
-                echo "Invalid choice. Exiting." >&3
-                debug_function_exit "$function_name"
-                return 1
-                ;;
-        esac
+        if [[ ${#safe_mode_apps[@]} -gt 0 && -n "${safe_mode_apps[0]}" ]]; then
+            local prompt_result
+            prompt_result=$(prompt_safe_mode "${safe_mode_apps[@]}")
+
+            case "$prompt_result" in
+                accept)
+                    # Re-detect remaining apps (some may have been skipped in disable menu)
+                    local -a remaining_apps=()
+                    mapfile -t remaining_apps < <(detect_safe_mode_apps "$workspace_name")
+
+                    if [[ ${#remaining_apps[@]} -gt 0 && -n "${remaining_apps[0]}" ]]; then
+                        echo "" >&3
+                        echo "Starting safe mode for ${#remaining_apps[@]} application(s)..." >&3
+
+                        for app_id in "${remaining_apps[@]}"; do
+                            safe_mode_launch_and_detect "$app_id" || true
+                        done
+                    fi
+
+                    echo "" >&3
+                    echo "Proceeding to open workspace..." >&3
+                    ;;
+                skip|open)
+                    # Skip: open without safe-mode (will ask again next time for skip)
+                    # Open: apps were disabled/skipped via D menu, proceed directly
+                    ;;
+                quit)
+                    echo "Workspace open cancelled." >&3
+                    debug_function_exit "$function_name"
+                    return 0
+                    ;;
+            esac
+        fi
     fi
 
     # Only detach if:

@@ -56,6 +56,31 @@ else
     echo "✓ Database already exists: $DB_FILE"
 fi
 
+# --- Generate user config file ---
+USER_CONFIG="$CONFIG_DIR/config"
+
+if [[ ! -f "$USER_CONFIG" ]]; then
+    cat > "$USER_CONFIG" << 'CONFIGEOF'
+#!/bin/bash
+
+# kdoitall user configuration
+# Uncomment and modify settings to override project defaults.
+
+# Standard .desktop file locations
+# DESKTOP_FILE_LOCATIONS=(
+#     "/usr/share/applications"
+#     "/usr/local/share/applications"
+#     "$HOME/.local/share/applications"
+# )
+
+# Safe-mode prompting during workspace open
+# SAFE_MODE_PROMPTING="enabled"
+CONFIGEOF
+    echo "✓ Created user config:      $USER_CONFIG"
+else
+    echo "✓ User config already exists: $USER_CONFIG"
+fi
+
 # --- Create exec wrapper ---
 cat > "$BIN_DIR/kdoitall" << EOF
 #!/bin/bash

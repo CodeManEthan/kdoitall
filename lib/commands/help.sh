@@ -32,6 +32,9 @@ APPLICATION COMMANDS:
     app info <app_id>         Show detailed information about an application
     app validate              Validate all application definition files
     app options <app_id>      Show launch options for an application
+    app safe-mode                 Interactive safe-mode validation menu
+    app safe-mode skip <app_id>   Mark app as validated (skip safe-mode)
+    app safe-mode reset <app_id>  Clear safe-mode data for an app
 
 SCREEN COMMANDS:
     screen list                        List detected screens with aliases
@@ -46,6 +49,14 @@ WINDOW COMMANDS:
     window move <window-name> <screen> <pos>    Move/reposition a window
     window focus <window-name>                  Bring window to front
     window minimize <window-name>               Minimize window
+
+CONFIGURATION:
+    Project defaults:     <install-dir>/config
+    User overrides:       ~/.config/kdoitall/config
+
+    Settings:
+      SAFE_MODE_PROMPTING   "enabled" or "disabled" — controls whether workspace
+                            open prompts for unvalidated apps (default: enabled)
 
 EXAMPLES:
     # Create a new workspace
