@@ -788,20 +788,43 @@ select_application() {
     echo "======================" >&3
     echo "" >&3
     
+    # First pass: detect duplicate display names
+    local -A name_counts
+    while IFS='|' read -r _ display_name _ _; do
+        if [[ -z "${name_counts[$display_name]+_}" ]]; then
+            name_counts[$display_name]=1
+        else
+            ((name_counts[$display_name]++))
+        fi
+    done <<< "$apps"
+
+    # Second pass: display applications
     local counter=1
     while IFS='|' read -r app_id display_name has_terminal has_desktop; do
         app_list+=("$app_id")
         
         local types=""
-        [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && types+="T"
-        [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && types+="D"
+        [[ "$has_desktop" == "1" || "$has_desktop" == "TRUE" ]] && types+="[desktop] "
+        [[ "$has_terminal" == "1" || "$has_terminal" == "TRUE" ]] && types+="[terminal] "
+        types="${types% }"
+
+        local label=""
+        if [[ ${name_counts[$display_name]} -gt 1 ]]; then
+            label="${display_name} (${app_id})"
+        else
+            label="$display_name"
+        fi
         
-        printf "%3d) %-40s [%s]\n" "$counter" "$display_name" "$types" >&3
+        if (( counter % 2 == 0 )); then
+            printf "\e[2m%3d) %-45s %s\e[0m\n" "$counter" "$label" "$types" >&3
+        else
+            printf "%3d) %-45s %s\n" "$counter" "$label" "$types" >&3
+        fi
         ((counter++))
     done <<< "$apps"
     
     echo "" >&3
-    echo "Legend: [T] = Terminal launch available, [D] = Desktop launch available" >&3
+    echo "Legend: [desktop] = Desktop launch, [terminal] = Terminal launch" >&3
     echo "" >&3
     echo "Select application (1-$((counter-1))):" >&3
     read -r selection
