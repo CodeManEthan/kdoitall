@@ -44,7 +44,7 @@ workspace_open() {
         return 1
     fi
 
-    # Check for safe mode apps (skip if prompting is disabled)
+    # Check for safe mode apps (skip if prompting disabled)
     if [[ "${SAFE_MODE_PROMPTING:-enabled}" == "enabled" ]]; then
         local -a safe_mode_apps=()
         mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
@@ -84,41 +84,6 @@ workspace_open() {
         fi
     fi
 
-    # Only detach if:
-    # - We're running in a terminal (interactive)
-    # - Not in debug or verbose mode (user wants to see output)
-    # - Haven't already detached (prevent recursive detachment)
-    if [ -t 0 ] && 
-       [ "$VERBOSE_MODE" != "true" ] && 
-       [ -z "$_KDOITALL_DETACHED" ]; then
-        
-        debug_log "$function_name" "Detaching to background for workspace launch"
-        
-        # Mark as detached to prevent recursive backgrounding
-        export _KDOITALL_DETACHED=true
-        
-        echo "Opening workspace: $workspace_name" >&3
-        echo "Launching applications in background..." >&3
-        
-        # Execute workspace script in background with nohup
-        # This allows the terminal to be closed without killing the processes
-        nohup bash -c "
-            # Re-source the kdoitall environment
-            source '$KDOITALL_INSTALL_DIR/lib/init.sh'
-            
-            # Source and execute the workspace script
-            source '$open_script'
-            
-            # Update database metadata
-            sqlite3 '$KDOITALL_DB' \"UPDATE workspaces SET is_active = 'TRUE', last_opened = datetime('now') WHERE name = '$workspace_name'\"
-        " > /dev/null 2>&1 &
-        
-        debug_log "$function_name" "Workspace script backgrounded (PID: $!)"
-        debug_function_exit "$function_name"
-        return 0
-    fi
-    
-    echo "Opening workspace: $workspace_name" >&3
     debug_log "$function_name" "Executing open script: $open_script"
     
     # Source and execute the script
@@ -126,10 +91,8 @@ workspace_open() {
     source "$open_script"
     
     # Update database metadata
-    db_set_workspace_active "$workspace_name" "TRUE"
-    db_set_workspace_last_opened "$workspace_name"
+    db_mark_workspace_opened "$workspace_name"
     
-    echo "Workspace '$workspace_name' opened successfully" >&3
     debug_log "$function_name" "Workspace opened and database updated"
     debug_function_exit "$function_name"
     return 0

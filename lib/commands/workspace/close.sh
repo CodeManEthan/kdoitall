@@ -41,7 +41,6 @@ workspace_close() {
         return 1
     fi
     
-    echo "Closing workspace: $workspace_name" >&3
     debug_log "$function_name" "Executing close script: $close_script"
     
     # Source and execute the script
@@ -51,7 +50,6 @@ workspace_close() {
     # Update database metadata to mark workspace as inactive
     db_set_workspace_active "$workspace_name" "FALSE"
     
-    echo "Workspace '$workspace_name' closed successfully" >&3
     debug_log "$function_name" "Workspace closed and database updated"
     debug_function_exit "$function_name"
     return 0

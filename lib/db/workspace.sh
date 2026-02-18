@@ -256,3 +256,32 @@ db_get_workspace_is_active() {
     echo "$is_active"
     return 0
 }
+
+db_mark_workspace_opened() {
+    local workspace_name="$1"
+    local function_name="db_mark_workspace_opened"
+    local changes=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    
+    # Set active and update timestamp in single connection
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        "UPDATE workspace_definitions 
+         SET is_active = TRUE, last_opened_at = datetime('now')
+         WHERE workspace_name = :workspace_name;
+         SELECT changes();" 2>/dev/null)
+    
+    if [[ "$changes" -eq 1 ]]; then
+        debug_log "$function_name" "Marked workspace opened: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
