@@ -19,6 +19,9 @@ OPTIONS:
     --info           Show key milestones during execution
     --verbose        Enable verbose output
 
+STATUS:
+    status                Show current state of active workspaces and windows
+
 WORKSPACE COMMANDS:
     workspace create <name>   Create new workspace interactively
     workspace list            List all defined workspaces

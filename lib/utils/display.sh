@@ -550,3 +550,149 @@ display_workspace_applications() {
     debug_function_exit "$function_name"
     return 0
 }
+
+display_status_active_workspaces() {
+    local function_name="display_status_active_workspaces"
+    local result=""
+
+    debug_function_enter "$function_name"
+
+    # Query active workspace windows with display info
+    # Returns: workspace_name|window_name|uuid|display_name|window_title|defined_position
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".separator '|'" \
+        "SELECT
+            aw.workspace_name,
+            aw.window_name,
+            aw.uuid,
+            COALESCE(a.display_name, aw.class),
+            COALESCE(aw.window_title, ''),
+            COALESCE(wd.screen, ''),
+            COALESCE(wd.position, '')
+         FROM app_windows aw
+         LEFT JOIN window_definitions wd ON aw.window_name = wd.window_name
+         LEFT JOIN applications a ON wd.app_id = a.app_id
+         INNER JOIN workspace_definitions ws ON aw.workspace_name = ws.workspace_name
+         WHERE ws.is_active = TRUE
+         ORDER BY aw.workspace_name, wd.display_order;" 2>/dev/null)
+
+    if [[ -z "$result" ]]; then
+        echo "" >&3
+        echo "No active workspaces with tracked windows." >&3
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    local current_workspace=""
+    local index=0
+
+    while IFS='|' read -r workspace_name window_name uuid display_name window_title defined_screen defined_position; do
+        [[ -z "$workspace_name" ]] && continue
+
+        # Print workspace header when workspace changes
+        if [[ "$workspace_name" != "$current_workspace" ]]; then
+            current_workspace="$workspace_name"
+            index=0
+            echo "" >&3
+            echo "Workspace: $current_workspace" >&3
+            echo "───────────────────────────────────────────────────────" >&3
+        fi
+
+        ((index++)) || true
+
+        # Get live data
+        local live_info=""
+        live_info=$(_display_status_live_info "$uuid")
+
+        local desktop=""
+        desktop=$(kdotool get_desktop_for_window "$uuid" 2>/dev/null) || true
+
+        # Display window entry
+        printf "  %d. %-22s %s\n" "$index" "$display_name" "$window_name" >&3
+
+        local position_label=""
+        if [[ -n "$defined_screen" && -n "$defined_position" ]]; then
+            position_label="Desktop ${desktop:-?}, Screen ${defined_screen}, ${defined_position}"
+        else
+            position_label="N/A"
+        fi
+
+        printf "     %-36s %s\n" "$position_label" "$live_info" >&3
+
+    done <<< "$result"
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+display_status_untracked_windows() {
+    local function_name="display_status_untracked_windows"
+    local result=""
+
+    debug_function_enter "$function_name"
+
+    # Query windows not belonging to a real workspace
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".separator '|'" \
+        "SELECT
+            aw.window_name,
+            aw.uuid,
+            aw.class,
+            COALESCE(aw.window_title, '')
+         FROM app_windows aw
+         WHERE aw.workspace_name = '~auto:workspace'
+         ORDER BY aw.class;" 2>/dev/null)
+
+    if [[ -z "$result" ]]; then
+        echo "" >&3
+        echo "No other tracked windows." >&3
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    echo "" >&3
+    echo "Other Tracked Windows" >&3
+    echo "───────────────────────────────────────────────────────" >&3
+
+    while IFS='|' read -r window_name uuid class window_title; do
+        [[ -z "$window_name" ]] && continue
+
+        local title_display=""
+        title_display="${window_title:-$class}"
+
+        printf "  %-28s %-16s %s\n" "$window_name" "$class" "$title_display" >&3
+    done <<< "$result"
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+_display_status_live_info() {
+    local uuid="$1"
+    local function_name="_display_status_live_info"
+    local geometry=""
+    local position=""
+    local size=""
+
+    debug_function_enter "$function_name" "$@"
+
+    # Attempt to get geometry from kdotool
+    geometry=$(kdotool getwindowgeometry "$uuid" 2>/dev/null) || true
+
+    if [[ -z "$geometry" ]]; then
+        debug_log "$function_name" "Window not found: $uuid"
+        debug_function_exit "$function_name"
+        echo "(window not found)"
+        return 0
+    fi
+
+    position=$(echo "$geometry" | grep "Position:" | awk '{print $2}')
+    size=$(echo "$geometry" | grep "Geometry:" | awk '{print $2}')
+
+    local info=""
+    info="${position:-?} ${size:-?}"
+
+    debug_function_exit "$function_name"
+    echo "$info"
+    return 0
+}

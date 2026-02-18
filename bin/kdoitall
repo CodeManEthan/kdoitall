@@ -182,6 +182,12 @@ case "$COMMAND" in
         source "${LIB_DIR}/commands/window/dispatcher.sh"
         window_command "$@"
         ;;
+
+    status)
+        # shellcheck source=../lib/commands/status.sh
+        source "${LIB_DIR}/commands/status.sh"
+        status_command
+        ;;
     *)
         echo "Error: Unknown command: $COMMAND" >&2
         echo "Run 'kdoitall --help' for usage information" >&2
