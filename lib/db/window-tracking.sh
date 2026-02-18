@@ -157,6 +157,7 @@ db_add_existing_windows() {
 
 db_delete_stale_windows() {
     local -A existing_lookup=()
+    local uuid=""
     local uuid_to_delete=""
     local function_name="db_delete_stale_windows"
 

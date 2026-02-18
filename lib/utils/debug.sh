@@ -21,14 +21,15 @@ for arg in "$@"; do
     esac
 done
 
-# File logging setup
+# File logging setup (deferred until config is loaded, call init_file_logging)
 KDOITALL_LOG_FILE=""
-if [[ "${LOG_TO_FILE:-disabled}" == "enabled" ]]; then
-    KDOITALL_LOG_DIR=""
-    KDOITALL_LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
-    mkdir -p "$KDOITALL_LOG_DIR"
-    KDOITALL_LOG_FILE="${KDOITALL_LOG_DIR}/kdoitall-$(date +%Y%m%d-%H%M%S).log"
-fi
+
+init_file_logging() {
+    if [[ "${LOG_TO_FILE:-disabled}" == "enabled" ]]; then
+        mkdir -p "$LOG_DIR"
+        KDOITALL_LOG_FILE="${LOG_DIR}/kdoitall-$(date +%Y%m%d-%H%M%S).log"
+    fi
+}
 
 # Strip ANSI color codes and write to log file
 _log_to_file() {
@@ -263,6 +264,7 @@ export LOG_LEVEL
 export VERBOSE_MODE
 export KDOITALL_LOG_FILE
 export -f _log_to_file
+export -f init_file_logging
 export -f info_log
 export -f debug_log
 export -f debug_error

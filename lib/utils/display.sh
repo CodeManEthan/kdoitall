@@ -299,10 +299,6 @@ display_application_info() {
         echo "PID Validation:      Not Completed" >&3
     fi
 
-    if [[ -n "$window_title_pattern" ]]; then
-        echo "Window Title:        $window_title_pattern" >&3
-    fi
-
     if [[ -n "$launch_time_ms" ]]; then
         echo "Launch Time:         $launch_time_ms ms" >&3
     fi

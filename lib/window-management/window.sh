@@ -16,6 +16,7 @@ export -a CURRENT_TITLES=()
 get_uuid_by_process_of_elimination() {
     local class="$1"  # Optional class parameter for validation
     local is_retry="${2:-FALSE}"
+    local uuid=""
     local new_uuid=""
     local found_count=0
     local function_name="get_uuid_by_process_of_elimination"
