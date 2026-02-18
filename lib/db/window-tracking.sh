@@ -366,10 +366,89 @@ db_get_tab_by_tab_name() {
     echo "$tab_number"
 }
 
+db_get_app_metadata_status() {
+    local app_id="$1"
+    local function_name="db_get_app_metadata_status"
+    local result=""
 
+    debug_function_enter "$function_name" "$@"
 
+    validate_parameter_pass "$app_id" "app_id" || return 1
 
+    # Single query to check what metadata is already populated
+    # Returns pipe-separated: pid_status|title_pattern|display_name|app_class|launch_time_ms|launch_time_samples
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".separator '|'" \
+        "SELECT
+            COALESCE(CAST(supports_pid_validation AS TEXT), ''),
+            COALESCE(window_title_pattern, ''),
+            COALESCE(display_name, ''),
+            COALESCE(app_class, ''),
+            COALESCE(CAST(launch_time_ms AS TEXT), '0'),
+            COALESCE(CAST(launch_time_samples AS TEXT), '0')
+         FROM applications WHERE app_id = :app_id;" 2>/dev/null)
 
+    if [[ -z "$result" ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Metadata status for $app_id: $result"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+db_set_post_launch_metadata() {
+    local app_id="$1"
+    local supports_pid="$2"
+    local process_name="$3"
+    local executable_path="$4"
+    local title_pattern="$5"
+    local expected_time="$6"
+    local measured_time="$7"
+    local function_name="db_set_post_launch_metadata"
+    local changes=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+
+    # Single UPDATE — empty parameters mean "keep existing value"
+    # launch_time_samples increments only when measured_time is provided
+    changes=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :app_id '$app_id'" \
+        -cmd ".param set :supports_pid '$supports_pid'" \
+        -cmd ".param set :process_name '$process_name'" \
+        -cmd ".param set :exe_path '$executable_path'" \
+        -cmd ".param set :title_pattern '$title_pattern'" \
+        -cmd ".param set :expected_time '$expected_time'" \
+        -cmd ".param set :measured_time '$measured_time'" \
+        "UPDATE applications SET
+            supports_pid_validation = CASE WHEN :supports_pid != '' THEN CAST(:supports_pid AS INTEGER) ELSE supports_pid_validation END,
+            process_name = CASE WHEN :process_name != '' THEN :process_name ELSE process_name END,
+            executable_path = CASE WHEN :exe_path != '' THEN :exe_path ELSE executable_path END,
+            window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
+            launch_time_ms = CASE WHEN :expected_time != '' THEN CAST(:expected_time AS INTEGER) ELSE launch_time_ms END,
+            last_launch_time_ms = CASE WHEN :measured_time != '' THEN CAST(:measured_time AS INTEGER) ELSE last_launch_time_ms END,
+            launch_time_samples = CASE WHEN :measured_time != '' THEN COALESCE(launch_time_samples, 0) + 1 ELSE launch_time_samples END
+         WHERE app_id = :app_id;
+         SELECT changes();" 2>/dev/null)
+
+    if [[ "$changes" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Updated post-launch metadata for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
 
 
 

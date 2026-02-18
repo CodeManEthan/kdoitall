@@ -132,6 +132,61 @@ parse_window_title_segments() {
     return 0
 }
 
+auto_select_title_pattern() {
+    local title="$1"
+    local display_name="$2"
+    local class="$3"
+    local function_name="auto_select_title_pattern"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$title" "title" || return 1
+
+    # Parse title into segment suggestions (rightmost first)
+    local -a suggestions=()
+    mapfile -t suggestions < <(parse_window_title_segments "$title")
+
+    if [[ ${#suggestions[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No separators found in title, no pattern to auto-select"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    # Prefer a suggestion containing display_name or class
+    local selected_pattern=""
+    local display_name_lower=""
+    local class_lower=""
+    display_name_lower=$(echo "$display_name" | tr '[:upper:]' '[:lower:]')
+    class_lower=$(echo "$class" | tr '[:upper:]' '[:lower:]')
+
+    for suggestion in "${suggestions[@]}"; do
+        local suggestion_lower=""
+        suggestion_lower=$(echo "$suggestion" | tr '[:upper:]' '[:lower:]')
+
+        if [[ -n "$display_name" && "$suggestion_lower" == *"$display_name_lower"* ]]; then
+            selected_pattern="$suggestion"
+            debug_log "$function_name" "Auto-selected pattern matching display name: '$suggestion'"
+            break
+        fi
+
+        if [[ -n "$class" && "$suggestion_lower" == *"$class_lower"* ]]; then
+            selected_pattern="$suggestion"
+            debug_log "$function_name" "Auto-selected pattern matching class: '$suggestion'"
+            break
+        fi
+    done
+
+    # Fallback: use the rightmost suggestion (first in array)
+    if [[ -z "$selected_pattern" ]]; then
+        selected_pattern="${suggestions[0]}"
+        debug_log "$function_name" "No name/class match, using rightmost pattern: '$selected_pattern'"
+    fi
+
+    debug_function_exit "$function_name"
+    echo "$selected_pattern"
+    return 0
+}
+
 display_application_info() {
     local app_id="$1"
     local function_name="registry_get_application_info"

@@ -443,6 +443,26 @@ get_window_position() {
     echo "$window_position"
 }
 
+get_active_window_uuid() {
+    local uuid=""
+    local function_name="get_active_window_uuid"
+
+    debug_function_enter "$function_name"
+
+    # Get the currently focused window UUID
+    uuid=$(kdotool getactivewindow 2>/dev/null)
+
+    if [[ -z "$uuid" ]]; then
+        debug_log "$function_name" "No active window (desktop may be focused)"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    debug_log "$function_name" "Active window: '$uuid'"
+    debug_function_exit "$function_name"
+    echo "$uuid"
+}
+
 window_exists() {
     local uuid="$1"
     local function_name="window_exists"
