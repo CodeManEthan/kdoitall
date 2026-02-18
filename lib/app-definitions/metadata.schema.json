@@ -14,6 +14,10 @@
       "type": "string",
       "description": "X11 window class for window detection"
     },
+    "window_title_pattern": {
+      "type": "string",
+      "description": "Default window title pattern for desktop-launched windows"
+    },
     "terminal_command": {
       "type": "string",
       "description": "Command to validate terminal availability"

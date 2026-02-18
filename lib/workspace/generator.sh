@@ -24,8 +24,7 @@ generate_workspace_scripts() {
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
-    local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-    local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
+    local workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
 
     # Ensure workspace scripts directory exists
     if ! mkdir -p "$WORKSPACE_SCRIPTS_DIR"; then
@@ -34,16 +33,9 @@ generate_workspace_scripts() {
         return 1
     fi
 
-    # Generate open script
-    if ! generate_open_script "$workspace_name" "$open_script" apps_array_ref; then
-        debug_error "$function_name" "Failed to generate open script"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Generate close script
-    if ! generate_close_script "$workspace_name" "$close_script" apps_array_ref; then
-        debug_error "$function_name" "Failed to generate close script"
+    # Generate combined workspace script
+    if ! generate_workspace_script "$workspace_name" "$workspace_script" apps_array_ref; then
+        debug_error "$function_name" "Failed to generate workspace script"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -55,21 +47,22 @@ generate_workspace_scripts() {
         return 1
     fi
 
-    # Make scripts executable
-    chmod +x "$open_script"
-    chmod +x "$close_script"
+    # Make script executable
+    chmod +x "$workspace_script"
 
-    debug_log "$function_name" "Successfully generated workspace scripts"
+    debug_log "$function_name" "Successfully generated workspace script"
     debug_function_exit "$function_name"
     return 0
 }
 
-generate_open_script() {
+generate_workspace_script() {
     local workspace_name="$1"
     local script_path="$2"
     # apps_ref="$3"
     local guard_name=""
-    local function_name="generate_open_script"
+    local open_func_name=""
+    local close_func_name=""
+    local function_name="generate_workspace_script"
 
     debug_function_enter "$function_name" "$@"
 
@@ -79,10 +72,13 @@ generate_open_script() {
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_parameter_pass "$script_path" "script_path" || return 1
 
-    # Generate guard name from workspace name
+    # Generate names from workspace name
     # Convert to uppercase and replace hyphens with underscores
-    guard_name="_KDOITALL_WORKSPACE_${workspace_name^^}_OPEN_LOADED"
+    guard_name="_KDOITALL_WORKSPACE_${workspace_name^^}_LOADED"
     guard_name="${guard_name//-/_}"
+
+    open_func_name="open_workspace_${workspace_name//-/_}"
+    close_func_name="close_workspace_${workspace_name//-/_}"
 
     # Check if array is empty
     if [[ ${#apps_ref[@]} -eq 0 ]]; then
@@ -126,27 +122,30 @@ EOF_HEADER
 
     # Add source statements
     if [[ -v app_files_to_source && ${#app_files_to_source[@]} -gt 0 ]]; then
-        echo "" >> "$script_path"
         echo "# Source required application files" >> "$script_path"
         for app_file in "${!app_files_to_source[@]}"; do
             echo "# shellcheck source=${app_file#"${KDOITALL_ROOT}"/}" >> "$script_path"
             echo "source \"${app_file}\"" >> "$script_path"
         done
+        echo "" >> "$script_path"
     fi
 
-    # Add debug log
-    echo "" >> "$script_path"
-    echo "debug_log \"Opening workspace: $workspace_name\"" >> "$script_path"
+    # Source core for close function
+    echo "# shellcheck disable=SC1091" >> "$script_path"
+    echo "source \"\${LIB_DIR}/core/core.sh\"" >> "$script_path"
     echo "" >> "$script_path"
 
-    # Generate launch commands
+    # === Generate open function ===
+    echo "$open_func_name() {" >> "$script_path"
+    echo "    debug_log \"Opening workspace: $workspace_name\"" >> "$script_path"
+    echo "" >> "$script_path"
+
     for app_config in "${apps_ref[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
 
-        echo "# Launch: $window_name ($app_id)" >> "$script_path"
+        echo "    # Launch: $window_name ($app_id)" >> "$script_path"
 
-        # Build launch command with parameters
         local params_str=""
         if [[ -n "$parameters" ]]; then
             params_str=" \"$parameters\""
@@ -154,90 +153,39 @@ EOF_HEADER
             params_str=" \"\""
         fi
 
-        # Generate the function call
-        # Note: Position needs to be prefixed with $ and quoted
-        # launch_by_app_id needs app_id parameter, custom launchers don't
         if [[ "$launch_function" == "launch_by_app_id" ]]; then
             cat >> "$script_path" << EOF
-$launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"
+    $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"
 
 EOF
         else
             cat >> "$script_path" << EOF
-$launch_function "$workspace_name" "$window_name" "$desktop" "$screen" "\$$position"$params_str
+    $launch_function "$workspace_name" "$window_name" "$desktop" "$screen" "\$$position"$params_str
 
 EOF
         fi
     done
 
-    debug_log "$function_name" "Generated open script: $script_path"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-generate_close_script() {
-    local workspace_name="$1"
-    local script_path="$2"
-    # apps_ref="$3"
-    local guard_name=""
-    local function_name="generate_close_script"
-
-    debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$3" "apps_ref" || return 1
-    local -n apps_ref="$3"
-
-    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
-    validate_parameter_pass "$script_path" "script_path" || return 1    
-
-    # Generate guard name from workspace name
-    # Convert to uppercase and replace hyphens with underscores
-    guard_name="_KDOITALL_WORKSPACE_${workspace_name^^}_CLOSE_LOADED"
-    guard_name="${guard_name//-/_}"
-
-    # Check if array is empty
-    if [[ ${#apps_ref[@]} -eq 0 ]]; then
-        debug_error "$function_name" "No applications configured for workspace"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Build script with header
-    cat > "$script_path" << 'EOF_HEADER'
-#!/bin/bash
-
-# This file was generated by kdoitall - KDE Desktop Automation Tool
-# Copyright (C) 2025 Ethan Plunk
-# SPDX-License-Identifier: GPL-3.0-or-later
-#
-# You are free to modify this file for your own use.
-
-check_and_set_guard "GUARD_NAME" || return 0
-
-# shellcheck disable=SC1091
-source "${LIB_DIR}/core/core.sh"
-
-debug_log "Closing workspace: WORKSPACE_NAME"
-
-EOF_HEADER
-
-    # Replace placeholders
-    sed -i "s/GUARD_NAME/$guard_name/g" "$script_path"
-    sed -i "s/WORKSPACE_NAME/$workspace_name/g" "$script_path"
-
-    # Add close commands
+    echo "}" >> "$script_path"
     echo "" >> "$script_path"
+
+    # === Generate close function ===
+    echo "$close_func_name() {" >> "$script_path"
+    echo "    debug_log \"Closing workspace: $workspace_name\"" >> "$script_path"
+    echo "" >> "$script_path"
+
     for app_config in "${apps_ref[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
-        echo "execute_close_window \"$window_name\"" >> "$script_path"
+        echo "    execute_close_window \"$window_name\"" >> "$script_path"
     done
 
-    debug_log "$function_name" "Generated close script: $script_path"
+    echo "}" >> "$script_path"
+
+    debug_log "$function_name" "Generated workspace script: $script_path"
     debug_function_exit "$function_name"
     return 0
 }
-
 
 store_window_definitions() {
     local workspace_name="$1"

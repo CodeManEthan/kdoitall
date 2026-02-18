@@ -15,7 +15,7 @@ source "${LIB_DIR}/db/workspace.sh"
 
 workspace_open() {
     local workspace_name="$1"
-    local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
+    local workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
     local function_name="workspace_open"
     
     debug_function_enter "$function_name" "$@"
@@ -35,9 +35,9 @@ workspace_open() {
         return 1
     fi
     
-    # Check if open script file exists
-    if [[ ! -f "$open_script" ]]; then
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$open_script"
+    # Check if workspace script file exists
+    if [[ ! -f "$workspace_script" ]]; then
+        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$workspace_script"
         echo "The workspace exists in database but script file is missing." >&3
         echo "Try recreating the workspace." >&3
         debug_function_exit "$function_name"
@@ -85,12 +85,16 @@ workspace_open() {
         fi
     fi
 
-    debug_log "$function_name" "Executing open script: $open_script"
+    debug_log "$function_name" "Executing workspace script: $workspace_script"
     info_log "$function_name" "Opening workspace '$workspace_name'"
     
-    # Source and execute the script
+    # Source the workspace script and call the open function
     # shellcheck source=/dev/null
-    source "$open_script"
+    source "$workspace_script"
+    
+    local open_func_name=""
+    open_func_name="open_workspace_${workspace_name//-/_}"
+    "$open_func_name"
     
     # Update database metadata
     db_mark_workspace_opened "$workspace_name"

@@ -170,7 +170,7 @@ safe_mode_launch_and_detect() {
 
 detect_safe_mode_apps() {
     local workspace_name="$1"
-    local script_path="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
+    local script_path="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
     local function_name="detect_safe_mode_apps"
     local -a safe_mode_apps=()
     

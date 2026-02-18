@@ -49,10 +49,8 @@ workspace_list() {
 
     # Process each workspace
     while IFS='|' read -r workspace_name description created_at is_active last_opened; do
-        local open_script=""
-        local close_script=""
-        open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-        close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
+        local workspace_script=""
+        workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
 
         echo "" >&3
         echo "Workspace: $workspace_name" >&3
@@ -76,11 +74,9 @@ workspace_list() {
             display_workspace_applications "$workspace_name"
         fi
 
-        # Check if script files exist
-        if [[ ! -f "$open_script" || ! -f "$close_script" ]]; then
-            echo "⚠️  Warning: Script files missing or incomplete" >&2
-            [[ ! -f "$open_script" ]] && echo "   Missing: ${open_script##*/}" >&2
-            [[ ! -f "$close_script" ]] && echo "   Missing: ${close_script##*/}" >&2
+        # Check if script file exists
+        if [[ ! -f "$workspace_script" ]]; then
+            echo "⚠️  Warning: Script file missing: ${workspace_script##*/}" >&2
         fi
     done <<< "$workspaces"
 

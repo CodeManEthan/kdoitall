@@ -23,6 +23,9 @@ registry_scan_applications() {
     local desktop_file_path=""
     local app_directory_path=""
     local terminal_command=""
+    local app_class=""
+    local launch_mode=""
+    local window_title_pattern=""
     local has_terminal_launch=false
     local has_desktop_launch=false
     
@@ -74,6 +77,9 @@ registry_scan_applications() {
             # Reset app file variables
             app_directory_path=""
             terminal_command=""
+            app_class=""
+            launch_mode=""
+            window_title_pattern=""
             has_terminal_launch=false
             
             debug_log "$function_name" "Processing: $app_id ($display_name)"
@@ -87,6 +93,20 @@ registry_scan_applications() {
                 
                 # Extract terminal command from JSON
                 terminal_command=$(json_get_terminal_command "$json_file")
+                
+                # Extract app_class from JSON
+                app_class=$(json_get_app_class "$json_file")
+                
+                # Extract and resolve launch_mode from JSON
+                local launch_mode_constant=""
+                launch_mode_constant=$(json_get_launch_mode "$json_file")
+                if [[ -n "$launch_mode_constant" ]]; then
+                    # Resolve constant name (e.g., LAUNCH_MODE_UNIQUE) to value (e.g., unique)
+                    launch_mode="${!launch_mode_constant}"
+                fi
+                
+                # Extract window_title_pattern from JSON
+                window_title_pattern=$(json_get_window_title_pattern "$json_file")
                 
                 if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true
@@ -104,10 +124,20 @@ registry_scan_applications() {
             
             # Add application to database with all metadata
             if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
-                                  "$app_directory_path" "$terminal_command" "" \
+                                  "$app_directory_path" "$terminal_command" "$app_class" \
                                   "$has_terminal_launch" "$has_desktop_launch"; then
                 debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
                 ((app_count++))
+                
+                # Set launch mode if extracted from metadata
+                if [[ -n "$launch_mode" ]]; then
+                    db_set_launch_mode "$app_id" "$launch_mode"
+                fi
+                
+                # Set window title pattern if extracted from metadata
+                if [[ -n "$window_title_pattern" ]]; then
+                    db_set_window_title_pattern "$app_id" "$window_title_pattern"
+                fi
             else
                 debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
             fi

@@ -1,6 +1,7 @@
 {
   "app_id": "code",
   "app_class": "code",
+  "window_title_pattern": "Visual Studio Code",
   "terminal_command": "code",
   "launch_mode": "LAUNCH_MODE_UNIQUE",
   "launch_type": "LAUNCH_TYPE_TERMINAL",

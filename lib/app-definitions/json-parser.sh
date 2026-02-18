@@ -86,6 +86,23 @@ json_get_app_class() {
     return 0
 }
 
+json_get_window_title_pattern() {
+    local json_file="$1"
+    local function_name="json_get_window_title_pattern"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$json_file" "json_file" || return 1
+    validate_file_exists "$json_file" || return 1
+    
+    local window_title_pattern=""
+    window_title_pattern=$(jq -r '.window_title_pattern // empty' "$json_file")
+    
+    echo "$window_title_pattern"
+    debug_function_exit "$function_name"
+    return 0
+}
+
 json_get_launch_mode() {
     local json_file="$1"
     local function_name="json_get_launch_mode"

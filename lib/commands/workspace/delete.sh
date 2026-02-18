@@ -11,8 +11,7 @@ source "${LIB_DIR}/db/workspace.sh"
 
 workspace_delete() {
     local workspace_name="$1"
-    local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-    local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
+    local workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
     local confirm=""
     local function_name="workspace_delete"
     
@@ -55,20 +54,12 @@ workspace_delete() {
     
     debug_log "$function_name" "Deleted workspace from database: $workspace_name"
     
-    # Delete open script file if it exists
-    if [[ -f "$open_script" ]]; then
-        rm "$open_script"
-        debug_log "$function_name" "Deleted open script: $open_script"
+    # Delete workspace script file if it exists
+    if [[ -f "$workspace_script" ]]; then
+        rm "$workspace_script"
+        debug_log "$function_name" "Deleted workspace script: $workspace_script"
     else
-        debug_log "$function_name" "Open script not found (already deleted?): $open_script"
-    fi
-    
-    # Delete close script file if it exists
-    if [[ -f "$close_script" ]]; then
-        rm "$close_script"
-        debug_log "$function_name" "Deleted close script: $close_script"
-    else
-        debug_log "$function_name" "Close script not found (already deleted?): $close_script"
+        debug_log "$function_name" "Workspace script not found (already deleted?): $workspace_script"
     fi
     
     echo "Workspace '$workspace_name' deleted successfully" >&3

@@ -86,19 +86,20 @@ workspace_create() {
     local idx=0
     local app_entry=""
     local summary_app_id=""
+    local summary_window_name=""
     local summary_name=""
     local summary_desktop=""
     local summary_screen=""
     local summary_position=""
     for app_entry in "${WORKSPACE_APPS[@]}"; do
-        IFS='|' read -r summary_app_id _ _ summary_desktop summary_screen summary_position _ <<< "$app_entry"
+        IFS='|' read -r summary_app_id summary_window_name _ summary_desktop summary_screen summary_position _ <<< "$app_entry"
 
         summary_name=""
         summary_name=$(db_get_display_name "$summary_app_id") || summary_name="$summary_app_id"
 
         idx=$((idx + 1))
-        printf "  %d. %-22s Screen %s, Desktop %s, %s\n" \
-            "$idx" "$summary_name" "$summary_screen" "$summary_desktop" "$summary_position" >&3
+        printf "  %d. %-22s %-30s Screen %s, Desktop %s, %s\n" \
+            "$idx" "$summary_name" "($summary_window_name)" "$summary_screen" "$summary_desktop" "$summary_position" >&3
     done
 
     echo "" >&3
@@ -139,9 +140,8 @@ workspace_create() {
     echo "Open with:  kdoitall workspace open $workspace_name" >&3
     echo "Close with: kdoitall workspace close $workspace_name" >&3
     echo "" >&3
-    echo "Script files:" >&3
-    echo "  Open:  ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh" >&3
-    echo "  Close: ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh" >&3
+    echo "Script file:" >&3
+    echo "  ${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh" >&3
     echo "" >&3
     
     debug_function_exit "$function_name"
