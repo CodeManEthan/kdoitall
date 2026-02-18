@@ -8,12 +8,28 @@ check_and_set_guard "_KDOITALL_WORKSPACE_LIST_LOADED" || return 0
 
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
+# shellcheck source=../../utils/display.sh
+source "${LIB_DIR}/utils/display.sh"
 
 workspace_list() {
+    local show_details="false"
     local workspaces=""
     local function_name="workspace_list"
 
     debug_function_enter "$function_name" "$@"
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --details)
+                show_details="true"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     # Get all workspaces from database
     workspaces=$(db_list_workspaces)
@@ -21,7 +37,7 @@ workspace_list() {
     # Handle empty workspace list
     if [[ -z "$workspaces" ]]; then
         echo "No workspaces defined." >&3
-        echo "Create one with: kdoitall workspace create <name>" >&3
+        echo "Create one with: kdoitall workspace create <n>" >&3
         debug_function_exit "$function_name"
         return 0
     fi
@@ -33,8 +49,10 @@ workspace_list() {
 
     # Process each workspace
     while IFS='|' read -r workspace_name description created_at is_active last_opened; do
-        local open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
-        local close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
+        local open_script=""
+        local close_script=""
+        open_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-open.sh"
+        close_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}-close.sh"
 
         echo "" >&3
         echo "Workspace: $workspace_name" >&3
@@ -50,6 +68,13 @@ workspace_list() {
         
         # Show active status if workspace is currently active
         [[ "$is_active" == "1" || "$is_active" == "TRUE" ]] && echo "Status: ACTIVE" >&3
+
+        # Show window information
+        if [[ "$show_details" == "true" ]]; then
+            display_workspace_windows "$workspace_name"
+        else
+            display_workspace_applications "$workspace_name"
+        fi
 
         # Check if script files exist
         if [[ ! -f "$open_script" || ! -f "$close_script" ]]; then

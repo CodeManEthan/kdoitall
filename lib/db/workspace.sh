@@ -285,3 +285,28 @@ db_mark_workspace_opened() {
         return 1
     fi
 }
+
+db_get_workspace_window_details() {
+    local workspace_name="$1"
+    local function_name="db_get_workspace_window_details"
+    local result=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        -cmd ".separator '|'" \
+        "SELECT a.display_name, wd.app_id, wd.desktop, wd.screen, wd.position, wd.display_order
+         FROM window_definitions wd
+         LEFT JOIN applications a ON wd.app_id = a.app_id
+         WHERE wd.workspace_name = :workspace_name
+         ORDER BY wd.display_order;" 2>/dev/null)
+
+    debug_log "$function_name" "Retrieved window details for workspace: $workspace_name"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}

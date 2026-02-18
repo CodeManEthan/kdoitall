@@ -13,6 +13,8 @@ source "${LIB_DIR}/db/window-info.sh"
 source "${LIB_DIR}/db/launch-options.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../db/workspace.sh
+source "${LIB_DIR}/db/workspace.sh"
 
 display_tracked_windows() {
     local function_name="display_tracked_windows"
@@ -473,6 +475,78 @@ display_launch_parameters() {
         ((index++))
     done <<< "$parameters"
     
+    debug_function_exit "$function_name"
+    return 0
+}
+
+display_workspace_windows() {
+    local workspace_name="$1"
+    local function_name="display_workspace_windows"
+    local window_details=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    window_details=$(db_get_workspace_window_details "$workspace_name")
+
+    if [[ -z "$window_details" ]]; then
+        echo "  No window definitions found." >&3
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    # Count windows
+    local window_count=0
+    window_count=$(echo "$window_details" | wc -l)
+
+    echo "Windows ($window_count):" >&3
+
+    while IFS='|' read -r display_name app_id desktop screen position display_order; do
+        local name=""
+        name="${display_name:-$app_id}"
+
+        local index=0
+        index=$((display_order + 1))
+
+        printf "  %d. %-22s Screen %s, Desktop %s, %s\n" \
+            "$index" "$name" "$screen" "$desktop" "$position" >&3
+    done <<< "$window_details"
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+display_workspace_applications() {
+    local workspace_name="$1"
+    local function_name="display_workspace_applications"
+    local window_details=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    window_details=$(db_get_workspace_window_details "$workspace_name")
+
+    if [[ -z "$window_details" ]]; then
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    local app_names=""
+    while IFS='|' read -r display_name app_id _ _ _ _; do
+        local name=""
+        name="${display_name:-$app_id}"
+
+        if [[ -n "$app_names" ]]; then
+            app_names="${app_names}, ${name}"
+        else
+            app_names="$name"
+        fi
+    done <<< "$window_details"
+
+    echo "Applications: $app_names" >&3
+
     debug_function_exit "$function_name"
     return 0
 }

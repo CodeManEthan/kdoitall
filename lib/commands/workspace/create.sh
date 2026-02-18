@@ -80,7 +80,27 @@ workspace_create() {
     echo "=== Workspace Configuration Summary ===" >&3
     echo "Workspace: $workspace_name" >&3
     echo "Description: ${description:-<none>}" >&3
-    echo "Applications configured: ${#WORKSPACE_APPS[@]}" >&3
+    echo "" >&3
+    echo "Windows (${#WORKSPACE_APPS[@]}):" >&3
+
+    local idx=0
+    local app_entry=""
+    local summary_app_id=""
+    local summary_name=""
+    local summary_desktop=""
+    local summary_screen=""
+    local summary_position=""
+    for app_entry in "${WORKSPACE_APPS[@]}"; do
+        IFS='|' read -r summary_app_id _ _ summary_desktop summary_screen summary_position _ <<< "$app_entry"
+
+        summary_name=""
+        summary_name=$(db_get_display_name "$summary_app_id") || summary_name="$summary_app_id"
+
+        idx=$((idx + 1))
+        printf "  %d. %-22s Screen %s, Desktop %s, %s\n" \
+            "$idx" "$summary_name" "$summary_screen" "$summary_desktop" "$summary_position" >&3
+    done
+
     echo "" >&3
     echo "Proceed with workspace creation? (y/n)" >&3
     read -r confirm_create

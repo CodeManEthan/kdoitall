@@ -51,6 +51,11 @@ workspace_command() {
             source "${LIB_DIR}/commands/workspace/list.sh"
             workspace_list "${args[@]}"
             ;;
+        info)
+            # shellcheck source=info.sh
+            source "${LIB_DIR}/commands/workspace/info.sh"
+            workspace_info "${args[@]}"
+            ;;
         open)
             # shellcheck source=open.sh
             source "${LIB_DIR}/commands/workspace/open.sh"
@@ -79,15 +84,18 @@ workspace_show_help() {
 Usage: kdoitall workspace <subcommand> [options]
 
 Workspace Subcommands:
-  create <name>     Create a new workspace interactively
-  list              List all defined workspaces
-  open <name>       Open a workspace
-  close <name>      Close a workspace
-  delete <name>     Delete a workspace
+  create <n>        Create a new workspace interactively
+  list [--details]     List all defined workspaces
+  info <n>          Show detailed info for a workspace
+  open <n>          Open a workspace
+  close <n>         Close a workspace
+  delete <n>        Delete a workspace
 
 Examples:
   kdoitall workspace create dev-environment
   kdoitall workspace list
+  kdoitall workspace list --details
+  kdoitall workspace info dev-environment
   kdoitall workspace open dev-environment
   kdoitall workspace close dev-environment
   kdoitall workspace delete old-workspace
