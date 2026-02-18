@@ -49,6 +49,8 @@ execute_launch_window() {
     validate_parameter_pass "$launch_type" "launch_type" || return 1
     validate_parameter_pass "$launch_command" "launch_command" || return 1
 
+    info_log "$function_name" "Launching $app_id (window: $window_name)"
+
     # ──────────────────────────────────────────────
     # PHASE 1: PRE-LAUNCH SNAPSHOT
     # ──────────────────────────────────────────────
@@ -66,6 +68,7 @@ execute_launch_window() {
 
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "Single-instance window already exists: $uuid"
+            info_log "$function_name" "Window already open, reclaiming: $uuid"
             window_title=$(get_window_title "$uuid")
             raise_window "$uuid"
             db_claim_window "$workspace_name" "$window_name" "$uuid" "$window_title"
@@ -74,6 +77,8 @@ execute_launch_window() {
             move_window_to_desktop "$uuid" "$desktop"
             move_window_to_screen "$uuid" "$screen"
             move_window_to_position "$uuid" "$screen" "$position"
+
+            info_log "$function_name" "Positioned on Screen $screen, Desktop $desktop, $position"
 
             debug_function_exit "$function_name"
             return 0
@@ -189,9 +194,12 @@ execute_launch_window() {
 
     if [[ -z "$uuid" ]]; then
         debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Could not detect window for app_id: $app_id"
+        info_log "$function_name" "Window detection failed for $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    info_log "$function_name" "Window detected: $uuid (method: $detection_method)"
 
     # Record launch elapsed time (before registration, as close to detection as possible)
     local launch_elapsed_ms=""
@@ -226,6 +234,8 @@ execute_launch_window() {
     move_window_to_desktop "$uuid" "$desktop"
     move_window_to_screen "$uuid" "$screen"
     move_window_to_position "$uuid" "$screen" "$position"
+
+    info_log "$function_name" "Positioned on Screen $screen, Desktop $desktop, $position"
 
     # ──────────────────────────────────────────────
     # PHASE 7: BACKGROUND DATA GATHERING

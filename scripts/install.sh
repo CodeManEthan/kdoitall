@@ -75,6 +75,10 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 
 # Safe-mode prompting during workspace open
 # SAFE_MODE_PROMPTING="enabled"
+
+# File logging (writes full verbose output to log file regardless of CLI flag)
+# Log location: ${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs/
+# LOG_TO_FILE="disabled"
 CONFIGEOF
     echo "✓ Created user config:      $USER_CONFIG"
 else

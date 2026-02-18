@@ -50,6 +50,7 @@ workspace_open() {
         mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
 
         if [[ ${#safe_mode_apps[@]} -gt 0 && -n "${safe_mode_apps[0]}" ]]; then
+            info_log "$function_name" "Safe mode: ${#safe_mode_apps[@]} app(s) detected"
             local prompt_result
             prompt_result=$(prompt_safe_mode "${safe_mode_apps[@]}")
 
@@ -85,6 +86,7 @@ workspace_open() {
     fi
 
     debug_log "$function_name" "Executing open script: $open_script"
+    info_log "$function_name" "Opening workspace '$workspace_name'"
     
     # Source and execute the script
     # shellcheck source=/dev/null
@@ -94,6 +96,7 @@ workspace_open() {
     db_mark_workspace_opened "$workspace_name"
     
     debug_log "$function_name" "Workspace opened and database updated"
+    info_log "$function_name" "Workspace '$workspace_name' opened successfully"
     debug_function_exit "$function_name"
     return 0
 }

@@ -16,7 +16,7 @@ USAGE:
 OPTIONS:
     --help, -h       Show this help message
     --version, -v    Show version information
-    --debug          Enable debug output
+    --info           Show key milestones during execution
     --verbose        Enable verbose output
 
 WORKSPACE COMMANDS:

@@ -186,6 +186,7 @@ db_delete_stale_windows() {
             if [ "$changes" -eq 1 ]; then
                 debug_log "$function_name" "DELETED: Stale window with uuid='$uuid_to_delete'"
                 debug_log "$function_name" "Deleted stale window: $uuid_to_delete"
+                info_log "$function_name" "Stale window cleaned: $uuid_to_delete"
             else
                 debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database (changes=$changes)"
             fi

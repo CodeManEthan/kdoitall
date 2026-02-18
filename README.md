@@ -77,7 +77,7 @@ kdoitall [OPTIONS] <COMMAND> [ARGS...]
 OPTIONS:
     --help, -h       Show help message
     --version, -v    Show version
-    --debug          Enable debug output
+    --info           Show key milestones during execution
     --verbose        Enable verbose output
 
 WORKSPACE COMMANDS:

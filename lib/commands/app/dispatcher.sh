@@ -14,7 +14,7 @@ app_command() {
     # Parse arguments, filtering out global flags
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --debug|--verbose)
+            --verbose|--info)
                 shift
                 ;;
             *)
