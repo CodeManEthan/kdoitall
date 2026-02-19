@@ -21,6 +21,7 @@ OPTIONS:
 
 STATUS:
     status                Show current state of active workspaces and windows
+    update                Update kdoitall (git pull + rebuild app registry)
 
 WORKSPACE COMMANDS:
     workspace create <name>   Create new workspace interactively

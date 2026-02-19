@@ -14,6 +14,8 @@ source "${LIB_DIR}/db/launch-options.sh"
 source "${LIB_DIR}/app-definitions/json-parser.sh"
 # shellcheck source=../app-definitions/validator.sh
 source "${LIB_DIR}/app-definitions/validator.sh"
+# shellcheck source=../db/app-registry.sh
+source "${LIB_DIR}/db/app-registry.sh"
 
 registry_scan_applications() {
     local function_name="registry_scan_applications"
@@ -28,6 +30,8 @@ registry_scan_applications() {
     local window_title_pattern=""
     local has_terminal_launch=false
     local has_desktop_launch=false
+    local supports_pid_validation=""
+    local process_name=""
     
     debug_function_enter "$function_name"
     
@@ -81,6 +85,8 @@ registry_scan_applications() {
             launch_mode=""
             window_title_pattern=""
             has_terminal_launch=false
+            supports_pid_validation=""
+            process_name=""
             
             debug_log "$function_name" "Processing: $app_id ($display_name)"
             
@@ -122,6 +128,34 @@ registry_scan_applications() {
                 debug_log "$function_name" "No app definition found for: $app_id"
             fi
             
+            # Seed from reference registry for any fields still empty
+            if app_registry_exists "$app_id"; then
+                local reg_metadata=""
+                reg_metadata=$(app_registry_get_metadata "$app_id")
+
+                if [[ -n "$reg_metadata" ]]; then
+                    local reg_app_class=""
+                    local reg_window_title=""
+                    local reg_launch_mode=""
+                    local reg_supports_pid=""
+                    local reg_process_name=""
+
+                    reg_app_class=$(echo "$reg_metadata" | cut -d'|' -f2)
+                    reg_window_title=$(echo "$reg_metadata" | cut -d'|' -f3)
+                    reg_launch_mode=$(echo "$reg_metadata" | cut -d'|' -f4)
+                    reg_supports_pid=$(echo "$reg_metadata" | cut -d'|' -f5)
+                    reg_process_name=$(echo "$reg_metadata" | cut -d'|' -f6)
+
+                    [[ -z "$app_class" && -n "$reg_app_class" ]] && app_class="$reg_app_class"
+                    [[ -z "$window_title_pattern" && -n "$reg_window_title" ]] && window_title_pattern="$reg_window_title"
+                    [[ -z "$launch_mode" && -n "$reg_launch_mode" ]] && launch_mode="$reg_launch_mode"
+                    [[ -z "$supports_pid_validation" && -n "$reg_supports_pid" ]] && supports_pid_validation="$reg_supports_pid"
+                    [[ -z "$process_name" && -n "$reg_process_name" ]] && process_name="$reg_process_name"
+
+                    debug_log "$function_name" "Seeded from registry: $app_id (class=$app_class, mode=$launch_mode)"
+                fi
+            fi
+            
             # Add application to database with all metadata
             if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
                                   "$app_directory_path" "$terminal_command" "$app_class" \
@@ -137,6 +171,17 @@ registry_scan_applications() {
                 # Set window title pattern if extracted from metadata
                 if [[ -n "$window_title_pattern" ]]; then
                     db_set_window_title_pattern "$app_id" "$window_title_pattern"
+                fi
+                
+                # Set PID validation data if seeded from registry
+                if [[ -n "$supports_pid_validation" && -n "$process_name" ]]; then
+                    local pid_support=""
+                    if [[ "$supports_pid_validation" -eq 1 ]]; then
+                        pid_support="true"
+                    else
+                        pid_support="false"
+                    fi
+                    db_set_pid_validation_data "$app_id" "$pid_support" "$process_name" ""
                 fi
             else
                 debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"

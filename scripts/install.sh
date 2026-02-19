@@ -56,6 +56,22 @@ else
     echo "✓ Database already exists: $DB_FILE"
 fi
 
+# --- Build reference database ---
+REGISTRY_SEED="$PROJECT_ROOT/database/app-registry.sql"
+REGISTRY_DB="$PROJECT_ROOT/database/app-registry.db"
+
+if [[ -f "$REGISTRY_SEED" ]]; then
+    if command -v sqlite3 &> /dev/null; then
+        rm -f "$REGISTRY_DB"
+        sqlite3 "$REGISTRY_DB" < "$REGISTRY_SEED"
+        echo "✓ Built app registry database"
+    else
+        echo "⚠ sqlite3 not found — skipping app registry build" >&2
+    fi
+else
+    echo "⚠ App registry seed file not found: $REGISTRY_SEED" >&2
+fi
+
 # --- Generate user config file ---
 USER_CONFIG="$CONFIG_DIR/config"
 

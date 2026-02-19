@@ -6,10 +6,11 @@
 
 # Database location
 export KDOITALL_DB="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/kdoitall.db"
+export KDOITALL_REGISTRY_DB="${KDOITALL_ROOT}/database/app-registry.db"
 export WORKSPACE_SCRIPTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/workspaces"
 export KDOITALL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall/config"
 
-readonly KDOITALL_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
+readonly KDOITALL_DB KDOITALL_REGISTRY_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
 
 # Timing delays
 export LAUNCH_DELAY="1.0"
