@@ -20,19 +20,18 @@ db_add_launch_option() {
     validate_parameter_pass "$description" "description" || return 1
     
     # Execute INSERT OR REPLACE
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :function_name '$function_name'" \
-        -cmd ".param set :description '$description'" \
-        -cmd ".param set :display_order '$display_order'" \
+    db_query \
         "INSERT OR REPLACE INTO launch_options (
             app_id, function_name, description, display_order
         ) VALUES (
             :app_id, :function_name, :description, :display_order
-        );" 2>/dev/null
+        );" \
+        ":app_id" "$app_id" \
+        ":function_name" "$function_name" \
+        ":description" "$description" \
+        ":display_order" "$display_order"
     
-    if [[ $? -ne 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]]; then
         debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch option: $app_id.$function_name"
         debug_function_exit "$func_name"
         return 1
@@ -46,19 +45,17 @@ db_add_launch_option() {
 db_delete_launch_options_for_app() {
     local app_id="$1"
     local function_name="db_delete_launch_options_for_app"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "DELETE FROM launch_options WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id"
     
-    debug_log "$function_name" "Deleted $changes launch options for $app_id"
+    debug_log "$function_name" "Deleted ${DB_RESULT[0]:-0} launch options for $app_id"
     debug_function_exit "$function_name"
     return 0
 }
@@ -79,20 +76,19 @@ db_add_launch_parameter() {
     validate_parameter_pass "$description" "description" || return 1
     
     # Execute INSERT OR REPLACE
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :function_id '$function_id'" \
-        -cmd ".param set :parameter_name '$parameter_name'" \
-        -cmd ".param set :description '$description'" \
-        -cmd ".param set :display_order '$display_order'" \
+    db_query \
         "INSERT OR REPLACE INTO launch_parameters (
             app_id, function_id, parameter_name, description, display_order
         ) VALUES (
             :app_id, :function_id, :parameter_name, :description, :display_order
-        );" 2>/dev/null
+        );" \
+        ":app_id" "$app_id" \
+        ":function_id" "$function_id" \
+        ":parameter_name" "$parameter_name" \
+        ":description" "$description" \
+        ":display_order" "$display_order"
     
-    if [[ $? -ne 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]]; then
         debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch parameter: $app_id.$function_id.$function_name"
         debug_function_exit "$func_name"
         return 1
@@ -106,19 +102,17 @@ db_add_launch_parameter() {
 db_app_has_launch_options() {
     local app_id="$1"
     local function_name="db_app_has_launch_options"
-    local count=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    count=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COUNT(*) FROM launch_options WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT COUNT(*) FROM launch_options WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
     
-    if [[ "$count" -gt 0 ]]; then
-        debug_log "$function_name" "Application $app_id has $count launch options"
+    if [[ "${DB_RESULT[0]:-0}" -gt 0 ]]; then
+        debug_log "$function_name" "Application $app_id has ${DB_RESULT[0]} launch options"
         debug_function_exit "$function_name"
         return 0
     else
@@ -131,23 +125,21 @@ db_app_has_launch_options() {
 db_get_launch_options() {
     local app_id="$1"
     local function_name="db_get_launch_options"
-    local result=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "SELECT function_name, description 
          FROM launch_options 
          WHERE app_id = :app_id 
-         ORDER BY display_order, function_name;" 2>/dev/null)
+         ORDER BY display_order, function_name;" \
+        ":app_id" "$app_id"
     
     debug_log "$function_name" "Retrieved launch options for $app_id"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
@@ -155,29 +147,27 @@ db_get_launch_option_id() {
     local app_id="$1"
     local function_name="$2"
     local func_name="db_get_launch_option_id"
-    local result=""
     
     debug_function_enter "$func_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$function_name" "function_name" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :function_name '$function_name'" \
+    db_query \
         "SELECT id FROM launch_options 
-         WHERE app_id = :app_id AND function_name = :function_name;" 2>/dev/null)
+         WHERE app_id = :app_id AND function_name = :function_name;" \
+        ":app_id" "$app_id" \
+        ":function_name" "$function_name"
     
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$func_name" "$ERR_DATABASE_ERROR" "Launch option not found: $app_id.$function_name"
         debug_function_exit "$func_name"
         return 1
     fi
     
-    debug_log "$func_name" "Retrieved launch option ID $result for $app_id.$function_name"
+    debug_log "$func_name" "Retrieved launch option ID ${DB_RESULT[0]} for $app_id.$function_name"
     debug_function_exit "$func_name"
-    echo "$result"
+    echo "${DB_RESULT[0]}"
     return 0
 }
 
@@ -185,24 +175,22 @@ db_get_launch_parameters() {
     local app_id="$1"
     local function_id="$2"
     local function_name="db_get_launch_parameters"
-    local result=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$function_id" "function_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :function_id '$function_id'" \
+    db_query \
         "SELECT parameter_name, description 
          FROM launch_parameters 
          WHERE app_id = :app_id AND function_id = :function_id 
-         ORDER BY display_order, parameter_name;" 2>/dev/null)
+         ORDER BY display_order, parameter_name;" \
+        ":app_id" "$app_id" \
+        ":function_id" "$function_id"
     
     debug_log "$function_name" "Retrieved launch parameters for $app_id.$function_id"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }

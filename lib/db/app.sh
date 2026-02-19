@@ -29,16 +29,7 @@ db_add_application() {
     has_desktop_launch=$(normalize_boolean "$has_desktop_launch")
 
     # Execute INSERT OR REPLACE
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :display_name '$display_name'" \
-        -cmd ".param set :desktop_file '$desktop_file_path'" \
-        -cmd ".param set :app_directory_path '$app_directory_path'" \
-        -cmd ".param set :terminal_command '$terminal_command'" \
-        -cmd ".param set :app_class '$app_class'" \
-        -cmd ".param set :has_terminal_launch '$has_terminal_launch'" \
-        -cmd ".param set :has_desktop_launch '$has_desktop_launch'" \
+    db_query \
         "INSERT OR REPLACE INTO applications (
             app_id, display_name, desktop_file_path,
             app_directory_path, terminal_command, app_class,
@@ -49,9 +40,17 @@ db_add_application() {
             :app_directory_path, :terminal_command, :app_class,
             :has_terminal_launch, :has_desktop_launch,
             datetime('now')
-        );" 2>/dev/null
+        );" \
+        ":app_id" "$app_id" \
+        ":display_name" "$display_name" \
+        ":desktop_file" "$desktop_file_path" \
+        ":app_directory_path" "$app_directory_path" \
+        ":terminal_command" "$terminal_command" \
+        ":app_class" "$app_class" \
+        ":has_terminal_launch" "$has_terminal_launch" \
+        ":has_desktop_launch" "$has_desktop_launch"
     
-    if [[ $? -ne 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -65,7 +64,6 @@ db_add_application() {
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -73,13 +71,12 @@ db_delete_application() {
     db_application_exists "$app_id" || return 1
     
     # Delete application
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "DELETE FROM applications WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id"
     
-    if [[ "$changes" -eq 1 ]]; then
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
         debug_log "$function_name" "Deleted application: $app_id"
         debug_function_exit "$function_name"
         return 0
@@ -93,23 +90,21 @@ db_delete_application() {
 db_clear_safe_mode_data() {
     local app_id="$1"
     local function_name="db_clear_safe_mode_data"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "UPDATE applications 
          SET safe_mode_completed = FALSE,
              safe_mode_timestamp = NULL,
              app_class = NULL
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -123,19 +118,17 @@ db_clear_safe_mode_data() {
 db_application_exists() {
     local app_id="$1"
     local function_name="db_application_exists"
-    local count=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     # Check existence
-    count=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COUNT(*) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT COUNT(*) FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
     
-    if [[ "$count" -eq 1 ]]; then
+    if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
         debug_log "$function_name" "Application exists: $app_id"
         debug_function_exit "$function_name"
         return 0
@@ -150,7 +143,6 @@ db_list_applications() {
     local filter="${1:-all}"
     local function_name="db_list_applications"
     local query=""
-    local result=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -184,19 +176,18 @@ db_list_applications() {
     esac
     
     # Execute query
-    result=$(sqlite3 "$KDOITALL_DB" "$query" 2>/dev/null)
+    db_query "$query"
     
     # Note: Empty result is not an error - just means no apps match filter
     debug_log "$function_name" "Listed applications with filter: $filter"
     debug_function_exit "$function_name"
-    echo "$result"
+    printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
 db_get_applications_needing_validation() {
     local days="${1:-90}"
     local function_name="db_get_applications_needing_validation"
-    local result=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -207,19 +198,18 @@ db_get_applications_needing_validation() {
     fi
     
     # Query applications needing validation
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :days '$days'" \
+    db_query \
         "SELECT app_id
          FROM applications
          WHERE last_validated IS NULL 
             OR last_validated < datetime('now', '-' || :days || ' days')
-         ORDER BY last_validated ASC;" 2>/dev/null)
+         ORDER BY last_validated ASC;" \
+        ":days" "$days"
     
     # Note: Empty result is not an error - just means all apps are validated
     debug_log "$function_name" "Found applications needing validation (older than $days days)"
     debug_function_exit "$function_name"
-    echo "$result"
+    printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
@@ -233,9 +223,7 @@ db_get_application() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     # Query database with all fields
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "SELECT app_id, display_name, desktop_file_path,
                 app_directory_path, terminal_command, app_class,
                 has_terminal_launch, has_desktop_launch,
@@ -244,13 +232,16 @@ db_get_application() {
                 process_name, window_title_pattern, 
                 launch_time_ms
          FROM applications
-         WHERE app_id = :app_id;" 2>/dev/null)
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
     
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
+    
+    result="${DB_RESULT[0]}"
     
     debug_log "$function_name" "Retrieved application: $app_id"
     debug_function_exit "$function_name"
@@ -268,18 +259,19 @@ db_get_display_name() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     # Query database with display_name
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "SELECT display_name
          FROM applications
-         WHERE app_id = :app_id;" 2>/dev/null)
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
     
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
+    
+    result="${DB_RESULT[0]}"
     
     debug_log "$function_name" "Retrieved display_name for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -296,10 +288,11 @@ db_get_app_class() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT app_class FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT app_class FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Retrieved app_class for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -311,7 +304,6 @@ db_set_app_class() {
     local app_id="$1"
     local class="$2"
     local function_name="db_set_app_class"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -319,16 +311,15 @@ db_set_app_class() {
     
     validate_parameter_pass "$class" "class" || return 1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :class '$class'" \
+    db_query \
         "UPDATE applications 
          SET app_class = :class
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":class" "$class"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -348,10 +339,11 @@ db_get_app_has_desktop_launch() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT has_desktop_launch FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT has_desktop_launch FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Has desktop launch for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -368,10 +360,11 @@ db_get_app_has_terminal_launch() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT has_terminal_launch FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT has_terminal_launch FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Has terminal launch for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -388,10 +381,11 @@ db_get_launch_mode() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT launch_mode FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT launch_mode FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Launch mode for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -403,7 +397,6 @@ db_set_launch_mode() {
     local app_id="$1"
     local launch_mode="$2"
     local function_name="db_set_launch_mode"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -417,16 +410,15 @@ db_set_launch_mode() {
         return 1
     fi
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :launch_mode '$launch_mode'" \
+    db_query \
         "UPDATE applications 
          SET launch_mode = :launch_mode
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":launch_mode" "$launch_mode"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -446,10 +438,11 @@ db_get_window_title_pattern() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COALESCE(window_title_pattern, '') FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT COALESCE(window_title_pattern, '') FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Window title pattern for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -461,23 +454,21 @@ db_set_window_title_pattern() {
     local app_id="$1"
     local pattern="$2"
     local function_name="db_set_window_title_pattern"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$pattern" "pattern" || return 1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :pattern '$pattern'" \
+    db_query \
         "UPDATE applications 
          SET window_title_pattern = :pattern
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":pattern" "$pattern"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -497,10 +488,11 @@ db_get_supports_pid_validation() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT supports_pid_validation FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT supports_pid_validation FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Supports PID validation for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -514,7 +506,6 @@ db_set_pid_validation_data() {
     local process_name="$3"
     local executable_path="$4"
     local function_name="db_set_pid_validation_data"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -529,23 +520,23 @@ db_set_pid_validation_data() {
     fi
     
     # Convert 'true'/'false' to 1/0 for SQLite boolean
-    local supports_pid_bool=0
+    local supports_pid_bool=""
+    supports_pid_bool=0
     [[ "$supports_pid" == "true" ]] && supports_pid_bool=1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :supports_pid '$supports_pid_bool'" \
-        -cmd ".param set :process_name '$process_name'" \
-        -cmd ".param set :executable_path '$executable_path'" \
+    db_query \
         "UPDATE applications 
          SET supports_pid_validation = :supports_pid,
              process_name = :process_name,
              executable_path = :executable_path
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":supports_pid" "$supports_pid_bool" \
+        ":process_name" "$process_name" \
+        ":executable_path" "$executable_path"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -565,15 +556,16 @@ db_get_pid_validation_data() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "SELECT 
             CASE WHEN supports_pid_validation = 1 THEN 'true' ELSE 'false' END,
             COALESCE(process_name, ''),
             COALESCE(executable_path, '')
          FROM applications 
-         WHERE app_id = :app_id;" 2>/dev/null | tr '\n' '|' | sed 's/|$//')
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "PID validation data for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -590,10 +582,11 @@ db_get_launch_time() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    expected_time=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COALESCE(launch_time_ms, 5000) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT COALESCE(launch_time_ms, 5000) FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    expected_time="${DB_RESULT[0]:-5000}"
     
     debug_log "$function_name" "Expected launch time for $app_id: ${expected_time}ms"
     debug_function_exit "$function_name"
@@ -612,19 +605,20 @@ db_set_launch_time() {
     validate_parameter_pass "$measured_time_ms" "measured_time_ms" || return 1
     
     # Get current data
-    local current_samples
-    local current_expected
-    current_samples=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
-    current_expected=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COALESCE(launch_time_ms, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    local current_samples=""
+    local current_expected=""
+    db_query \
+        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    current_samples="${DB_RESULT[0]:-0}"
+
+    db_query \
+        "SELECT COALESCE(launch_time_ms, 0) FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    current_expected="${DB_RESULT[0]:-0}"
     
     # Calculate new expected time (rolling average with buffer)
-    local new_expected
+    local new_expected=""
     if [[ "$current_samples" -eq 0 ]]; then
         # First sample: use measured time + 50% buffer
         new_expected=$(echo "scale=0; ($measured_time_ms * 3 / 2)" | bc)
@@ -637,20 +631,18 @@ db_set_launch_time() {
     fi
     
     # Update database
-    local changes
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :measured '$measured_time_ms'" \
-        -cmd ".param set :expected '$new_expected'" \
+    db_query \
         "UPDATE applications 
          SET last_launch_time_ms = :measured,
              launch_time_ms = :expected,
              launch_time_samples = launch_time_samples + 1
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":measured" "$measured_time_ms" \
+        ":expected" "$new_expected"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -670,10 +662,11 @@ db_get_launch_time_samples() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    samples=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    samples="${DB_RESULT[0]:-0}"
     
     debug_log "$function_name" "Launch time samples for $app_id: $samples"
     debug_function_exit "$function_name"
@@ -690,10 +683,11 @@ db_get_app_directory_path() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT app_directory_path FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT app_directory_path FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Retrieved app_directory_path for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -710,10 +704,11 @@ db_get_terminal_command() {
 
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT terminal_command FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT terminal_command FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Retrieved terminal_command for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -730,10 +725,11 @@ db_get_safe_mode_completed() {
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT safe_mode_completed FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+    db_query \
+        "SELECT safe_mode_completed FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
     
     debug_log "$function_name" "Safe mode completed for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
@@ -744,22 +740,20 @@ db_get_safe_mode_completed() {
 db_set_safe_mode_completed() {
     local app_id="$1"
     local function_name="db_set_safe_mode_completed"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "UPDATE applications 
          SET safe_mode_completed = TRUE,
              safe_mode_timestamp = datetime('now')
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -774,7 +768,6 @@ db_set_requires_safe_mode() {
     local app_id="$1"
     local requires="$2"  # TRUE or FALSE
     local function_name="db_set_requires_safe_mode"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
@@ -783,16 +776,15 @@ db_set_requires_safe_mode() {
     
     requires=$(normalize_boolean "$requires")
     
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :requires '$requires'" \
+    db_query \
         "UPDATE applications 
          SET requires_safe_mode = :requires
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":requires" "$requires"
     
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -805,59 +797,55 @@ db_set_requires_safe_mode() {
 
 db_get_pending_safe_mode_apps() {
     local function_name="db_get_pending_safe_mode_apps"
-    local result=""
     
     debug_function_enter "$function_name"
     
     # Get apps that require safe mode but haven't completed it
-    result=$(sqlite3 "$KDOITALL_DB" \
+    db_query \
         "SELECT app_id, display_name 
          FROM applications 
          WHERE requires_safe_mode = TRUE 
          AND safe_mode_completed = FALSE
-         ORDER BY display_name;" 2>/dev/null)
+         ORDER BY display_name;"
     
     debug_function_exit "$function_name"
-    echo "$result"
+    printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
 db_count_pending_safe_mode_apps() {
     local function_name="db_count_pending_safe_mode_apps"
-    local count=""
     
     debug_function_enter "$function_name"
     
-    count=$(sqlite3 "$KDOITALL_DB" \
+    db_query \
         "SELECT COUNT(*) 
          FROM applications 
          WHERE requires_safe_mode = TRUE 
-         AND safe_mode_completed = FALSE;" 2>/dev/null)
+         AND safe_mode_completed = FALSE;"
     
     debug_function_exit "$function_name"
-    echo "$count"
+    echo "${DB_RESULT[0]:-0}"
     return 0
 }
 
 db_update_validation_timestamp() {
     local app_id="$1"
     local function_name="db_update_validation_timestamp"
-    local changes=""
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     # Update timestamp
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_query \
         "UPDATE applications 
          SET last_validated = datetime('now')
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id"
     
-    if [[ "$changes" -eq 1 ]]; then
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
         debug_log "$function_name" "Updated validation timestamp for: $app_id"
         debug_function_exit "$function_name"
         return 0

@@ -9,7 +9,6 @@ check_and_set_guard "_KDOITALL_DB_APP_REGISTRY_LOADED" || return 0
 app_registry_exists() {
     local app_id="$1"
     local function_name="app_registry_exists"
-    local count=""
 
     debug_function_enter "$function_name" "$@"
 
@@ -21,12 +20,11 @@ app_registry_exists() {
         return 1
     fi
 
-    count=$(sqlite3 "$KDOITALL_REGISTRY_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT COUNT(*) FROM app_registry WHERE app_id = :app_id;" 2>/dev/null)
+    db_registry_query \
+        "SELECT COUNT(*) FROM app_registry WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
 
-    if [[ "$count" -eq 1 ]]; then
+    if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
         debug_log "$function_name" "App found in registry: $app_id"
         debug_function_exit "$function_name"
         return 0
@@ -40,7 +38,6 @@ app_registry_exists() {
 app_registry_get_metadata() {
     local app_id="$1"
     local function_name="app_registry_get_metadata"
-    local result=""
 
     debug_function_enter "$function_name" "$@"
 
@@ -52,15 +49,14 @@ app_registry_get_metadata() {
         return 1
     fi
 
-    result=$(sqlite3 "$KDOITALL_REGISTRY_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
+    db_registry_query \
         "SELECT app_id, app_class, window_title_pattern, launch_mode,
                 supports_pid_validation, process_name
          FROM app_registry
-         WHERE app_id = :app_id;" 2>/dev/null)
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
 
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_log "$function_name" "No registry entry for: $app_id"
         debug_function_exit "$function_name"
         return 1
@@ -68,14 +64,13 @@ app_registry_get_metadata() {
 
     debug_log "$function_name" "Retrieved registry metadata for: $app_id"
     debug_function_exit "$function_name"
-    echo "$result"
+    printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
 app_registry_get_app_class() {
     local app_id="$1"
     local function_name="app_registry_get_app_class"
-    local result=""
 
     debug_function_enter "$function_name" "$@"
 
@@ -87,20 +82,18 @@ app_registry_get_app_class() {
         return 1
     fi
 
-    result=$(sqlite3 "$KDOITALL_REGISTRY_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        "SELECT app_class FROM app_registry WHERE app_id = :app_id;" 2>/dev/null)
+    db_registry_query \
+        "SELECT app_class FROM app_registry WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
 
-    debug_log "$function_name" "Registry app_class for $app_id: ${result:-NULL}"
+    debug_log "$function_name" "Registry app_class for $app_id: ${DB_RESULT[0]:-NULL}"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && echo "${DB_RESULT[0]}"
     return 0
 }
 
 app_registry_list_apps() {
     local function_name="app_registry_list_apps"
-    local result=""
 
     debug_function_enter "$function_name"
 
@@ -110,18 +103,17 @@ app_registry_list_apps() {
         return 1
     fi
 
-    result=$(sqlite3 "$KDOITALL_REGISTRY_DB" \
-        "SELECT app_id, app_class, launch_mode FROM app_registry ORDER BY app_id;" 2>/dev/null)
+    db_registry_query \
+        "SELECT app_id, app_class, launch_mode FROM app_registry ORDER BY app_id;"
 
     debug_log "$function_name" "Listed all registry apps"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
 app_registry_count_apps() {
     local function_name="app_registry_count_apps"
-    local count=""
 
     debug_function_enter "$function_name"
 
@@ -132,11 +124,11 @@ app_registry_count_apps() {
         return 1
     fi
 
-    count=$(sqlite3 "$KDOITALL_REGISTRY_DB" \
-        "SELECT COUNT(*) FROM app_registry;" 2>/dev/null)
+    db_registry_query \
+        "SELECT COUNT(*) FROM app_registry;"
 
-    debug_log "$function_name" "Registry app count: ${count:-0}"
+    debug_log "$function_name" "Registry app count: ${DB_RESULT[0]:-0}"
     debug_function_exit "$function_name"
-    echo "${count:-0}"
+    echo "${DB_RESULT[0]:-0}"
     return 0
 }

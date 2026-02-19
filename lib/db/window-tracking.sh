@@ -22,16 +22,21 @@ db_add_window() {
     validate_parameter_pass "$class" "class" || return 1
     
     # Add entry to 'app_windows' table
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :workspace '$workspace_name'" \
-        -cmd ".param set :window '$window_name'" \
-        -cmd ".param set :uuid '$uuid'" \
-        -cmd ".param set :class '$class'" \
-        -cmd ".param set :window_title '$window_title'" \
+    db_query \
         "INSERT INTO app_windows (workspace_name, window_name, uuid, class, window_title, is_tab)
-         VALUES (:workspace, :window, :uuid, :class, :window_title, FALSE);"
-    
+         VALUES (:workspace, :window, :uuid, :class, :window_title, FALSE);" \
+        ":workspace" "$workspace_name" \
+        ":window" "$window_name" \
+        ":uuid" "$uuid" \
+        ":class" "$class" \
+        ":window_title" "$window_title"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add window '$window_name': $DB_ERROR"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
     debug_log "$function_name" "Added window '$window_name' (workspace: '$workspace_name', uuid: '$uuid', class: '$class', window_title: '$window_title')"
     debug_function_exit "$function_name"
 }
@@ -45,11 +50,16 @@ db_delete_window() {
     validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Delete entry from 'app_windows' table
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window '$window_name'" \
-        "DELETE FROM app_windows WHERE window_name = :window;"
-    
+    db_query \
+        "DELETE FROM app_windows WHERE window_name = :window;" \
+        ":window" "$window_name"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete window '$window_name': $DB_ERROR"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
     debug_log "$function_name" "Deleted window '$window_name'"
     debug_function_exit "$function_name"
 }
@@ -67,17 +77,22 @@ db_claim_window() {
     validate_parameter_pass "$new_window_name" "new_window_name" || return 1
     validate_parameter_pass "$uuid" "uuid" || return 1
 
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window '$new_window_name'" \
-        -cmd ".param set :workspace '$new_workspace_name'" \
-        -cmd ".param set :uuid '$uuid'" \
-        -cmd ".param set :window_title '$window_title'" \
+    db_query \
         "UPDATE app_windows 
          SET window_name = :window,
              workspace_name = :workspace,
              window_title = :window_title
-         WHERE uuid = :uuid;"
+         WHERE uuid = :uuid;" \
+        ":window" "$new_window_name" \
+        ":workspace" "$new_workspace_name" \
+        ":uuid" "$uuid" \
+        ":window_title" "$window_title"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to claim window '$new_window_name': $DB_ERROR"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 
     debug_log "$function_name" "Claimed window '$new_window_name' (workspace: '$new_workspace_name', uuid: '$uuid' window title: '$window_title')"
     debug_function_exit "$function_name"
@@ -123,29 +138,25 @@ db_add_existing_windows() {
         window_name="~auto:${class}:${class_counts[$class]}"
 
         # Check if UUID already exists first
-        local existing_check=""
-        existing_check=$(sqlite3 "$KDOITALL_DB" \
-            -cmd ".param init" \
-            -cmd ".param set :uuid '$uuid'" \
-            "SELECT window_name FROM app_windows WHERE uuid = :uuid;" 2>/dev/null)
-        
-        if [[ -n "$existing_check" ]]; then
+        db_query \
+            "SELECT window_name FROM app_windows WHERE uuid = :uuid;" \
+            ":uuid" "$uuid"
+
+        if [[ ${#DB_RESULT[@]} -gt 0 ]]; then
             continue
         fi
 
-        local changes=""
-        changes=$(sqlite3 "$KDOITALL_DB" \
-            -cmd ".param init" \
-            -cmd ".param set :workspace '$workspace_name'" \
-            -cmd ".param set :window '$window_name'" \
-            -cmd ".param set :uuid '$uuid'" \
-            -cmd ".param set :class '$class'" \
-            -cmd ".param set :window_title '$window_title'" \
+        db_query \
             "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, window_title, is_tab) 
             VALUES (:workspace, :window, :uuid, :class, :window_title, FALSE);
-            SELECT changes();")
-        
-        if [ "$changes" -eq 1 ]; then
+            SELECT changes();" \
+            ":workspace" "$workspace_name" \
+            ":window" "$window_name" \
+            ":uuid" "$uuid" \
+            ":class" "$class" \
+            ":window_title" "$window_title"
+
+        if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
             debug_log "$function_name" "✓ INSERTED: window_name='$window_name', uuid='$uuid', class='$class', window_title='$window_title'"
         else
             debug_log "$function_name" "✗ INSERT FAILED (window_name conflict?): window_name='$window_name', uuid='$uuid'"
@@ -178,18 +189,16 @@ db_delete_stale_windows() {
     for uuid_to_delete in "${DB_UUIDS[@]}"; do
         if [[ ! -v existing_lookup[$uuid_to_delete] ]]; then
             # Execute DELETE and get changes count in same session
-            local changes=""
-            changes=$(sqlite3 "$KDOITALL_DB" \
-                -cmd ".param init" \
-                -cmd ".param set :uuid '$uuid_to_delete'" \
-                "DELETE FROM app_windows WHERE uuid = :uuid; SELECT changes();")
-            
-            if [ "$changes" -eq 1 ]; then
+            db_query \
+                "DELETE FROM app_windows WHERE uuid = :uuid; SELECT changes();" \
+                ":uuid" "$uuid_to_delete"
+
+            if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
                 debug_log "$function_name" "DELETED: Stale window with uuid='$uuid_to_delete'"
                 debug_log "$function_name" "Deleted stale window: $uuid_to_delete"
                 info_log "$function_name" "Stale window cleaned: $uuid_to_delete"
             else
-                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database (changes=$changes)"
+                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database"
             fi
         else
             debug_log "$function_name" "KEPT: uuid='$uuid_to_delete' still exists"
@@ -234,16 +243,17 @@ db_get_window_name() {
     validate_parameter_pass "$uuid" "uuid" || return 1
 
     # Get Window Name for UUID from 'windows' table
-    window_name=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :uuid '$uuid'" \
-        "SELECT window_name FROM app_windows WHERE uuid = :uuid;" 2>/dev/null)
+    db_query \
+        "SELECT window_name FROM app_windows WHERE uuid = :uuid;" \
+        ":uuid" "$uuid"
 
-    if [[ -z "$window_name" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_WINDOW_NAME_NOT_FOUND" "$uuid"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    window_name="${DB_RESULT[0]}"
 
     # Pass Window Name
     debug_log "$function_name" "'$uuid' → '$window_name'"
@@ -262,16 +272,17 @@ db_get_uuid() {
     validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Get UUID for Window Name from 'windows' table
-    uuid=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window_name '$window_name'" \
-        "SELECT uuid FROM app_windows WHERE window_name = :window_name;" 2>/dev/null)
+    db_query \
+        "SELECT uuid FROM app_windows WHERE window_name = :window_name;" \
+        ":window_name" "$window_name"
 
-    if [[ -z "$uuid" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    uuid="${DB_RESULT[0]}"
 
     # Pass UUID
     debug_log "$function_name" "'$window_name' → '$uuid'"
@@ -290,16 +301,17 @@ db_get_class() {
     validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Get Class for Window Name from 'windows' table
-    class=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window_name '$window_name'" \
-        "SELECT class FROM app_windows WHERE window_name = :window_name;" 2>/dev/null)
+    db_query \
+        "SELECT class FROM app_windows WHERE window_name = :window_name;" \
+        ":window_name" "$window_name"
 
-    if [[ -z "$class" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    class="${DB_RESULT[0]}"
 
     # Pass Class
     debug_log "$function_name" "'$window_name' → '$class'"
@@ -318,16 +330,17 @@ db_get_window_title() {
     validate_parameter_pass "$window_name" "window_name" || return 1
 
     # Get Window Title for Window Name from 'windows' table
-    window_title=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window_name '$window_name'" \
-        "SELECT window_title FROM app_windows WHERE window_name = :window_name;" 2>/dev/null)
+    db_query \
+        "SELECT window_title FROM app_windows WHERE window_name = :window_name;" \
+        ":window_name" "$window_name"
 
-    if [[ -z "$window_title" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "$window_name"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    window_title="${DB_RESULT[0]}"
 
     # Pass Window Title
     debug_log "$function_name" "'$window_name' → '$window_title'"
@@ -349,17 +362,18 @@ db_get_tab_by_tab_name() {
     validate_parameter_pass "$tab_name" "tab_name" || return 1
 
     # Get Tab Number for Window Name & Tab Name from 'tabs' table
-    tab_number=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window_name '$window_name'" \
-        -cmd ".param set :tab_name '$tab_name'" \
-        "SELECT tab_number FROM tabs WHERE window_name = :window_name AND tab_name = :tab_name;" 2>/dev/null)
+    db_query \
+        "SELECT tab_number FROM tabs WHERE window_name = :window_name AND tab_name = :tab_name;" \
+        ":window_name" "$window_name" \
+        ":tab_name" "$tab_name"
 
-    if [[ -z "$tab_number" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_TAB_NUMBER_NOT_FOUND"  "$window_name - $tab_name"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    tab_number="${DB_RESULT[0]}"
 
     # Pass Tab Number
     debug_log "$function_name" "'$window_name' '$tab_name' → '$tab_number'"
@@ -379,10 +393,7 @@ db_get_app_metadata_status() {
 
     # Single query to check what metadata is already populated
     # Returns pipe-separated: pid_status|title_pattern|display_name|app_class|launch_time_ms|launch_time_samples
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".separator '|'" \
+    db_query \
         "SELECT
             COALESCE(CAST(supports_pid_validation AS TEXT), ''),
             COALESCE(window_title_pattern, ''),
@@ -390,13 +401,16 @@ db_get_app_metadata_status() {
             COALESCE(app_class, ''),
             COALESCE(CAST(launch_time_ms AS TEXT), '0'),
             COALESCE(CAST(launch_time_samples AS TEXT), '0')
-         FROM applications WHERE app_id = :app_id;" 2>/dev/null)
+         FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
 
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
         debug_function_exit "$function_name"
         return 1
     fi
+
+    result="${DB_RESULT[0]}"
 
     debug_log "$function_name" "Metadata status for $app_id: $result"
     debug_function_exit "$function_name"
@@ -413,7 +427,6 @@ db_set_post_launch_metadata() {
     local expected_time="$6"
     local measured_time="$7"
     local function_name="db_set_post_launch_metadata"
-    local changes=""
 
     debug_function_enter "$function_name" "$@"
 
@@ -421,15 +434,7 @@ db_set_post_launch_metadata() {
 
     # Single UPDATE — empty parameters mean "keep existing value"
     # launch_time_samples increments only when measured_time is provided
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :app_id '$app_id'" \
-        -cmd ".param set :supports_pid '$supports_pid'" \
-        -cmd ".param set :process_name '$process_name'" \
-        -cmd ".param set :exe_path '$executable_path'" \
-        -cmd ".param set :title_pattern '$title_pattern'" \
-        -cmd ".param set :expected_time '$expected_time'" \
-        -cmd ".param set :measured_time '$measured_time'" \
+    db_query \
         "UPDATE applications SET
             supports_pid_validation = CASE WHEN :supports_pid != '' THEN CAST(:supports_pid AS INTEGER) ELSE supports_pid_validation END,
             process_name = CASE WHEN :process_name != '' THEN :process_name ELSE process_name END,
@@ -439,9 +444,16 @@ db_set_post_launch_metadata() {
             last_launch_time_ms = CASE WHEN :measured_time != '' THEN CAST(:measured_time AS INTEGER) ELSE last_launch_time_ms END,
             launch_time_samples = CASE WHEN :measured_time != '' THEN COALESCE(launch_time_samples, 0) + 1 ELSE launch_time_samples END
          WHERE app_id = :app_id;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":app_id" "$app_id" \
+        ":supports_pid" "$supports_pid" \
+        ":process_name" "$process_name" \
+        ":exe_path" "$executable_path" \
+        ":title_pattern" "$title_pattern" \
+        ":expected_time" "$expected_time" \
+        ":measured_time" "$measured_time"
 
-    if [[ "$changes" -eq 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
         debug_function_exit "$function_name"
         return 1

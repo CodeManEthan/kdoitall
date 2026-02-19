@@ -93,10 +93,15 @@ source "${LIB_DIR}/utils/validators.sh"
 # ============================================================================
 # LAYER 3 - Core Services (depend on foundation + core utilities)
 # ============================================================================
+# shellcheck source=../lib/db/helpers.sh
+source "${LIB_DIR}/db/helpers.sh"
 # shellcheck source=../lib/core/database.sh
 source "${LIB_DIR}/core/database.sh"
 # shellcheck source=../lib/core/ydotool.sh
 source "${LIB_DIR}/core/ydotool.sh"
+
+# Start persistent database server
+db_server_start
 
 # Set up Ctrl+C handler
 cleanup_on_exit() {
@@ -105,10 +110,13 @@ cleanup_on_exit() {
         echo ""
         echo "⚠️  Operation interrupted by user"
     fi
-    
+
+    # Stop the database server
+    db_server_stop
+
     # Kill background jobs
     jobs -p | xargs -r kill 2>/dev/null
-    
+
     exit $exit_code
 }
 

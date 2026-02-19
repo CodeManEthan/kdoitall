@@ -16,14 +16,13 @@ db_set_screen_alias() {
     validate_parameter_pass "$alias" "alias" || return 1
     validate_parameter_pass "$target" "target" || return 1
 
-    sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :alias '$alias'" \
-        -cmd ".param set :target '$target'" \
+    db_query \
         "INSERT OR REPLACE INTO screen_aliases (alias, target)
-         VALUES (:alias, :target);" 2>/dev/null
+         VALUES (:alias, :target);" \
+        ":alias" "$alias" \
+        ":target" "$target"
 
-    if [[ $? -ne 0 ]]; then
+    if [[ "$DB_STATUS" != "OK" ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set screen alias: $alias -> $target"
         debug_function_exit "$function_name"
         return 1
@@ -37,19 +36,17 @@ db_set_screen_alias() {
 db_remove_screen_alias() {
     local alias="$1"
     local function_name="db_remove_screen_alias"
-    local changes=""
 
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$alias" "alias" || return 1
 
-    changes=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :alias '$alias'" \
+    db_query \
         "DELETE FROM screen_aliases WHERE alias = :alias;
-         SELECT changes();" 2>/dev/null)
+         SELECT changes();" \
+        ":alias" "$alias"
 
-    if [[ "$changes" -eq 1 ]]; then
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
         debug_log "$function_name" "Removed screen alias: $alias"
         debug_function_exit "$function_name"
         return 0
@@ -63,60 +60,55 @@ db_remove_screen_alias() {
 db_get_screen_alias() {
     local alias="$1"
     local function_name="db_get_screen_alias"
-    local result=""
 
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$alias" "alias" || return 1
 
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :alias '$alias'" \
-        "SELECT target FROM screen_aliases WHERE alias = :alias;" 2>/dev/null)
+    db_query \
+        "SELECT target FROM screen_aliases WHERE alias = :alias;" \
+        ":alias" "$alias"
 
-    if [[ -z "$result" ]]; then
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_log "$function_name" "Screen alias not found: $alias"
         debug_function_exit "$function_name"
         return 1
     fi
 
-    debug_log "$function_name" "Resolved screen alias: $alias -> $result"
+    debug_log "$function_name" "Resolved screen alias: $alias -> ${DB_RESULT[0]}"
     debug_function_exit "$function_name"
-    echo "$result"
+    echo "${DB_RESULT[0]}"
     return 0
 }
 
 db_list_screen_aliases() {
     local function_name="db_list_screen_aliases"
-    local result=""
 
     debug_function_enter "$function_name"
 
-    result=$(sqlite3 "$KDOITALL_DB" \
-        "SELECT alias, target FROM screen_aliases ORDER BY alias;" 2>/dev/null)
+    db_query \
+        "SELECT alias, target FROM screen_aliases ORDER BY alias;"
 
     debug_log "$function_name" "Listed screen aliases"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 
 db_get_aliases_for_target() {
     local target="$1"
     local function_name="db_get_aliases_for_target"
-    local result=""
 
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$target" "target" || return 1
 
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :target '$target'" \
-        "SELECT alias FROM screen_aliases WHERE target = :target ORDER BY alias;" 2>/dev/null)
+    db_query \
+        "SELECT alias FROM screen_aliases WHERE target = :target ORDER BY alias;" \
+        ":target" "$target"
 
-    debug_log "$function_name" "Found aliases for target '$target': $result"
+    debug_log "$function_name" "Found aliases for target '$target'"
     debug_function_exit "$function_name"
-    echo "$result"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
