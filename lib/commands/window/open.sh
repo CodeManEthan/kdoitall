@@ -51,10 +51,10 @@ window_open() {
         return 1
     fi
 
-    # Parse the tab-separated definition
+    # Parse the pipe-separated definition
     local def_window_name def_workspace def_app_id def_launch_function
     local def_desktop def_screen def_position def_parameters def_display_order
-    IFS=$'\t' read -r def_window_name def_workspace def_app_id def_launch_function \
+    IFS='|' read -r def_window_name def_workspace def_app_id def_launch_function \
         def_desktop def_screen def_position def_parameters def_display_order <<< "$definition"
 
     debug_log "$function_name" "Re-launching '$window_name': app=$def_app_id, func=$def_launch_function, desktop=$def_desktop, screen=$def_screen, position=$def_position"

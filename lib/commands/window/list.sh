@@ -15,25 +15,9 @@ window_list() {
 
     debug_function_enter "$function_name" "$@"
 
-    local query=""
     local result=""
 
-    if [[ -n "$workspace_filter" ]]; then
-        result=$(sqlite3 "$KDOITALL_DB" \
-            -cmd ".param init" \
-            -cmd ".param set :workspace '$workspace_filter'" \
-            ".mode tabs
-             SELECT window_name, workspace_name, class, COALESCE(window_title, 'N/A'), uuid
-             FROM app_windows
-             WHERE workspace_name = :workspace
-             ORDER BY window_name;" 2>/dev/null)
-    else
-        result=$(sqlite3 "$KDOITALL_DB" \
-            ".mode tabs
-             SELECT window_name, workspace_name, class, COALESCE(window_title, 'N/A'), uuid
-             FROM app_windows
-             ORDER BY workspace_name, window_name;" 2>/dev/null)
-    fi
+    result=$(db_list_tracked_windows "$workspace_filter")
 
     if [[ -z "$result" ]]; then
         if [[ -n "$workspace_filter" ]]; then
@@ -50,7 +34,7 @@ window_list() {
     printf "%s\n" "$(printf '%.0s─' {1..120})" >&3
 
     # Print each window with live status check
-    while IFS=$'\t' read -r window_name workspace class title uuid; do
+    while IFS='|' read -r window_name workspace class title uuid; do
         local status="unknown"
         # Check if window is still alive via kdotool
         if kdotool getwindowname "$uuid" &>/dev/null; then

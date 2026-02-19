@@ -35,10 +35,7 @@ window_status() {
     local class=""
     local stored_title=""
 
-    workspace_name=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".param init" \
-        -cmd ".param set :window_name '$window_name'" \
-        "SELECT workspace_name FROM app_windows WHERE window_name = :window_name;" 2>/dev/null)
+    workspace_name=$(db_get_window_workspace "$window_name")
     class=$(db_get_class "$window_name")
     stored_title=$(db_get_window_title "$window_name")
 

@@ -563,23 +563,8 @@ display_status_active_workspaces() {
     debug_function_enter "$function_name"
 
     # Query active workspace windows with display info
-    # Returns: workspace_name|window_name|uuid|display_name|window_title|defined_position
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".separator '|'" \
-        "SELECT
-            aw.workspace_name,
-            aw.window_name,
-            aw.uuid,
-            COALESCE(a.display_name, aw.class),
-            COALESCE(aw.window_title, ''),
-            COALESCE(wd.screen, ''),
-            COALESCE(wd.position, '')
-         FROM app_windows aw
-         LEFT JOIN window_definitions wd ON aw.window_name = wd.window_name
-         LEFT JOIN applications a ON wd.app_id = a.app_id
-         INNER JOIN workspace_definitions ws ON aw.workspace_name = ws.workspace_name
-         WHERE ws.is_active = TRUE
-         ORDER BY aw.workspace_name, wd.display_order;" 2>/dev/null)
+    # Returns: workspace_name|window_name|uuid|display_name|window_title|screen|position
+    result=$(db_get_active_workspace_windows)
 
     if [[ -z "$result" ]]; then
         echo "" >&3
@@ -637,16 +622,7 @@ display_status_untracked_windows() {
     debug_function_enter "$function_name"
 
     # Query windows not belonging to a real workspace
-    result=$(sqlite3 "$KDOITALL_DB" \
-        -cmd ".separator '|'" \
-        "SELECT
-            aw.window_name,
-            aw.uuid,
-            aw.class,
-            COALESCE(aw.window_title, '')
-         FROM app_windows aw
-         WHERE aw.workspace_name = '~auto:workspace'
-         ORDER BY aw.class;" 2>/dev/null)
+    result=$(db_get_untracked_windows)
 
     if [[ -z "$result" ]]; then
         echo "" >&3

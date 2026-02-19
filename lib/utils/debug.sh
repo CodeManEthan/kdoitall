@@ -207,7 +207,7 @@ debug_app_windows() {
     fi
     
     local count=""
-    count=$(sqlite3 "$KDOITALL_DB" "SELECT COUNT(*) FROM app_windows" 2>/dev/null || echo "0")
+    count=$(db_count_tracked_windows)
     
     local header=""
     header="${COLOR_GRAY}[DEBUG $(date +%H:%M:%S.%3N)]${COLOR_RESET} ${COLOR_BLUE}app_windows table ($count rows):${COLOR_RESET}"
@@ -229,7 +229,7 @@ debug_app_windows() {
         [ "$should_display" = "true" ] && echo -e "$col_header" >&2
         [ "$should_display" = "true" ] && echo -e "$separator" >&2
         
-        sqlite3 "$KDOITALL_DB" "SELECT workspace_name, window_name, uuid, class, is_tab FROM app_windows" | while IFS='|' read -r workspace window uuid class is_tab; do
+        db_dump_tracked_windows | while IFS='|' read -r workspace window uuid class is_tab; do
             local row=""
             row="${COLOR_GRAY}[DEBUG $(date +%H:%M:%S.%3N)]${COLOR_RESET}   $workspace | $window | $uuid | $class | $is_tab"
             _log_to_file "$row"
