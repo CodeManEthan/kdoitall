@@ -9,6 +9,8 @@ check_and_set_guard "_KDOITALL_APP_SAFE_MODE_LOADED" || return 0
 # Source required modules
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../db/window-definitions.sh
+source "${LIB_DIR}/db/window-definitions.sh"
 # shellcheck source=../utils/display.sh
 source "${LIB_DIR}/utils/display.sh"
 # shellcheck source=../core/core.sh
@@ -170,46 +172,54 @@ safe_mode_launch_and_detect() {
 
 detect_safe_mode_apps() {
     local workspace_name="$1"
-    local script_path="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
     local function_name="detect_safe_mode_apps"
     local -a safe_mode_apps=()
-    
+
     debug_function_enter "$function_name" "$@"
-    
+
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
-    validate_file_exists "$script_path" || return 1
-    
-    # Parse workspace script to find all launch_by_app_id calls
-    while IFS= read -r line; do
-        if [[ "$line" =~ launch_by_app_id[[:space:]]+\"[^\"]+\"[[:space:]]+\"[^\"]+\"[[:space:]]+\"([^\"]+)\" ]]; then
-            local app_id="${BASH_REMATCH[1]}"
-            
-            # Check if app has custom file
-            local has_custom_file=false
-            if [[ -f "$LIB_DIR/launchers/${app_id}.sh" ]]; then
-                has_custom_file=true
-            fi
-            
-            # Check if safe mode completed
-            local safe_mode_done
-            safe_mode_done=$(db_get_safe_mode_completed "$app_id")
-            
-            # If desktop launch, no custom file, and not validated → needs safe mode
-            if [[ "$has_custom_file" == "false" ]] && \
-               [[ "$safe_mode_done" != "1" ]]; then
-                safe_mode_apps+=("$app_id")
 
-                db_set_requires_safe_mode "$app_id" "TRUE"
+    # Get distinct app IDs from window_definitions for this workspace
+    local app_ids=""
+    app_ids=$(db_get_workspace_app_ids "$workspace_name")
 
-                debug_log "$function_name" "App needs safe mode: $app_id"
-            fi
+    if [[ -z "$app_ids" ]]; then
+        debug_log "$function_name" "No apps found in window_definitions for workspace: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    while IFS= read -r app_id; do
+        # Check if app has a window class (has detection data)
+        local app_class=""
+        app_class=$(db_get_app_class "$app_id")
+
+        if [[ -n "$app_class" ]]; then
+            debug_log "$function_name" "App has class, skipping: $app_id"
+            continue
         fi
-    done < "$script_path"
-    
+
+        # Check if safe mode has been completed (ran or user opted out)
+        local safe_mode_done=""
+        safe_mode_done=$(db_get_safe_mode_completed "$app_id")
+
+        if [[ "$safe_mode_done" == "1" ]]; then
+            debug_log "$function_name" "Safe mode completed, skipping: $app_id"
+            continue
+        fi
+
+        # App needs safe mode
+        safe_mode_apps+=("$app_id")
+        db_set_requires_safe_mode "$app_id" "TRUE"
+        debug_log "$function_name" "App needs safe mode: $app_id"
+    done <<< "$app_ids"
+
     debug_function_exit "$function_name"
-    
+
     # Return array as newline-separated list
-    printf '%s\n' "${safe_mode_apps[@]}"
+    if [[ ${#safe_mode_apps[@]} -gt 0 ]]; then
+        printf '%s\n' "${safe_mode_apps[@]}"
+    fi
 }
 
 prompt_safe_mode() {

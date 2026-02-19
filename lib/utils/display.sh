@@ -348,20 +348,19 @@ display_applications_list() {
     echo "" >&3
     echo "Available Applications (Filter: $filter)" >&3
     echo "" >&3
-    printf "%-30s %-25s %-9s %-8s\n" "NAME" "APP_ID" "TERMINAL" "DESKTOP" >&3
-    printf "%-30s %-25s %-9s %-8s\n" "$(printf '%.0s-' {1..30})" "$(printf '%.0s-' {1..25})" "$(printf '%.0s-' {1..9})" "$(printf '%.0s-' {1..8})" >&3
+    printf "%-30s %-30s %s\n" "NAME" "APP_ID" "LAUNCH TYPE" >&3
+    printf "%-30s %-30s %s\n" "$(printf '%.0s─' {1..28})" "$(printf '%.0s─' {1..28})" "$(printf '%.0s─' {1..20})" >&3
     
     # Parse and display results from db_list_applications
+    local line_counter=1
     while IFS='|' read -r app_id display_name has_terminal_launch has_desktop_launch; do
         # Skip empty lines
         [[ -z "$app_id" ]] && continue
         
-        # Convert boolean to symbols
-        local terminal_status="✗"
-        [[ "$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE" ]] && terminal_status="✓"
-        
-        local desktop_status="✗"
-        [[ "$has_desktop_launch" == "1" || "$has_desktop_launch" == "TRUE" ]] && desktop_status="✓"
+        local types=""
+        [[ "$has_desktop_launch" == "1" || "$has_desktop_launch" == "TRUE" ]] && types+="[desktop] "
+        [[ "$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE" ]] && types+="[terminal] "
+        types="${types% }"
         
         # Truncate display_name if too long
         local display_short="$display_name"
@@ -371,15 +370,21 @@ display_applications_list() {
         
         # Truncate app_id if too long
         local app_id_short="$app_id"
-        if [[ ${#app_id} -gt 23 ]]; then
-            app_id_short="${app_id:0:20}..."
+        if [[ ${#app_id} -gt 28 ]]; then
+            app_id_short="${app_id:0:25}..."
         fi
         
-        # Format and display
-        printf "%-30s %-25s %-9s %-8s\n" \
-            "$display_short" "$app_id_short" "$terminal_status" "$desktop_status" >&3
+        # Format and display with alternating dim rows
+        if (( line_counter % 2 == 0 )); then
+            printf "\e[2m%-30s %-30s %s\e[0m\n" \
+                "$display_short" "$app_id_short" "$types" >&3
+        else
+            printf "%-30s %-30s %s\n" \
+                "$display_short" "$app_id_short" "$types" >&3
+        fi
         
-        ((line_count++))
+        ((line_counter++))
+        ((line_count++)) || true
     done <<< "$app_list"
     
     echo "" >&3

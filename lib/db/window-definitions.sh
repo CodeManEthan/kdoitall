@@ -188,3 +188,26 @@ db_window_definition_exists() {
         return 1
     fi
 }
+
+db_get_workspace_app_ids() {
+    local workspace_name="$1"
+    local function_name="db_get_workspace_app_ids"
+    local result=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    result=$(sqlite3 "$KDOITALL_DB" \
+        -cmd ".param init" \
+        -cmd ".param set :workspace_name '$workspace_name'" \
+        "SELECT DISTINCT app_id
+         FROM window_definitions
+         WHERE workspace_name = :workspace_name
+         ORDER BY app_id;" 2>/dev/null)
+
+    debug_log "$function_name" "Retrieved app IDs for workspace: $workspace_name"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
