@@ -46,8 +46,7 @@ db_delete_workspace() {
     
     # Delete workspace
     db_query \
-        "DELETE FROM workspace_definitions WHERE workspace_name = :workspace_name;
-         SELECT changes();" \
+        "DELETE FROM workspace_definitions WHERE workspace_name = :workspace_name;" \
         ":workspace_name" "$workspace_name"
     
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
@@ -165,8 +164,7 @@ db_set_workspace_last_opened() {
     db_query \
         "UPDATE workspace_definitions 
          SET last_opened_at = datetime('now')
-         WHERE workspace_name = :workspace_name;
-         SELECT changes();" \
+         WHERE workspace_name = :workspace_name;" \
         ":workspace_name" "$workspace_name"
     
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
@@ -196,8 +194,7 @@ db_set_workspace_active() {
     db_query \
         "UPDATE workspace_definitions 
          SET is_active = :is_active
-         WHERE workspace_name = :workspace_name;
-         SELECT changes();" \
+         WHERE workspace_name = :workspace_name;" \
         ":workspace_name" "$workspace_name" \
         ":is_active" "$is_active"
     
@@ -249,8 +246,7 @@ db_mark_workspace_opened() {
     db_query \
         "UPDATE workspace_definitions 
          SET is_active = TRUE, last_opened_at = datetime('now')
-         WHERE workspace_name = :workspace_name;
-         SELECT changes();" \
+         WHERE workspace_name = :workspace_name;" \
         ":workspace_name" "$workspace_name"
     
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then

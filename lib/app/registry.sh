@@ -162,33 +162,14 @@ registry_scan_applications() {
                 fi
             fi
             
-            # Add application to database with all metadata
-            if db_add_application "$app_id" "$display_name" "$desktop_file_path" \
+            # Add application to database with all metadata in a single call
+            if db_add_application_full "$app_id" "$display_name" "$desktop_file_path" \
                                   "$app_directory_path" "$terminal_command" "$app_class" \
-                                  "$has_terminal_launch" "$has_desktop_launch"; then
+                                  "$has_terminal_launch" "$has_desktop_launch" \
+                                  "$launch_mode" "$window_title_pattern" \
+                                  "$supports_pid_validation" "$process_name"; then
                 debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
                 ((app_count++))
-                
-                # Set launch mode if extracted from metadata
-                if [[ -n "$launch_mode" ]]; then
-                    db_set_launch_mode "$app_id" "$launch_mode"
-                fi
-                
-                # Set window title pattern if extracted from metadata
-                if [[ -n "$window_title_pattern" ]]; then
-                    db_set_window_title_pattern "$app_id" "$window_title_pattern"
-                fi
-                
-                # Set PID validation data if seeded from registry
-                if [[ -n "$supports_pid_validation" && -n "$process_name" ]]; then
-                    local pid_support=""
-                    if [[ "$supports_pid_validation" -eq 1 ]]; then
-                        pid_support="true"
-                    else
-                        pid_support="false"
-                    fi
-                    db_set_pid_validation_data "$app_id" "$pid_support" "$process_name" ""
-                fi
             else
                 debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
             fi

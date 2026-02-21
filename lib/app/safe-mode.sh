@@ -120,24 +120,13 @@ safe_mode_launch_and_detect() {
                 title_pattern=$(safe_mode_manual_title_pattern_selection "$new_uuid" "$window_title")
             fi
             
-            # Store all metadata
-            safe_mode_store_metadata "$app_id" "$new_uuid"
+            # Store all safe-mode metadata in a single database call
+            db_set_safe_mode_results "$app_id" "$detected_class" \
+                "$pid_supported" "$pid_process_name" "$pid_exe_path" \
+                "$title_pattern" "$launch_mode"
             
-            if [[ "$pid_supported" == "true" ]]; then
-                db_set_pid_validation_data "$app_id" "true" "$pid_process_name" "$pid_exe_path"
-            else
-                db_set_pid_validation_data "$app_id" "false" "" ""
-            fi
-            
-            if [[ -n "$title_pattern" ]]; then
-                db_set_window_title_pattern "$app_id" "$title_pattern"
-            fi
-            
-            db_set_launch_mode "$app_id" "$launch_mode"
-            
-            # Close window and mark complete
+            # Close window
             close_window "$new_uuid"
-            db_set_safe_mode_completed "$app_id"
             
             echo "" >&3
             echo "✅ Safe mode complete for $display_name" >&3
@@ -173,53 +162,26 @@ safe_mode_launch_and_detect() {
 detect_safe_mode_apps() {
     local workspace_name="$1"
     local function_name="detect_safe_mode_apps"
-    local -a safe_mode_apps=()
 
     debug_function_enter "$function_name" "$@"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
-    # Get distinct app IDs from window_definitions for this workspace
-    local app_ids=""
-    app_ids=$(db_get_workspace_app_ids "$workspace_name")
+    # Single query: find apps needing safe mode for this workspace
+    local safe_mode_app_ids=""
+    safe_mode_app_ids=$(db_get_apps_needing_safe_mode "$workspace_name")
 
-    if [[ -z "$app_ids" ]]; then
-        debug_log "$function_name" "No apps found in window_definitions for workspace: $workspace_name"
+    if [[ -z "$safe_mode_app_ids" ]]; then
+        debug_log "$function_name" "No apps need safe mode for workspace: $workspace_name"
         debug_function_exit "$function_name"
         return 0
     fi
 
-    while IFS= read -r app_id; do
-        # Check if app has a window class (has detection data)
-        local app_class=""
-        app_class=$(db_get_app_class "$app_id")
-
-        if [[ -n "$app_class" ]]; then
-            debug_log "$function_name" "App has class, skipping: $app_id"
-            continue
-        fi
-
-        # Check if safe mode has been completed (ran or user opted out)
-        local safe_mode_done=""
-        safe_mode_done=$(db_get_safe_mode_completed "$app_id")
-
-        if [[ "$safe_mode_done" == "1" ]]; then
-            debug_log "$function_name" "Safe mode completed, skipping: $app_id"
-            continue
-        fi
-
-        # App needs safe mode
-        safe_mode_apps+=("$app_id")
-        db_set_requires_safe_mode "$app_id" "TRUE"
-        debug_log "$function_name" "App needs safe mode: $app_id"
-    done <<< "$app_ids"
+    # Batch mark all qualifying apps in one query
+    db_mark_apps_requiring_safe_mode "$workspace_name"
 
     debug_function_exit "$function_name"
-
-    # Return array as newline-separated list
-    if [[ ${#safe_mode_apps[@]} -gt 0 ]]; then
-        printf '%s\n' "${safe_mode_apps[@]}"
-    fi
+    echo "$safe_mode_app_ids"
 }
 
 prompt_safe_mode() {

@@ -456,10 +456,16 @@ launch_by_app_id() {
 
     debug_log "$function_name" "Obtain application properties from database."
 
-    class=$(db_get_app_class "$app_id")
-    window_title_pattern=$(db_get_window_title_pattern "$app_id")
-    launch_mode=$(db_get_launch_mode "$app_id")
-    launch_time=$(db_get_launch_time "$app_id")
+    local launch_properties=""
+    launch_properties=$(db_get_app_launch_properties "$app_id")
+
+    if [[ -z "$launch_properties" ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    IFS='|' read -r class window_title_pattern launch_mode launch_time <<< "$launch_properties"
 
     if [[ -z "$launch_mode" ]]; then
         launch_mode="$LAUNCH_MODE_UNKNOWN"

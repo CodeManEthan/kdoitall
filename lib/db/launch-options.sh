@@ -51,8 +51,7 @@ db_delete_launch_options_for_app() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     db_query \
-        "DELETE FROM launch_options WHERE app_id = :app_id;
-         SELECT changes();" \
+        "DELETE FROM launch_options WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
     debug_log "$function_name" "Deleted ${DB_RESULT[0]:-0} launch options for $app_id"

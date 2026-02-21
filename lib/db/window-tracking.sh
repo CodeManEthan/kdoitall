@@ -122,6 +122,10 @@ db_add_existing_windows() {
     
     debug_log "$function_name" "===== ARRAYS FROM KDOTOOL ====="
 
+    # Build JSON array of window data for batch insert
+    local json_rows="["
+    local first="true"
+    local i=""
     for i in "${!CURRENT_UUIDS[@]}"; do
         local class="${CURRENT_CLASSES[$i]}"
         local uuid="${CURRENT_UUIDS[$i]}"
@@ -137,73 +141,80 @@ db_add_existing_windows() {
         # Create unique window name with counter
         window_name="~auto:${class}:${class_counts[$class]}"
 
-        # Check if UUID already exists first
-        db_query \
-            "SELECT window_name FROM app_windows WHERE uuid = :uuid;" \
-            ":uuid" "$uuid"
-
-        if [[ ${#DB_RESULT[@]} -gt 0 ]]; then
-            continue
-        fi
-
-        db_query \
-            "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, window_title, is_tab) 
-            VALUES (:workspace, :window, :uuid, :class, :window_title, FALSE);
-            SELECT changes();" \
-            ":workspace" "$workspace_name" \
-            ":window" "$window_name" \
-            ":uuid" "$uuid" \
-            ":class" "$class" \
-            ":window_title" "$window_title"
-
-        if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
-            debug_log "$function_name" "✓ INSERTED: window_name='$window_name', uuid='$uuid', class='$class', window_title='$window_title'"
+        if [[ "$first" == "true" ]]; then
+            first="false"
         else
-            debug_log "$function_name" "✗ INSERT FAILED (window_name conflict?): window_name='$window_name', uuid='$uuid'"
+            json_rows+=","
         fi
+
+        # Escape quotes in values for JSON safety
+        local safe_title="${window_title//\\/\\\\}"
+        safe_title="${safe_title//\"/\\\"}"
+        local safe_class="${class//\\/\\\\}"
+        safe_class="${safe_class//\"/\\\"}"
+        local safe_name="${window_name//\\/\\\\}"
+        safe_name="${safe_name//\"/\\\"}"
+
+        json_rows+="{\"w\":\"$safe_name\",\"u\":\"$uuid\",\"c\":\"$safe_class\",\"t\":\"$safe_title\"}"
     done
+    json_rows+="]"
+
+    # Single INSERT: batch all windows at once using json_each
+    db_query \
+        "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, window_title, is_tab)
+         SELECT :workspace,
+                json_extract(value, '$.w'),
+                json_extract(value, '$.u'),
+                json_extract(value, '$.c'),
+                json_extract(value, '$.t'),
+                FALSE
+         FROM json_each(:rows);" \
+        ":workspace" "$workspace_name" \
+        ":rows" "$json_rows"
+
+    local inserted_count="${DB_RESULT[0]:-0}"
+    debug_log "$function_name" "Batch inserted $inserted_count new window(s) out of ${#CURRENT_UUIDS[@]} total"
 
     debug_function_exit "$function_name"
 }
 
 db_delete_stale_windows() {
-    local -A existing_lookup=()
-    local uuid=""
-    local uuid_to_delete=""
     local function_name="db_delete_stale_windows"
 
     debug_function_enter "$function_name"
 
     # Validate that required global arrays are populated
     validate_global_array_populated CURRENT_UUIDS "CURRENT_UUIDS" || return 1
-    validate_global_array_populated DB_UUIDS "DB_UUIDS" || return 1
 
-    # Build lookup table for O(1) checking
+    # Build JSON array of current UUIDs for single-query delete
+    local json_array="["
+    local first="true"
+    local uuid=""
     for uuid in "${CURRENT_UUIDS[@]}"; do
-        existing_lookup["$uuid"]=1
-    done
-    
-    debug_log "$function_name" "Built lookup table with ${#existing_lookup[@]} entries"
-    
-    # Delete UUIDs that don't exist anymore
-    for uuid_to_delete in "${DB_UUIDS[@]}"; do
-        if [[ ! -v existing_lookup[$uuid_to_delete] ]]; then
-            # Execute DELETE and get changes count in same session
-            db_query \
-                "DELETE FROM app_windows WHERE uuid = :uuid; SELECT changes();" \
-                ":uuid" "$uuid_to_delete"
-
-            if [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
-                debug_log "$function_name" "DELETED: Stale window with uuid='$uuid_to_delete'"
-                debug_log "$function_name" "Deleted stale window: $uuid_to_delete"
-                info_log "$function_name" "Stale window cleaned: $uuid_to_delete"
-            else
-                debug_log "$function_name" "DELETE FAILED: uuid='$uuid_to_delete' not found in database"
-            fi
+        if [[ "$first" == "true" ]]; then
+            first="false"
         else
-            debug_log "$function_name" "KEPT: uuid='$uuid_to_delete' still exists"
+            json_array+=","
         fi
+        json_array+="\"$uuid\""
     done
+    json_array+="]"
+
+    # Single DELETE: remove all tracked windows whose UUID is not in the current set
+    db_query \
+        "DELETE FROM app_windows
+         WHERE uuid IS NOT NULL
+         AND uuid NOT IN (SELECT value FROM json_each(:current_uuids));" \
+        ":current_uuids" "$json_array"
+
+    local deleted_count="${DB_RESULT[0]:-0}"
+
+    if [[ "$deleted_count" -gt 0 ]]; then
+        debug_log "$function_name" "Deleted $deleted_count stale window(s)"
+        info_log "$function_name" "Cleaned $deleted_count stale window(s)"
+    else
+        debug_log "$function_name" "No stale windows to delete"
+    fi
 
     debug_function_exit "$function_name"
 }
@@ -443,8 +454,7 @@ db_set_post_launch_metadata() {
             launch_time_ms = CASE WHEN :expected_time != '' THEN CAST(:expected_time AS INTEGER) ELSE launch_time_ms END,
             last_launch_time_ms = CASE WHEN :measured_time != '' THEN CAST(:measured_time AS INTEGER) ELSE last_launch_time_ms END,
             launch_time_samples = CASE WHEN :measured_time != '' THEN COALESCE(launch_time_samples, 0) + 1 ELSE launch_time_samples END
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":supports_pid" "$supports_pid" \
         ":process_name" "$process_name" \

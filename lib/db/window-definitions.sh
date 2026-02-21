@@ -93,8 +93,7 @@ db_delete_window_definition() {
     validate_parameter_pass "$window_name" "window_name" || return 1
 
     db_query \
-        "DELETE FROM window_definitions WHERE window_name = :window_name;
-         SELECT changes();" \
+        "DELETE FROM window_definitions WHERE window_name = :window_name;" \
         ":window_name" "$window_name"
 
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then

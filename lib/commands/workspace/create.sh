@@ -565,21 +565,38 @@ select_screen_with_retry() {
     
     debug_function_enter "$function_name"
     
+    local -A alias_lookup
+    local alias_line=""
+    local a_target=""
+    local a_alias=""
+    
     while true; do
         echo "" >&3
         echo "Detected screens:" >&3
+
+        # Prefetch all screen aliases in a single query
+        alias_lookup=()
+        alias_line=""
+        while IFS= read -r alias_line; do
+            [[ -z "$alias_line" ]] && continue
+            a_target="${alias_line%%|*}"
+            a_alias="${alias_line#*|}"
+            if [[ -n "${alias_lookup[$a_target]+_}" ]]; then
+                alias_lookup[$a_target]="${alias_lookup[$a_target]}, $a_alias"
+            else
+                alias_lookup[$a_target]="$a_alias"
+            fi
+        done <<< "$(db_get_all_screen_aliases)"
         
         # Display screens with aliases
         local out=""
         for ((out=1; out<=20; out++)); do
             if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
                 local name="${SCREEN_INFO[${out}_NAME]}"
-                local aliases=""
-                aliases=$(db_get_aliases_for_target "$name")
                 
                 local alias_display=""
-                if [[ -n "$aliases" ]]; then
-                    alias_display=" (aliases: $(echo "$aliases" | paste -sd ', '))"
+                if [[ -n "${alias_lookup[$name]+_}" ]]; then
+                    alias_display=" (aliases: ${alias_lookup[$name]})"
                 fi
                 
                 echo "  $out: ${name}${alias_display}" >&3

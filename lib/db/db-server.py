@@ -76,10 +76,14 @@ def main():
 
             rows = []
             if cursor.description:
+                # SELECT — return result rows
                 rows = [
                     "|".join(str(v) if v is not None else "" for v in row)
                     for row in cursor.fetchall()
                 ]
+            else:
+                # INSERT/UPDATE/DELETE — return affected rowcount
+                rows = [str(cursor.rowcount)]
             conn.commit()
             respond_ok(rows)
 

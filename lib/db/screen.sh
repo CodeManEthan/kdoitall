@@ -42,8 +42,7 @@ db_remove_screen_alias() {
     validate_parameter_pass "$alias" "alias" || return 1
 
     db_query \
-        "DELETE FROM screen_aliases WHERE alias = :alias;
-         SELECT changes();" \
+        "DELETE FROM screen_aliases WHERE alias = :alias;" \
         ":alias" "$alias"
 
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
@@ -108,6 +107,20 @@ db_get_aliases_for_target() {
         ":target" "$target"
 
     debug_log "$function_name" "Found aliases for target '$target'"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}
+
+db_get_all_screen_aliases() {
+    local function_name="db_get_all_screen_aliases"
+
+    debug_function_enter "$function_name"
+
+    db_query \
+        "SELECT target, alias FROM screen_aliases ORDER BY target, alias;"
+
+    debug_log "$function_name" "Retrieved all screen aliases (${#DB_RESULT[@]} rows)"
     debug_function_exit "$function_name"
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0

@@ -61,6 +61,82 @@ db_add_application() {
     return 0
 }
 
+db_add_application_full() {
+    local app_id="$1"
+    local display_name="$2"
+    local desktop_file_path="$3"
+    local app_directory_path="$4"
+    local terminal_command="$5"
+    local app_class="$6"
+    local has_terminal_launch="$7"
+    local has_desktop_launch="$8"
+    local launch_mode="${9:-}"
+    local window_title_pattern="${10:-}"
+    local supports_pid_validation="${11:-}"
+    local process_name="${12:-}"
+    local function_name="db_add_application_full"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$display_name" "display_name" || return 1
+    validate_parameter_pass "$desktop_file_path" "desktop_file_path" || return 1
+    validate_parameter_pass "$has_terminal_launch" "has_terminal_launch" || return 1
+    validate_parameter_pass "$has_desktop_launch" "has_desktop_launch" || return 1
+    
+    has_terminal_launch=$(normalize_boolean "$has_terminal_launch")
+    has_desktop_launch=$(normalize_boolean "$has_desktop_launch")
+
+    # Convert supports_pid_validation to SQLite boolean if provided
+    local supports_pid_bool=""
+    if [[ -n "$supports_pid_validation" ]]; then
+        supports_pid_bool=0
+        [[ "$supports_pid_validation" == "1" || "$supports_pid_validation" == "true" ]] && supports_pid_bool=1
+    fi
+
+    db_query \
+        "INSERT OR REPLACE INTO applications (
+            app_id, display_name, desktop_file_path,
+            app_directory_path, terminal_command, app_class,
+            has_terminal_launch, has_desktop_launch,
+            launch_mode, window_title_pattern,
+            supports_pid_validation, process_name,
+            last_validated
+        ) VALUES (
+            :app_id, :display_name, :desktop_file,
+            :app_directory_path, :terminal_command,
+            CASE WHEN :app_class != '' THEN :app_class ELSE NULL END,
+            :has_terminal_launch, :has_desktop_launch,
+            CASE WHEN :launch_mode != '' THEN :launch_mode ELSE NULL END,
+            CASE WHEN :title_pattern != '' THEN :title_pattern ELSE NULL END,
+            CASE WHEN :supports_pid != '' THEN :supports_pid ELSE NULL END,
+            CASE WHEN :process_name != '' THEN :process_name ELSE NULL END,
+            datetime('now')
+        );" \
+        ":app_id" "$app_id" \
+        ":display_name" "$display_name" \
+        ":desktop_file" "$desktop_file_path" \
+        ":app_directory_path" "$app_directory_path" \
+        ":terminal_command" "$terminal_command" \
+        ":app_class" "$app_class" \
+        ":has_terminal_launch" "$has_terminal_launch" \
+        ":has_desktop_launch" "$has_desktop_launch" \
+        ":launch_mode" "$launch_mode" \
+        ":title_pattern" "$window_title_pattern" \
+        ":supports_pid" "$supports_pid_bool" \
+        ":process_name" "$process_name"
+    
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Added/updated application (full): $app_id ($display_name)"
+    debug_function_exit "$function_name"
+    return 0
+}
+
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"
@@ -72,8 +148,7 @@ db_delete_application() {
     
     # Delete application
     db_query \
-        "DELETE FROM applications WHERE app_id = :app_id;
-         SELECT changes();" \
+        "DELETE FROM applications WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
@@ -100,8 +175,7 @@ db_clear_safe_mode_data() {
          SET safe_mode_completed = FALSE,
              safe_mode_timestamp = NULL,
              app_class = NULL
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
@@ -249,6 +323,37 @@ db_get_application() {
     return 0
 }
 
+db_get_app_launch_properties() {
+    local app_id="$1"
+    local function_name="db_get_app_launch_properties"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    
+    db_query \
+        "SELECT COALESCE(app_class, ''),
+                COALESCE(window_title_pattern, ''),
+                COALESCE(launch_mode, ''),
+                COALESCE(launch_time_ms, 5000)
+         FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    result="${DB_RESULT[0]}"
+    
+    debug_log "$function_name" "Retrieved launch properties for $app_id: $result"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
 db_get_display_name() {
     local app_id="$1"
     local function_name="db_get_display_name"
@@ -314,8 +419,7 @@ db_set_app_class() {
     db_query \
         "UPDATE applications 
          SET app_class = :class
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":class" "$class"
     
@@ -413,8 +517,7 @@ db_set_launch_mode() {
     db_query \
         "UPDATE applications 
          SET launch_mode = :launch_mode
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":launch_mode" "$launch_mode"
     
@@ -463,8 +566,7 @@ db_set_window_title_pattern() {
     db_query \
         "UPDATE applications 
          SET window_title_pattern = :pattern
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":pattern" "$pattern"
     
@@ -529,8 +631,7 @@ db_set_pid_validation_data() {
          SET supports_pid_validation = :supports_pid,
              process_name = :process_name,
              executable_path = :executable_path
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":supports_pid" "$supports_pid_bool" \
         ":process_name" "$process_name" \
@@ -604,43 +705,22 @@ db_set_launch_time() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$measured_time_ms" "measured_time_ms" || return 1
     
-    # Get current data
-    local current_samples=""
-    local current_expected=""
+    # Single UPDATE with rolling average computed in SQL:
+    # - First sample (samples=0): measured * 3/2 (50% buffer)
+    # - Subsequent: ((avg * samples + measured) / (samples + 1)) * 5/4 (25% buffer)
     db_query \
-        "SELECT COALESCE(launch_time_samples, 0) FROM applications WHERE app_id = :app_id;" \
-        ":app_id" "$app_id"
-    current_samples="${DB_RESULT[0]:-0}"
-
-    db_query \
-        "SELECT COALESCE(launch_time_ms, 0) FROM applications WHERE app_id = :app_id;" \
-        ":app_id" "$app_id"
-    current_expected="${DB_RESULT[0]:-0}"
-    
-    # Calculate new expected time (rolling average with buffer)
-    local new_expected=""
-    if [[ "$current_samples" -eq 0 ]]; then
-        # First sample: use measured time + 50% buffer
-        new_expected=$(echo "scale=0; ($measured_time_ms * 3 / 2)" | bc)
-    else
-        # Rolling average: (current_avg * samples + new_measurement) / (samples + 1)
-        local avg=""
-        avg=$(echo "scale=0; ($current_expected * $current_samples + $measured_time_ms) / ($current_samples + 1)" | bc)
-        # Add 25% buffer to average
-        new_expected=$(echo "scale=0; ($avg * 5 / 4)" | bc)
-    fi
-    
-    # Update database
-    db_query \
-        "UPDATE applications 
-         SET last_launch_time_ms = :measured,
-             launch_time_ms = :expected,
-             launch_time_samples = launch_time_samples + 1
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+        "UPDATE applications SET
+            last_launch_time_ms = CAST(:measured AS INTEGER),
+            launch_time_ms = CASE
+                WHEN COALESCE(launch_time_samples, 0) = 0
+                THEN CAST(:measured AS INTEGER) * 3 / 2
+                ELSE (COALESCE(launch_time_ms, 0) * COALESCE(launch_time_samples, 0) + CAST(:measured AS INTEGER))
+                     / (COALESCE(launch_time_samples, 0) + 1) * 5 / 4
+            END,
+            launch_time_samples = COALESCE(launch_time_samples, 0) + 1
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
-        ":measured" "$measured_time_ms" \
-        ":expected" "$new_expected"
+        ":measured" "$measured_time_ms"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
@@ -648,7 +728,7 @@ db_set_launch_time() {
         return 1
     fi
     
-    debug_log "$function_name" "Updated launch time: measured=${measured_time_ms}ms, expected=${new_expected}ms"
+    debug_log "$function_name" "Updated launch time for $app_id: measured=${measured_time_ms}ms"
     debug_function_exit "$function_name"
     return 0
 }
@@ -749,8 +829,7 @@ db_set_safe_mode_completed() {
         "UPDATE applications 
          SET safe_mode_completed = TRUE,
              safe_mode_timestamp = datetime('now')
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
@@ -760,6 +839,59 @@ db_set_safe_mode_completed() {
     fi
     
     debug_log "$function_name" "Marked safe mode completed for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_set_safe_mode_results() {
+    local app_id="$1"
+    local class="$2"
+    local supports_pid="$3"
+    local process_name="$4"
+    local executable_path="$5"
+    local title_pattern="$6"
+    local launch_mode="$7"
+    local function_name="db_set_safe_mode_results"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$class" "class" || return 1
+    validate_parameter_pass "$launch_mode" "launch_mode" || return 1
+    
+    # Convert supports_pid to SQLite boolean
+    local supports_pid_bool=""
+    supports_pid_bool=0
+    [[ "$supports_pid" == "true" ]] && supports_pid_bool=1
+    
+    # Single UPDATE with all safe-mode metadata
+    # title_pattern is optional — keep existing value if empty
+    db_query \
+        "UPDATE applications SET
+            app_class = :class,
+            supports_pid_validation = :supports_pid,
+            process_name = :process_name,
+            executable_path = :exe_path,
+            window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
+            launch_mode = :launch_mode,
+            safe_mode_completed = TRUE,
+            safe_mode_timestamp = datetime('now')
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id" \
+        ":class" "$class" \
+        ":supports_pid" "$supports_pid_bool" \
+        ":process_name" "$process_name" \
+        ":exe_path" "$executable_path" \
+        ":title_pattern" "$title_pattern" \
+        ":launch_mode" "$launch_mode"
+    
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Stored safe mode results for $app_id: class=$class, mode=$launch_mode"
     debug_function_exit "$function_name"
     return 0
 }
@@ -779,8 +911,7 @@ db_set_requires_safe_mode() {
     db_query \
         "UPDATE applications 
          SET requires_safe_mode = :requires
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id" \
         ":requires" "$requires"
     
@@ -829,6 +960,64 @@ db_count_pending_safe_mode_apps() {
     return 0
 }
 
+db_get_apps_needing_safe_mode() {
+    local workspace_name="$1"
+    local function_name="db_get_apps_needing_safe_mode"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    
+    # Single query: find apps in this workspace that lack a class
+    # and haven't completed safe mode
+    db_query \
+        "SELECT DISTINCT wd.app_id
+         FROM window_definitions wd
+         JOIN applications a ON wd.app_id = a.app_id
+         WHERE wd.workspace_name = :workspace
+           AND (a.app_class IS NULL OR a.app_class = '')
+           AND COALESCE(a.safe_mode_completed, 0) != 1
+         ORDER BY wd.app_id;" \
+        ":workspace" "$workspace_name"
+    
+    debug_log "$function_name" "Found ${#DB_RESULT[@]} apps needing safe mode for workspace: $workspace_name"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}
+
+db_mark_apps_requiring_safe_mode() {
+    local workspace_name="$1"
+    local function_name="db_mark_apps_requiring_safe_mode"
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+    
+    # Batch UPDATE: mark all qualifying apps in one query
+    db_query \
+        "UPDATE applications SET requires_safe_mode = TRUE
+         WHERE app_id IN (
+             SELECT DISTINCT wd.app_id
+             FROM window_definitions wd
+             JOIN applications a ON wd.app_id = a.app_id
+             WHERE wd.workspace_name = :workspace
+               AND (a.app_class IS NULL OR a.app_class = '')
+               AND COALESCE(a.safe_mode_completed, 0) != 1
+         );" \
+        ":workspace" "$workspace_name"
+    
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to mark apps requiring safe mode"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+    
+    debug_log "$function_name" "Marked ${DB_RESULT[0]:-0} apps requiring safe mode for workspace: $workspace_name"
+    debug_function_exit "$function_name"
+    return 0
+}
+
 db_update_validation_timestamp() {
     local app_id="$1"
     local function_name="db_update_validation_timestamp"
@@ -841,8 +1030,7 @@ db_update_validation_timestamp() {
     db_query \
         "UPDATE applications 
          SET last_validated = datetime('now')
-         WHERE app_id = :app_id;
-         SELECT changes();" \
+         WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
