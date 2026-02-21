@@ -14,17 +14,18 @@ source "${LIB_DIR}/core/core.sh"
 _load_app_metadata() {
     local app_dir="${BASH_SOURCE[0]%/*}"
     local json_file="$app_dir/metadata.json"
-    
+
+    local metadata=""
+    metadata=$(jq -r '[
+        .terminal_command,
+        .app_id,
+        (.app_class // ""),
+        .launch_mode,
+        .launch_type
+    ] | @tsv' "$json_file")
+
     # shellcheck disable=SC2034
-    TERMINAL_COMMAND=$(jq -r '.terminal_command' "$json_file")
-    # shellcheck disable=SC2034
-    APP_ID=$(jq -r '.app_id' "$json_file")
-    # shellcheck disable=SC2034
-    APP_CLASS=$(jq -r '.app_class // empty' "$json_file")
-    # shellcheck disable=SC2034
-    LAUNCH_MODE=$(jq -r '.launch_mode' "$json_file")
-    # shellcheck disable=SC2034
-    LAUNCH_TYPE=$(jq -r '.launch_type' "$json_file")
+    IFS=$'\t' read -r TERMINAL_COMMAND APP_ID APP_CLASS LAUNCH_MODE LAUNCH_TYPE <<< "$metadata"
 }
 
 _load_app_metadata

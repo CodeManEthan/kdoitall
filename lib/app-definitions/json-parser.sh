@@ -258,3 +258,52 @@ json_pretty_print() {
     jq '.' "$json_file"
     return $?
 }
+
+json_get_all_metadata() {
+    local json_file="$1"
+    local function_name="json_get_all_metadata"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$json_file" "json_file" || return 1
+    validate_file_exists "$json_file" || return 1
+
+    # Single jq call to extract all top-level metadata as TSV
+    local result=""
+    result=$(jq -r '[
+        (.terminal_command // ""),
+        (.app_class // ""),
+        (.launch_mode // ""),
+        (.window_title_pattern // "")
+    ] | @tsv' "$json_file")
+
+    if [[ -z "$result" ]]; then
+        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "Failed to extract metadata from $json_file"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    echo "$result"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+json_get_all_launch_options() {
+    local json_file="$1"
+    local function_name="json_get_all_launch_options"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$json_file" "json_file" || return 1
+    validate_file_exists "$json_file" || return 1
+
+    # Single jq call: one line per launch option
+    # Format: function_name\tdescription\tparams_json
+    jq -r '.launch_options[] |
+        [.function_name, .description, (.parameters // [] | @json)] |
+        @tsv
+    ' "$json_file"
+
+    debug_function_exit "$function_name"
+    return 0
+}

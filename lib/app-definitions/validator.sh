@@ -12,83 +12,139 @@ json_validate_metadata() {
     
     debug_function_enter "$function_name" "$@"
     
-    # Validate parameters
     validate_parameter_pass "$json_file" "json_file" || return 1
     validate_file_exists "$json_file" || return 1
     
-    # Basic JSON syntax validation
-    if ! jq empty "$json_file" 2>/dev/null; then
-        debug_error "$function_name" "$ERR_INVALID_JSON" "Invalid JSON syntax in $json_file"
+    # Single jq call: validate structure and extract all data for bash-level checks
+    # Output format:
+    #   Line 1: app_id\tlaunch_mode\tlaunch_type
+    #   Lines 2+: function_name\tdescription\tparam_count\tparam1_name\tparam1_desc\t...
+    local validation_output=""
+    if ! validation_output=$(jq -r '
+        if (.app_id == null) then error("missing required field: app_id")
+        elif (.terminal_command == null) then error("missing required field: terminal_command")
+        elif (.launch_options == null) then error("missing required field: launch_options")
+        elif (.launch_options | length == 0) then error("launch_options array is empty")
+        else
+            ([.app_id, (.launch_mode // ""), (.launch_type // "")] | @tsv),
+            (.launch_options | to_entries[] |
+                .value as $opt | .key as $idx |
+                if ($opt.function_name == null or $opt.function_name == "") then
+                    error("launch_options[\($idx)] missing function_name")
+                elif ($opt.description == null or $opt.description == "") then
+                    error("launch_options[\($idx)] missing description")
+                else
+                    ([$opt.function_name, $opt.description,
+                      (($opt.parameters // []) | length | tostring)]
+                     + (($opt.parameters // []) | map(.name // "", .description // "") | flatten)
+                    ) | @tsv
+                end
+            )
+        end
+    ' "$json_file" 2>&1); then
+        debug_error "$function_name" "$ERR_INVALID_JSON" "$validation_output"
+        debug_function_exit "$function_name"
         return 1
     fi
-    
-    # Validate required fields exist
-    local required_fields=("app_id" "terminal_command" "launch_options")
-    for field in "${required_fields[@]}"; do
-        if ! jq -e ".$field" "$json_file" &>/dev/null; then
-            debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "Missing required field: $field"
-            return 1
-        fi
-    done
-    
-    # Validate app_id format (lowercase letters, numbers, dots, hyphens, underscores)
+
+    if [[ -z "$validation_output" ]]; then
+        debug_error "$function_name" "$ERR_INVALID_JSON" "Empty validation output for $json_file"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Parse first line: top-level fields
+    local first_line=""
+    first_line=$(head -1 <<< "$validation_output")
+
     local app_id=""
-    app_id=$(jq -r '.app_id' "$json_file")
+    local launch_mode=""
+    local launch_type=""
+    IFS=$'\t' read -r app_id launch_mode launch_type <<< "$first_line"
+
+    # Validate app_id format
     if ! [[ "$app_id" =~ ^[a-z0-9._-]+$ ]]; then
         debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid app_id format: $app_id"
+        debug_function_exit "$function_name"
         return 1
     fi
-    
+
     # Validate launch_mode enum
-    local launch_mode=""
-    launch_mode=$(jq -r '.launch_mode // empty' "$json_file")
-    if [[ -n "$launch_mode" ]] && [[ "$launch_mode" != "LAUNCH_MODE_SINGLE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_UNIQUE" ]] && [[ "$launch_mode" != "LAUNCH_MODE_MULTI" ]] && [[ "$launch_mode" != "LAUNCH_MODE_SINGLE_OR_UNIQUE" ]]; then
+    if [[ -n "$launch_mode" ]] && \
+       [[ "$launch_mode" != "LAUNCH_MODE_SINGLE" ]] && \
+       [[ "$launch_mode" != "LAUNCH_MODE_UNIQUE" ]] && \
+       [[ "$launch_mode" != "LAUNCH_MODE_MULTI" ]] && \
+       [[ "$launch_mode" != "LAUNCH_MODE_SINGLE_OR_UNIQUE" ]]; then
         debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid launch_mode: $launch_mode"
+        debug_function_exit "$function_name"
         return 1
     fi
-    
+
     # Validate launch_type enum
-    local launch_type=""
-    launch_type=$(jq -r '.launch_type // empty' "$json_file")
-    if [[ -n "$launch_type" ]] && [[ "$launch_type" != "LAUNCH_TYPE_TERMINAL" ]] && [[ "$launch_type" != "LAUNCH_TYPE_DESKTOP" ]]; then
+    if [[ -n "$launch_type" ]] && \
+       [[ "$launch_type" != "LAUNCH_TYPE_TERMINAL" ]] && \
+       [[ "$launch_type" != "LAUNCH_TYPE_DESKTOP" ]]; then
         debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid launch_type: $launch_type"
+        debug_function_exit "$function_name"
         return 1
     fi
-    
-    # Validate launch_options is a non-empty array
-    local launch_options_count=""
-    launch_options_count=$(jq -r '.launch_options | length' "$json_file")
-    if [[ "$launch_options_count" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "launch_options array is empty"
-        return 1
-    fi
-    
-    # Validate each launch option has required fields
-    local i=0
-    while [[ $i -lt $launch_options_count ]]; do
-        local func_name=""
-        func_name=$(jq -r ".launch_options[$i].function_name // empty" "$json_file")
-        if [[ -z "$func_name" ]]; then
-            debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "launch_options[$i] missing function_name"
-            return 1
-        fi
-        
-        # Validate function_name format (lowercase letters, numbers, underscores)
+
+    # Parse remaining lines: launch options with parameters
+    local option_lines=""
+    option_lines=$(tail -n +2 <<< "$validation_output")
+
+    local line=""
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+
+        # Split into array for field access
+        local fields=()
+        IFS=$'\t' read -ra fields <<< "$line"
+
+        local func_name="${fields[0]}"
+        local param_count="${fields[2]}"
+
+        # Validate function_name format
         if ! [[ "$func_name" =~ ^[a-z_][a-z0-9_]*$ ]]; then
             debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid function_name format: $func_name"
+            debug_function_exit "$function_name"
             return 1
         fi
-        
-        local description=""
-        description=$(jq -r ".launch_options[$i].description // empty" "$json_file")
-        if [[ -z "$description" ]]; then
-            debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "launch_options[$i] missing description"
-            return 1
-        fi
-        
-        ((i++))
-    done
-    
+
+        # Validate parameters (name at index 3+i*2, desc at 4+i*2)
+        local p=0
+        while [[ $p -lt $param_count ]]; do
+            local name_idx=""
+            local desc_idx=""
+            name_idx=$(( 3 + p * 2 ))
+            desc_idx=$(( 4 + p * 2 ))
+
+            local param_name="${fields[$name_idx]:-}"
+            local param_desc="${fields[$desc_idx]:-}"
+
+            if [[ -z "$param_name" ]]; then
+                debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$func_name parameter[$p] missing name"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            # Validate PascalCase format
+            if ! [[ "$param_name" =~ ^[A-Z][a-zA-Z0-9_]*$ ]]; then
+                debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid parameter name format: $param_name (should be PascalCase)"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            if [[ -z "$param_desc" ]]; then
+                debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$func_name parameter[$p] missing description"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            ((p++))
+        done
+    done <<< "$option_lines"
+
     debug_log "$function_name" "✓ JSON validation passed for $json_file"
     debug_function_exit "$function_name"
     return 0
@@ -97,56 +153,13 @@ json_validate_metadata() {
 json_validate_parameters() {
     local json_file="$1"
     local function_name="json_validate_parameters"
-    
+
     debug_function_enter "$function_name" "$@"
-    
-    validate_parameter_pass "$json_file" "json_file" || return 1
-    validate_file_exists "$json_file" || return 1
-    
-    # Check each launch option's parameters
-    local launch_options_count=""
-    launch_options_count=$(jq -r '.launch_options | length' "$json_file")
-    
-    local i=0
-    while [[ $i -lt $launch_options_count ]]; do
-        local params_exist=""
-        params_exist=$(jq -e ".launch_options[$i].parameters" "$json_file" &>/dev/null && echo "yes" || echo "no")
-        
-        if [[ "$params_exist" == "yes" ]]; then
-            local param_count=""
-            param_count=$(jq -r ".launch_options[$i].parameters | length" "$json_file")
-            
-            local j=0
-            while [[ $j -lt $param_count ]]; do
-                # Validate parameter has name and description
-                local param_name
-                param_name=$(jq -r ".launch_options[$i].parameters[$j].name // empty" "$json_file")
-                if [[ -z "$param_name" ]]; then
-                    debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "launch_options[$i].parameters[$j] missing name"
-                    return 1
-                fi
-                
-                # Validate parameter name format (PascalCase: starts with uppercase)
-                if ! [[ "$param_name" =~ ^[A-Z][a-zA-Z0-9_]*$ ]]; then
-                    debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid parameter name format: $param_name (should be PascalCase)"
-                    return 1
-                fi
-                
-                local param_desc=""
-                param_desc=$(jq -r ".launch_options[$i].parameters[$j].description // empty" "$json_file")
-                if [[ -z "$param_desc" ]]; then
-                    debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "launch_options[$i].parameters[$j] missing description"
-                    return 1
-                fi
-                
-                ((j++))
-            done
-        fi
-        
-        ((i++))
-    done
-    
-    debug_log "$function_name" "✓ Parameter validation passed"
+
+    # Parameter validation is now integrated into json_validate_metadata()
+    # This function exists for backward compatibility
+
+    debug_log "$function_name" "✓ Parameter validation passed (handled by json_validate_metadata)"
     debug_function_exit "$function_name"
     return 0
 }

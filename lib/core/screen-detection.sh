@@ -70,28 +70,31 @@ detect_screens() {
     SCREEN_INFO=()
     DETECTED_SCREEN_COUNT=0
     
-    # Parse JSON and extract enabled outputs
-    local output_count
-    output_count=$(echo "$kscreen_json" | jq -r '.outputs | length')
-    
-    for ((i=0; i<output_count; i++)); do
-        local output_id
-        local output_name
-        local output_enabled
-        local pos_x
-        local pos_y
-        local width
-        local height
-        
-        # Extract values using jq
-        output_id=$(echo "$kscreen_json" | jq -r ".outputs[$i].id")
-        output_name=$(echo "$kscreen_json" | jq -r ".outputs[$i].name")
-        output_enabled=$(echo "$kscreen_json" | jq -r ".outputs[$i].enabled")
-        pos_x=$(echo "$kscreen_json" | jq -r ".outputs[$i].pos.x")
-        pos_y=$(echo "$kscreen_json" | jq -r ".outputs[$i].pos.y")
-        width=$(echo "$kscreen_json" | jq -r ".outputs[$i].size.width")
-        height=$(echo "$kscreen_json" | jq -r ".outputs[$i].size.height")
-        
+    # Single jq call: extract all screen data as tab-separated lines
+    local screen_data=""
+    screen_data=$(echo "$kscreen_json" | jq -r '
+        .outputs[] |
+        [.id, .name, .enabled, .pos.x, .pos.y, .size.width, .size.height] |
+        @tsv
+    ')
+
+    if [[ -z "$screen_data" ]]; then
+        debug_error "$function_name" "$ERR_KSCREEN_DETECTION_FAILED" "No outputs found in kscreen-doctor JSON"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    local output_id=""
+    local output_name=""
+    local output_enabled=""
+    local pos_x=""
+    local pos_y=""
+    local width=""
+    local height=""
+
+    while IFS=$'\t' read -r output_id output_name output_enabled pos_x pos_y width height; do
+        [[ -z "$output_id" ]] && continue
+
         # Store in SCREEN_INFO array
         SCREEN_INFO["${output_id}_NAME"]="$output_name"
         SCREEN_INFO["${output_id}_ENABLED"]="$output_enabled"
@@ -99,14 +102,14 @@ detect_screens() {
         SCREEN_INFO["${output_id}_Y"]="$pos_y"
         SCREEN_INFO["${output_id}_WIDTH"]="$width"
         SCREEN_INFO["${output_id}_HEIGHT"]="$height"
-        
+
         debug_log "$function_name" "Found Output $output_id: $output_name (enabled: $output_enabled)"
-        
+
         if [[ "$output_enabled" == "true" ]]; then
             ((DETECTED_SCREEN_COUNT++))
             debug_log "$function_name" "Output $output_id geometry: ${width}x${height} at ($pos_x,$pos_y)"
         fi
-    done
+    done <<< "$screen_data"
     
     # Validate we found at least one enabled screen
     if [[ $DETECTED_SCREEN_COUNT -eq 0 ]]; then

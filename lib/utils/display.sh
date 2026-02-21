@@ -201,8 +201,7 @@ display_application_info() {
     debug_log "$function_name" "Retrieving info for: $app_id"
     
     # Get application details from database
-    app_info=$(db_get_application "$app_id")
-    if [[ $? -ne 0 ]]; then
+    if ! app_info=$(db_get_application "$app_id"); then
         echo "Error: Application not found: $app_id" >&2
         debug_error "$function_name" "$ERR_APP_ID_INVALID" "$app_id"
         debug_function_exit "$function_name"
@@ -330,8 +329,7 @@ display_applications_list() {
     esac
     
     # Get filtered application list from database
-    app_list=$(db_list_applications "$filter")
-    if [[ $? -ne 0 ]]; then
+    if ! app_list=$(db_list_applications "$filter"); then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to list applications"
         debug_function_exit "$function_name"
         return 1

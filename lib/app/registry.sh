@@ -103,22 +103,17 @@ registry_scan_applications() {
                 app_directory_path=$(registry_get_app_directory_path "$app_id")
                 local json_file="${app_directory_path}/metadata.json"
                 
-                # Extract terminal command from JSON
-                terminal_command=$(json_get_terminal_command "$json_file")
-                
-                # Extract app_class from JSON
-                app_class=$(json_get_app_class "$json_file")
-                
-                # Extract and resolve launch_mode from JSON
+                # Extract all metadata in a single jq call
+                local metadata_tsv=""
+                metadata_tsv=$(json_get_all_metadata "$json_file")
+
                 local launch_mode_constant=""
-                launch_mode_constant=$(json_get_launch_mode "$json_file")
+                IFS=$'\t' read -r terminal_command app_class launch_mode_constant window_title_pattern <<< "$metadata_tsv"
+
+                # Resolve constant name (e.g., LAUNCH_MODE_UNIQUE) to value (e.g., unique)
                 if [[ -n "$launch_mode_constant" ]]; then
-                    # Resolve constant name (e.g., LAUNCH_MODE_UNIQUE) to value (e.g., unique)
                     launch_mode="${!launch_mode_constant}"
                 fi
-                
-                # Extract window_title_pattern from JSON
-                window_title_pattern=$(json_get_window_title_pattern "$json_file")
                 
                 if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true
@@ -366,7 +361,6 @@ registry_store_launch_options() {
     local app_dir="$2"
     local func_name="registry_store_launch_options"
     local json_file=""
-    local launch_options_count=0
     
     debug_function_enter "$func_name" "$@"
 
@@ -380,72 +374,62 @@ registry_store_launch_options() {
     # Clear existing launch options for this app
     db_delete_launch_options_for_app "$app_id"
     
-    # Get count of launch options
-    launch_options_count=$(json_get_launch_options_count "$json_file")
-    
-    if [[ $launch_options_count -eq 0 ]]; then
+    # Single jq call: get all launch options with inline parameters
+    local all_options=""
+    all_options=$(json_get_all_launch_options "$json_file")
+
+    if [[ -z "$all_options" ]]; then
         debug_log "$func_name" "No launch options to store for $app_id"
         debug_function_exit "$func_name"
         return 0
     fi
-    
-    # Parse JSON and store launch options
+
     local order=1
     local options_stored=0
-    local i=0
-    
-    while [[ $i -lt $launch_options_count ]]; do
-        local function_name=""
-        local description=""
-        
-        function_name=$(json_get_launch_option_function_name "$json_file" "$i")
-        description=$(json_get_launch_option_description "$json_file" "$i")
-        
+    local function_name=""
+    local description=""
+    local params_json=""
+
+    while IFS=$'\t' read -r function_name description params_json; do
+        [[ -z "$function_name" ]] && continue
+
         if db_add_launch_option "$app_id" "$function_name" "$description" "$order"; then
             debug_log "$func_name" "Stored launch option: $app_id.$function_name"
             ((options_stored++))
 
-            # Get the ID of the launch option we just added
             local option_id=""
-            option_id=$(db_get_launch_option_id "$app_id" "$function_name")
-            
-            if [[ $? -ne 0 || -z "$option_id" ]]; then
+
+            if ! option_id=$(db_get_launch_option_id "$app_id" "$function_name") || [[ -z "$option_id" ]]; then
                 debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to retrieve launch option ID for $app_id.$function_name"
             else
-                # Store parameters for this launch option
-                local parameters=""
-                parameters=$(json_get_launch_option_parameters "$json_file" "$i")
-                
-                if [[ "$parameters" != "[]" && "$parameters" != "null" ]]; then
-                    local param_count=""
-                    param_count=$(echo "$parameters" | jq 'length')
-                    
+                # Parse parameters from JSON blob in a single jq call
+                if [[ "$params_json" != "[]" && -n "$params_json" ]]; then
+                    local param_lines=""
+                    param_lines=$(echo "$params_json" | jq -r '.[] | [.name, .description] | @tsv')
+
                     local j=0
-                    while [[ $j -lt $param_count ]]; do
-                        local param_name=""
-                        local param_desc=""
-                        
-                        param_name=$(echo "$parameters" | jq -r ".[$j].name")
-                        param_desc=$(echo "$parameters" | jq -r ".[$j].description")
-                        
+                    local param_name=""
+                    local param_desc=""
+
+                    while IFS=$'\t' read -r param_name param_desc; do
+                        [[ -z "$param_name" ]] && continue
+
                         if db_add_launch_parameter "$app_id" "$option_id" "$param_name" "$param_desc" "$j"; then
                             debug_log "$func_name" "Stored parameter: $app_id.$function_name.$param_name"
                         else
                             debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store parameter: $app_id.$function_name.$param_name"
                         fi
-                        
+
                         ((j++))
-                    done
+                    done <<< "$param_lines"
                 fi
             fi
-            
+
             ((order++))
         else
             debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store launch option: $app_id.$function_name"
         fi
-        
-        ((i++))
-    done
+    done <<< "$all_options"
     
     debug_log "$func_name" "Stored $options_stored launch options for $app_id"
     debug_function_exit "$func_name"
