@@ -9,9 +9,53 @@ check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 # shellcheck source=../db/window-info.sh
 source "${LIB_DIR}/db/window-info.sh"
 
-export -a CURRENT_UUIDS=()
-export -a CURRENT_CLASSES=()
-export -a CURRENT_TITLES=()
+CURRENT_UUIDS=()
+CURRENT_CLASSES=()
+CURRENT_TITLES=()
+
+refresh_current_windows() {
+    local function_name="refresh_current_windows"
+
+    debug_function_enter "$function_name"
+
+    # Reset all global arrays
+    CURRENT_UUIDS=()
+    CURRENT_CLASSES=()
+    CURRENT_TITLES=()
+
+    # Get all window UUIDs
+    local -a uuids=()
+    mapfile -t uuids < <(kdotool search)
+
+    if [[ ${#uuids[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No windows found"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    # Collect UUID, class, and title per window in a single pass.
+    # This ensures the three arrays stay aligned even if a window
+    # disappears mid-scan — the failed property gets "N/A" and the
+    # arrays never drift out of sync.
+    local uuid=""
+    local class=""
+    local title=""
+    for uuid in "${uuids[@]}"; do
+        class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        class="${class:-N/A}"
+
+        title=$(kdotool getwindowname "$uuid" 2>/dev/null) || title=""
+        title="${title:-N/A}"
+
+        CURRENT_UUIDS+=("$uuid")
+        CURRENT_CLASSES+=("$class")
+        CURRENT_TITLES+=("$title")
+    done
+
+    debug_log "$function_name" "Retrieved ${#CURRENT_UUIDS[@]} windows (UUIDs, classes, titles)"
+    debug_function_exit "$function_name"
+    return 0
+}
 
 get_uuid_by_process_of_elimination() {
     local class="$1"  # Optional class parameter for validation
@@ -134,64 +178,6 @@ get_existing_windows_uuid() {
     fi
 
     debug_log "$function_name" "Retrieved ${#CURRENT_UUIDS[@]} uuids"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-get_existing_windows_class() {
-    local uuid=""
-    local class=""
-    local function_name="get_existing_windows_class"
-
-    debug_function_enter "$function_name"
-
-    # Reset global array
-    CURRENT_CLASSES=()
-
-    # Require CURRENT_UUIDS to be populated
-    if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_INVALID_STATE" "CURRENT_UUIDS is empty - call get_existing_windows_uuid first"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Use the global CURRENT_UUIDS array
-    for uuid in "${CURRENT_UUIDS[@]}"; do
-        class=$(kdotool getwindowclassname "$uuid")
-        class="${class:-N/A}"
-        CURRENT_CLASSES+=("$class")
-    done
-
-    debug_log "$function_name" "Retrieved ${#CURRENT_CLASSES[@]} window classes"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-get_existing_windows_title() {
-    local uuid=""
-    local title=""
-    local function_name="get_existing_windows_title"
-
-    debug_function_enter "$function_name"
-
-    # Reset global array
-    CURRENT_TITLES=()
-
-    # Require CURRENT_UUIDS to be populated
-    if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_INVALID_STATE" "CURRENT_UUIDS is empty - call get_existing_windows_uuid first"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Use the global CURRENT_UUIDS array
-    for uuid in "${CURRENT_UUIDS[@]}"; do
-        title=$(kdotool getwindowname "$uuid")
-        title="${title:-N/A}"
-        CURRENT_TITLES+=("$title")
-    done
-
-    debug_log "$function_name" "Retrieved ${#CURRENT_TITLES[@]} window titles"
     debug_function_exit "$function_name"
     return 0
 }

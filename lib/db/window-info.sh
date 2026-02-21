@@ -6,9 +6,9 @@
 
 check_and_set_guard "_KDOITALL_DB_WINDOW_INFO_LOADED" || return 0
 
-export -a DB_UUIDS=()
-export -a DB_CLASSES=()
-export -a DB_TITLES=()
+DB_UUIDS=()
+DB_CLASSES=()
+DB_TITLES=()
 
 db_get_all_windows() {
     local function_name="db_get_all_windows"
@@ -58,42 +58,6 @@ db_get_existing_window_uuids() {
     DB_UUIDS=("${DB_RESULT[@]}")
     
     debug_log "$function_name" "Retrieved ${#DB_UUIDS[@]} tracked window UUIDs"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-db_get_existing_window_classes() {
-    local function_name="db_get_existing_window_classes"
-    
-    debug_function_enter "$function_name"
-    
-    # Reset global array
-    DB_CLASSES=()
-    
-    # Populate global array from query
-    db_query \
-        "SELECT class FROM app_windows WHERE uuid IS NOT NULL;"
-    DB_CLASSES=("${DB_RESULT[@]}")
-    
-    debug_log "$function_name" "Retrieved ${#DB_CLASSES[@]} tracked window classes"
-    debug_function_exit "$function_name"
-    return 0
-}
-
-db_get_existing_window_titles() {
-    local function_name="db_get_existing_window_titles"
-    
-    debug_function_enter "$function_name"
-    
-    # Reset global array
-    DB_TITLES=()
-    
-    # Populate global array from query
-    db_query \
-        "SELECT COALESCE(window_title, 'N/A') FROM app_windows WHERE uuid IS NOT NULL;"
-    DB_TITLES=("${DB_RESULT[@]}")
-    
-    debug_log "$function_name" "Retrieved ${#DB_TITLES[@]} tracked window titles"
     debug_function_exit "$function_name"
     return 0
 }

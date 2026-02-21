@@ -396,14 +396,8 @@ auto_detect_windows() {
 
     debug_function_enter "$function_name"
     
-    debug_log "$function_name" "===== GET WINDOWS FROM KDOTOOL ====="
-    get_existing_windows_uuid
-
-    debug_log "$function_name" "===== GET CLASSES FROM KDOTOOL ====="
-    get_existing_windows_class
-    
-    debug_log "$function_name" "===== GET TITLES FROM KDOTOOL ====="
-    get_existing_windows_title
+    debug_log "$function_name" "===== REFRESH CURRENT WINDOWS ====="
+    refresh_current_windows
 
     debug_log "$function_name" "===== GET DATA FROM DATABASE ====="
     db_get_all_windows

@@ -112,13 +112,6 @@ db_add_existing_windows() {
     validate_global_array_populated CURRENT_UUIDS "CURRENT_UUIDS" || return 1
     validate_global_array_populated CURRENT_CLASSES "CURRENT_CLASSES" || return 1
     validate_global_array_populated CURRENT_TITLES "CURRENT_TITLES" || return 1
-
-    # Check array length match
-    if [[ ${#CURRENT_UUIDS[@]} -ne ${#CURRENT_CLASSES[@]} ]] || [[ ${#CURRENT_UUIDS[@]} -ne ${#CURRENT_TITLES[@]} ]]; then
-        debug_error "$function_name" "$ERR_INVALID_STATE" "Array length mismatch: CURRENT_UUIDS(${#CURRENT_UUIDS[@]}), CURRENT_CLASSES(${#CURRENT_CLASSES[@]}), CURRENT_TITLES(${#CURRENT_TITLES[@]})"
-        debug_function_exit "$function_name"
-        return 1
-    fi
     
     debug_log "$function_name" "===== ARRAYS FROM KDOTOOL ====="
 
