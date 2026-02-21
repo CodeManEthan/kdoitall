@@ -125,39 +125,39 @@ get_uuid_by_process_of_elimination() {
 
 get_uuid_by_process_of_elimination_with_retry() {
     local class="$1"
-    local max_wait_seconds="${2:-5}"  # Default 5 seconds
-    local retry_interval="${3:-0.1}"  # Default 100ms
+    local max_wait_ms="${2:-5000}"       # Default 5000ms
+    local retry_interval_ms="${3:-100}"  # Default 100ms
     local function_name="get_uuid_by_process_of_elimination_with_retry"
     local uuid=""
-    local elapsed=0
+    local elapsed_ms=0
     local attempt=0
     
     debug_function_enter "$function_name" "$@"
     
-    debug_log "$function_name" "Waiting up to ${max_wait_seconds}s for window (class: '$class')"
+    debug_log "$function_name" "Waiting up to ${max_wait_ms}ms for window (class: '$class')"
     
-    while (( $(echo "$elapsed < $max_wait_seconds" | bc -l) )); do
+    while (( elapsed_ms < max_wait_ms )); do
         ((attempt++))
         
         # Attempt to get UUID (class validation happens inside this function)
         uuid=$(get_uuid_by_process_of_elimination "$class" "TRUE")
         
         if [[ -n "$uuid" ]]; then
-            debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed}s (attempt #$attempt)"
+            debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed_ms}ms (attempt #$attempt)"
             debug_function_exit "$function_name"
             echo "$uuid"
             return 0
         fi
         
-        # Wait before next attempt
-        sleep "$retry_interval"
-        elapsed=$(echo "$elapsed + $retry_interval" | bc -l)
+        # Wait before next attempt (convert ms to fractional seconds for sleep)
+        sleep "$(printf '0.%03d' "$retry_interval_ms")"
+        ((elapsed_ms += retry_interval_ms)) || true
         
-        debug_log "$function_name" "Attempt #$attempt: No UUID yet (elapsed: ${elapsed}s)"
+        debug_log "$function_name" "Attempt #$attempt: No UUID yet (elapsed: ${elapsed_ms}ms)"
     done
     
     # Timeout reached
-    debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Timeout after ${max_wait_seconds}s waiting for window (class: '$class')"
+    debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Timeout after ${max_wait_ms}ms waiting for window (class: '$class')"
     debug_function_exit "$function_name"
     return 1
 }

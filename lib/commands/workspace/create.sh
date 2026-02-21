@@ -590,8 +590,8 @@ select_screen_with_retry() {
         
         # Display screens with aliases
         local out=""
-        for ((out=1; out<=20; out++)); do
-            if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+        for out in "${SCREEN_OUTPUT_IDS[@]}"; do
+            if [[ "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
                 local name="${SCREEN_INFO[${out}_NAME]}"
                 
                 local alias_display=""

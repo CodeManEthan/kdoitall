@@ -180,7 +180,7 @@ execute_launch_window() {
     # --- Process of elimination: wait for a new window to appear ---
     if [[ -z "$uuid" ]]; then
         debug_log "$function_name" "Quick check did not find existing window, trying process of elimination"
-        uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5 0.1) || true
+        uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5000 100) || true
 
         if [[ -n "$uuid" ]]; then
             detection_method="new_window"

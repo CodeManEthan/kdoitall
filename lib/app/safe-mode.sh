@@ -455,7 +455,7 @@ safe_mode_measure_launch_time() {
     
     # Use get_uuid_by_process_of_elimination_with_retry with 30 second timeout
     local uuid=""
-    uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30 0.1)
+    uuid=$(get_uuid_by_process_of_elimination_with_retry "" 30000 100)
     
     if [[ -z "$uuid" ]]; then
         debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Launch time measurement failed - no window detected"
@@ -759,7 +759,7 @@ safe_mode_auto_detect_launch_mode() {
     
     # Wait up to 10 seconds for a new window
     local new_uuid=""
-    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 10 0.1)
+    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 10000 100)
     
     local detected_mode=""
     local pid_override=""

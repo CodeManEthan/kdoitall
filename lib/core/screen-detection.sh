@@ -14,6 +14,8 @@ declare -g DETECTED_DESKTOP_COUNT=0
 # Global associative array to store screen information
 declare -g -A SCREEN_INFO
 declare -g DETECTED_SCREEN_COUNT=0
+# Global indexed array to track discovered output IDs from kscreen
+declare -g -a SCREEN_OUTPUT_IDS=()
 
 detect_desktops() {
     local function_name="detect_desktops"
@@ -69,6 +71,7 @@ detect_screens() {
     # Clear existing screen info
     SCREEN_INFO=()
     DETECTED_SCREEN_COUNT=0
+    SCREEN_OUTPUT_IDS=()
     
     # Single jq call: extract all screen data as tab-separated lines
     local screen_data=""
@@ -94,6 +97,8 @@ detect_screens() {
 
     while IFS=$'\t' read -r output_id output_name output_enabled pos_x pos_y width height; do
         [[ -z "$output_id" ]] && continue
+
+        SCREEN_OUTPUT_IDS+=("$output_id")
 
         # Store in SCREEN_INFO array
         SCREEN_INFO["${output_id}_NAME"]="$output_name"
@@ -155,9 +160,8 @@ list_detected_screens() {
     echo "Detected Screens: $DETECTED_SCREEN_COUNT" >&3
     echo "----------------------------------------" >&3
     
-    for ((out=1; out<=20; out++)); do
-        # Check if this output exists before trying to access its ENABLED status
-        if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+    for out in "${SCREEN_OUTPUT_IDS[@]}"; do
+        if [[ "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
             local name="${SCREEN_INFO[${out}_NAME]}"
             local width="${SCREEN_INFO[${out}_WIDTH]}"
             local height="${SCREEN_INFO[${out}_HEIGHT]}"
@@ -212,7 +216,7 @@ resolve_screen_reference() {
     fi
     
     # Tier 2: Check if it's a screen name (eDP-1, HDMI-A-1, etc.)
-    for ((out=1; out<=20; out++)); do
+    for out in "${SCREEN_OUTPUT_IDS[@]}"; do
         if [[ "${SCREEN_INFO[${out}_NAME]}" == "$screen_ref" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
             debug_log "$function_name" "Tier 2: Resolved name '$screen_ref' to output $out"
             debug_function_exit "$function_name"

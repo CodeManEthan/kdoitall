@@ -9,7 +9,7 @@ check_dependencies() {
     local -a manual=()
 
     # Check each required command
-    local -a required_commands=(kdotool jq bc kscreen-doctor sqlite3 gtk-launch)
+    local -a required_commands=(kdotool jq kscreen-doctor sqlite3 gtk-launch)
     for cmd in "${required_commands[@]}"; do
         if ! command -v "$cmd" &> /dev/null; then
             if [[ "$cmd" == "kdotool" ]]; then

@@ -25,8 +25,8 @@ screen_list() {
     echo "Detected Screens: $DETECTED_SCREEN_COUNT" >&3
     echo "----------------------------------------" >&3
 
-    for ((out=1; out<=20; out++)); do
-        if [[ -n "${SCREEN_INFO[${out}_ENABLED]:-}" && "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
+    for out in "${SCREEN_OUTPUT_IDS[@]}"; do
+        if [[ "${SCREEN_INFO[${out}_ENABLED]}" == "true" ]]; then
             local name="${SCREEN_INFO[${out}_NAME]}"
             local width="${SCREEN_INFO[${out}_WIDTH]}"
             local height="${SCREEN_INFO[${out}_HEIGHT]}"
