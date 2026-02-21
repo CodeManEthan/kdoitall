@@ -25,6 +25,11 @@ fi
 echo "Installing kdoitall..."
 echo ""
 
+# --- Setup kdotool (auto-download if missing) ---
+echo "Checking kdotool..."
+source "$PROJECT_ROOT/scripts/setup-kdotool.sh"
+setup_kdotool
+
 # --- Check dependencies ---
 echo "Checking dependencies..."
 source "$PROJECT_ROOT/lib/utils/checks.sh"

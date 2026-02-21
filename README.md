@@ -39,7 +39,7 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 
 The install script will detect your package manager and show the correct install command for any missing dependencies.
 
-> **Note:** `kdotool` is not available in standard package repos for most distributions. Install from source: https://github.com/jinliu/kdotool
+> **Note:** `kdotool` is not available in standard package repos for most distributions. The install script can automatically download and install it for you, or you can install it manually from https://github.com/jinliu/kdotool
 
 ## Installation
 ```bash
