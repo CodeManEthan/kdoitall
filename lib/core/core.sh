@@ -19,6 +19,12 @@ source "${LIB_DIR}/db/window-info.sh"
 # shellcheck source=../utils/display.sh
 source "${LIB_DIR}/utils/display.sh"
 
+_launch_via_gtk() {
+    local target_app_id="$1"
+
+    gtk-launch "$target_app_id" > /dev/null 2>&1 & disown
+}
+
 execute_launch_window() {
     local workspace_name="$1"
     local window_name="$2"
@@ -28,10 +34,11 @@ execute_launch_window() {
     local position="$6"
     local launch_mode="$7"
     local launch_type="$8"
-    local launch_command="$9"
+    local launch_fn="$9"
     local class="${10}"
     local window_title_pattern="${11}"
     local launch_time="${12}"
+    local launch_fn_arg="${13:-}"
     local function_name="execute_launch_window"
     local uuid=""
     local window_title=""
@@ -47,7 +54,7 @@ execute_launch_window() {
     validate_parameter_pass "$position" "position" || return 1
     validate_parameter_pass "$launch_mode" "launch_mode" || return 1
     validate_parameter_pass "$launch_type" "launch_type" || return 1
-    validate_parameter_pass "$launch_command" "launch_command" || return 1
+    validate_parameter_pass "$launch_fn" "launch_fn" || return 1
 
     info_log "$function_name" "Launching $app_id (window: $window_name)"
 
@@ -115,8 +122,8 @@ execute_launch_window() {
     launch_start_ms=$(date +%s%3N)
 
     # Launch the application
-    debug_log "$function_name" "Launching: $launch_command"
-    eval "$launch_command"
+    debug_log "$function_name" "Launching via: $launch_fn${launch_fn_arg:+ (arg: $launch_fn_arg)}"
+    "$launch_fn" "$launch_fn_arg"
 
     # ──────────────────────────────────────────────
     # PHASE 4: DETECT WINDOW (observe what happened)
@@ -431,7 +438,6 @@ launch_by_app_id() {
     local launch_type=""
     local class=""
     local window_title_pattern=""
-    local launch_command=""
     local launch_time=""
     local function_name="launch_by_app_id"
 
@@ -443,6 +449,8 @@ launch_by_app_id() {
     validate_parameter_pass "$desktop" "desktop" || return 1
     validate_parameter_pass "$screen" "screen" || return 1
     validate_parameter_pass "$position" "position" || return 1
+
+    validate_app_id_format "$app_id" || return 1
 
     launch_type="$LAUNCH_TYPE_DESKTOP"
 
@@ -457,11 +465,9 @@ launch_by_app_id() {
         launch_mode="$LAUNCH_MODE_UNKNOWN"
     fi
 
-    launch_command="gtk-launch $app_id > /dev/null 2>&1 & disown"
-
      execute_launch_window \
      "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \
-     "$launch_mode" "$launch_type" "$launch_command" "$class" "$window_title_pattern" "$launch_time"
+     "$launch_mode" "$launch_type" "_launch_via_gtk" "$class" "$window_title_pattern" "$launch_time" "$app_id"
 
      debug_function_exit "$function_name"
 }

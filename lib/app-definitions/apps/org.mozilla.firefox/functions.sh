@@ -29,6 +29,12 @@ _load_app_metadata() {
 
 _load_app_metadata
 
+_launch_firefox() {
+    local url="$1"
+
+    firefox --new-window "$url" > /dev/null 2>&1 & disown
+}
+
 launch_firefox_window() {
     local workspace_name="$1"
     local window_name="$2"
@@ -36,19 +42,16 @@ launch_firefox_window() {
     local screen="$4"
     local position="$5"
     local url="$6"
-    local launch_command=""
     local window_title_pattern=""
     local function_name="launch_firefox_window"
 
     debug_function_enter "$function_name" "$@"
 
     window_title_pattern=" — Mozilla Firefox"
-    
-    launch_command="firefox --new-window \"$url\" &"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "$launch_command" \
-    "$APP_CLASS" "$window_title_pattern" ""
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_firefox" \
+    "$APP_CLASS" "$window_title_pattern" "" "$url"
 
     debug_function_exit "$function_name"
 }

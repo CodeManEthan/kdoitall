@@ -81,6 +81,16 @@ safe_directory() {
     return 1
 }
 
+validate_app_id_format() {
+    local app_id="$1"
+    local function_name="validate_app_id_format"
+
+    if ! [[ "$app_id" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid app_id format: $app_id"
+        return 1
+    fi
+}
+
 validate_parameter_pass() {
     local parameter="$1"
     local parameter_name="$2"

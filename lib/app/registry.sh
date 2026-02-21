@@ -53,6 +53,12 @@ registry_scan_applications() {
             # Extract app_id from filename (basename without .desktop)
             app_id=$(basename "$desktop_file" .desktop)
             
+            # Validate app_id format (reject malicious .desktop filenames)
+            if ! validate_app_id_format "$app_id"; then
+                debug_log "$function_name" "Skipping invalid app_id format: $app_id"
+                continue
+            fi
+
             # Skip if NoDisplay=true
             if grep -q "^NoDisplay=true" "$desktop_file" 2>/dev/null; then
                 debug_log "$function_name" "Skipping (NoDisplay=true): $app_id"
