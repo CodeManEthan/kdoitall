@@ -40,37 +40,37 @@ window_command() {
 
     # Dispatch to appropriate handler
     case "$subcommand" in
-        list)
+        list|ls)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/window/list.sh"
             window_list "${args[@]}"
             ;;
-        status)
+        status|st)
             # shellcheck source=status.sh
             source "${LIB_DIR}/commands/window/status.sh"
             window_status "${args[@]}"
             ;;
-        close)
+        close|c)
             # shellcheck source=close.sh
             source "${LIB_DIR}/commands/window/close.sh"
             window_close "${args[@]}"
             ;;
-        open)
+        open|o)
             # shellcheck source=open.sh
             source "${LIB_DIR}/commands/window/open.sh"
             window_open "${args[@]}"
             ;;
-        move)
+        move|mv)
             # shellcheck source=move.sh
             source "${LIB_DIR}/commands/window/move.sh"
             window_move "${args[@]}"
             ;;
-        focus)
+        focus|f)
             # shellcheck source=focus.sh
             source "${LIB_DIR}/commands/window/focus.sh"
             window_focus "${args[@]}"
             ;;
-        minimize)
+        minimize|min)
             # shellcheck source=minimize.sh
             source "${LIB_DIR}/commands/window/minimize.sh"
             window_minimize "${args[@]}"
@@ -85,16 +85,16 @@ window_command() {
 
 window_show_help() {
     cat << 'EOF' >&3
-Usage: kdoitall window <subcommand> [options]
+Usage: kdoitall window (win) <subcommand> [options]
 
 Window Subcommands:
-  list [workspace]                     List tracked windows
-  status <window-name>                 Show window details
-  close <window-name>                  Close a specific window
-  open <window-name>                   Re-open a previously closed window
-  move <window-name> [move-options]    Move/reposition a window
-  focus <window-name>                  Bring window to front
-  minimize <window-name>               Minimize window
+  list (ls) [workspace]                     List tracked windows
+  status (st) <window-name>                 Show window details
+  close (c) <window-name>                   Close a specific window
+  open (o) <window-name>                    Re-open a previously closed window
+  move (mv) <window-name> [move-options]    Move/reposition a window
+  focus (f) <window-name>                   Bring window to front
+  minimize (min) <window-name>              Minimize window
 
 Move Command:
   Positional:  move <name> <desktop> [screen] [position]
@@ -107,16 +107,18 @@ Move Command:
 
 Examples:
   kdoitall window list
-  kdoitall window list dev-env
+  kdoitall win ls dev-env
   kdoitall window status dev-env-firefox-1
+  kdoitall win st dev-env-firefox-1
   kdoitall window close dev-env-firefox-1
+  kdoitall win c dev-env-firefox-1
   kdoitall window open dev-env-firefox-1
-  kdoitall window move dev-env-firefox-1 2
+  kdoitall win mv dev-env-firefox-1 2
   kdoitall window move dev-env-firefox-1 2 1 fs
-  kdoitall window move dev-env-firefox-1 -d 2 -s 1 -p tl
+  kdoitall win mv dev-env-firefox-1 -d 2 -s 1 -p tl
   kdoitall window move dev-env-firefox-1 --position "Right Half"
-  kdoitall window focus dev-env-firefox-1
-  kdoitall window minimize dev-env-firefox-1
+  kdoitall win f dev-env-firefox-1
+  kdoitall win min dev-env-firefox-1
 
 EOF
 }

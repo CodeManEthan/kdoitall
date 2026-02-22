@@ -240,3 +240,34 @@ db_get_workspace_windows_ordered() {
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
+
+db_get_active_workspace_window_status() {
+    local function_name="db_get_active_workspace_window_status"
+
+    debug_function_enter "$function_name"
+
+    # Start from window_definitions and LEFT JOIN app_windows
+    # This shows all defined windows, marking which ones are currently alive
+    # Sort: live windows first (is_alive DESC), then by display_order
+    db_query \
+        "SELECT
+            wd.workspace_name,
+            wd.window_name,
+            COALESCE(aw.uuid, ''),
+            COALESCE(a.display_name, aw.class, wd.app_id),
+            COALESCE(aw.window_title, ''),
+            COALESCE(wd.screen, ''),
+            COALESCE(wd.position, ''),
+            CASE WHEN aw.uuid IS NOT NULL THEN 1 ELSE 0 END AS is_alive
+         FROM window_definitions wd
+         INNER JOIN workspace_definitions ws ON wd.workspace_name = ws.workspace_name
+         LEFT JOIN app_windows aw ON wd.window_name = aw.window_name
+         LEFT JOIN applications a ON wd.app_id = a.app_id
+         WHERE ws.is_active = TRUE
+         ORDER BY wd.workspace_name, is_alive DESC, wd.display_order;"
+
+    debug_log "$function_name" "Retrieved active workspace window status"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}

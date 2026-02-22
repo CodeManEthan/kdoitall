@@ -167,7 +167,7 @@ case "$COMMAND" in
         echo "kdoitall v$(cat "${KDOITALL_ROOT}/VERSION")"
         ;;
         
-    workspace)
+    workspace|ws)
         # shellcheck source=../lib/commands/workspace/dispatcher.sh
         source "${LIB_DIR}/commands/workspace/dispatcher.sh"
         workspace_command "$@"
@@ -179,19 +179,19 @@ case "$COMMAND" in
         app_command "$@"
         ;;
 
-    screen)
+    screen|scr)
         # shellcheck source=../lib/commands/screen/dispatcher.sh
         source "${LIB_DIR}/commands/screen/dispatcher.sh"
         screen_command "$@"
         ;;
 
-    window)
+    window|win)
         # shellcheck source=../lib/commands/window/dispatcher.sh
         source "${LIB_DIR}/commands/window/dispatcher.sh"
         window_command "$@"
         ;;
 
-    status)
+    status|st)
         # shellcheck source=../lib/commands/status.sh
         source "${LIB_DIR}/commands/status.sh"
         status_command

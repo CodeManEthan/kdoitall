@@ -15,6 +15,9 @@ window_list() {
 
     debug_function_enter "$function_name" "$@"
 
+    # Sync database with live window state before displaying
+    auto_detect_windows
+
     local result=""
 
     result=$(db_list_tracked_windows "$workspace_filter")
@@ -29,20 +32,13 @@ window_list() {
         return 0
     fi
 
-    # Print header
-    printf "%-30s %-20s %-20s %-30s %s\n" "WINDOW NAME" "WORKSPACE" "CLASS" "TITLE" "STATUS" >&3
+    # Print header — TITLE last so long titles have room to expand
+    printf "%-30s %-20s %-20s %-8s %s\n" "WINDOW NAME" "WORKSPACE" "CLASS" "STATUS" "TITLE" >&3
     printf "%s\n" "$(printf '%.0s─' {1..120})" >&3
 
-    # Print each window with live status check
+    # Print each window — all remaining entries are live after auto_detect_windows cleanup
     while IFS='|' read -r window_name workspace class title uuid; do
-        local status="unknown"
-        # Check if window is still alive via kdotool
-        if kdotool getwindowname "$uuid" &>/dev/null; then
-            status="open"
-        else
-            status="closed"
-        fi
-        printf "%-30s %-20s %-20s %-30s %s\n" "$window_name" "$workspace" "$class" "$title" "$status" >&3
+        printf "%-30s %-20s %-20s %-8s %s\n" "$window_name" "$workspace" "$class" "open" "$title" >&3
     done <<< "$result"
 
     debug_function_exit "$function_name"

@@ -382,3 +382,31 @@ db_get_workspace_focus_window() {
     [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]] && echo "${DB_RESULT[0]}"
     return 0
 }
+
+db_deactivate_empty_workspaces() {
+    local function_name="db_deactivate_empty_workspaces"
+    local deactivated_count=""
+
+    debug_function_enter "$function_name"
+
+    # Deactivate any active workspace that has zero app_windows entries
+    db_query \
+        "UPDATE workspace_definitions
+         SET is_active = FALSE
+         WHERE is_active = TRUE
+         AND workspace_name NOT IN (
+             SELECT DISTINCT workspace_name FROM app_windows
+         );"
+
+    deactivated_count="${DB_RESULT[0]:-0}"
+
+    if [[ "$deactivated_count" -gt 0 ]]; then
+        debug_log "$function_name" "Deactivated $deactivated_count workspace(s) with no live windows"
+    else
+        debug_log "$function_name" "No workspaces to deactivate"
+    fi
+
+    debug_function_exit "$function_name"
+    echo "$deactivated_count"
+    return 0
+}

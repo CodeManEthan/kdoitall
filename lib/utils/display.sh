@@ -560,9 +560,9 @@ display_status_active_workspaces() {
 
     debug_function_enter "$function_name"
 
-    # Query active workspace windows with display info
-    # Returns: workspace_name|window_name|uuid|display_name|window_title|screen|position
-    result=$(db_get_active_workspace_windows)
+    # Query active workspace windows with live/dead status
+    # Returns: workspace_name|window_name|uuid|display_name|window_title|screen|position|is_alive
+    result=$(db_get_active_workspace_window_status)
 
     if [[ -z "$result" ]]; then
         echo "" >&3
@@ -571,41 +571,70 @@ display_status_active_workspaces() {
         return 0
     fi
 
+    # First pass: determine which workspaces have any dead windows
+    local -A workspace_has_dead=()
+    while IFS='|' read -r ws_name _ _ _ _ _ _ is_alive; do
+        [[ -z "$ws_name" ]] && continue
+        if [[ "$is_alive" == "0" ]]; then
+            workspace_has_dead["$ws_name"]=1
+        fi
+    done <<< "$result"
+
     local current_workspace=""
     local index=0
 
-    while IFS='|' read -r workspace_name window_name uuid display_name window_title defined_screen defined_position; do
+    while IFS='|' read -r workspace_name window_name uuid display_name window_title defined_screen defined_position is_alive; do
         [[ -z "$workspace_name" ]] && continue
 
         # Print workspace header when workspace changes
         if [[ "$workspace_name" != "$current_workspace" ]]; then
             current_workspace="$workspace_name"
             index=0
+
             echo "" >&3
-            echo "Workspace: $current_workspace" >&3
-            echo "───────────────────────────────────────────────────────" >&3
+            # Dim workspace header if it has any dead windows
+            if [[ -n "${workspace_has_dead[$workspace_name]+_}" ]]; then
+                printf "\e[2mWorkspace: %s\e[0m\n" "$current_workspace" >&3
+                printf "\e[2m───────────────────────────────────────────────────────\e[0m\n" >&3
+            else
+                echo "Workspace: $current_workspace" >&3
+                echo "───────────────────────────────────────────────────────" >&3
+            fi
         fi
 
         ((index++)) || true
 
-        # Get live data
-        local live_info=""
-        live_info=$(_display_status_live_info "$uuid")
+        if [[ "$is_alive" == "1" ]]; then
+            # Live window — get live geometry info
+            local live_info=""
+            live_info=$(_display_status_live_info "$uuid")
 
-        local desktop=""
-        desktop=$(kdotool get_desktop_for_window "$uuid" 2>/dev/null) || true
+            local desktop=""
+            desktop=$(kdotool get_desktop_for_window "$uuid" 2>/dev/null) || true
 
-        # Display window entry
-        printf "  %d. %-22s %s\n" "$index" "$display_name" "$window_name" >&3
+            # Display window entry (normal)
+            printf "  %d. %-22s %s\n" "$index" "$display_name" "$window_name" >&3
 
-        local position_label=""
-        if [[ -n "$defined_screen" && -n "$defined_position" ]]; then
-            position_label="Desktop ${desktop:-?}, Screen ${defined_screen}, ${defined_position}"
+            local position_label=""
+            if [[ -n "$defined_screen" && -n "$defined_position" ]]; then
+                position_label="Desktop ${desktop:-?}, Screen ${defined_screen}, ${defined_position}"
+            else
+                position_label="N/A"
+            fi
+
+            printf "     %-36s %s\n" "$position_label" "$live_info" >&3
         else
-            position_label="N/A"
-        fi
+            # Dead window — dim styling
+            local position_label=""
+            if [[ -n "$defined_screen" && -n "$defined_position" ]]; then
+                position_label="Desktop ?, Screen ${defined_screen}, ${defined_position}"
+            else
+                position_label="N/A"
+            fi
 
-        printf "     %-36s %s\n" "$position_label" "$live_info" >&3
+            printf "\e[2m  %d. %-22s %s\e[0m\n" "$index" "$display_name" "$window_name" >&3
+            printf "\e[2m     %-36s %s\e[0m\n" "$position_label" "(window not found)" >&3
+        fi
 
     done <<< "$result"
 

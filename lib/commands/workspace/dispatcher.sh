@@ -41,55 +41,50 @@ workspace_command() {
     
     # Dispatch to appropriate handler
     case "$subcommand" in
-        create)
+        create|new)
             # shellcheck source=create.sh
             source "${LIB_DIR}/commands/workspace/create.sh"
             workspace_create "${args[@]}"
             ;;
-        list)
+        list|ls)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/workspace/list.sh"
             workspace_list "${args[@]}"
             ;;
-        info)
+        info|i)
             # shellcheck source=info.sh
             source "${LIB_DIR}/commands/workspace/info.sh"
             workspace_info "${args[@]}"
             ;;
-        edit)
+        edit|e)
             # shellcheck source=edit.sh
             source "${LIB_DIR}/commands/workspace/edit.sh"
             workspace_edit "${args[@]}"
             ;;
-        open)
+        open|o)
             # shellcheck source=open.sh
             source "${LIB_DIR}/commands/workspace/open.sh"
             workspace_open "${args[@]}"
             ;;
-        close)
+        close|c)
             # shellcheck source=close.sh
             source "${LIB_DIR}/commands/workspace/close.sh"
             workspace_close "${args[@]}"
             ;;
-        focus)
+        focus|f)
             # shellcheck source=focus.sh
             source "${LIB_DIR}/commands/workspace/focus.sh"
             workspace_focus "${args[@]}"
             ;;
-        minimize)
+        minimize|min)
             # shellcheck source=minimize.sh
             source "${LIB_DIR}/commands/workspace/minimize.sh"
             workspace_minimize "${args[@]}"
             ;;
-        delete)
+        delete|rm)
             # shellcheck source=delete.sh
             source "${LIB_DIR}/commands/workspace/delete.sh"
             workspace_delete "${args[@]}"
-            ;;
-        edit)
-            # shellcheck source=edit.sh
-            source "${LIB_DIR}/commands/workspace/edit.sh"
-            workspace_edit "${args[@]}"
             ;;
         *)
             echo "Error: Unknown workspace subcommand: $subcommand" >&2
@@ -101,28 +96,30 @@ workspace_command() {
 
 workspace_show_help() {
     cat << 'EOF' >&3
-Usage: kdoitall workspace <subcommand> [options]
+Usage: kdoitall workspace (ws) <subcommand> [options]
 
 Workspace Subcommands:
-  create <n>        Create a new workspace interactively
-  edit <n>          Edit an existing workspace
-  list [--details]     List all defined workspaces
-  info <n>          Show detailed info for a workspace
-  open <n>          Open a workspace
-  close <n>         Close a workspace
-  focus <n>         Focus an active workspace (raise + activate)
-  minimize <n>      Minimize all windows in an active workspace
-  delete <n>        Delete a workspace
+  create (new) <n>     Create a new workspace interactively
+  edit (e) <n>         Edit an existing workspace
+  list (ls) [--details]   List all defined workspaces
+  info (i) <n>         Show detailed info for a workspace
+  open (o) <n>         Open a workspace
+  close (c) <n>        Close a workspace
+  focus (f) <n>        Focus an active workspace (raise + activate)
+  minimize (min) <n>   Minimize all windows in an active workspace
+  delete (rm) <n>      Delete a workspace
 
 Examples:
   kdoitall workspace create dev-environment
-  kdoitall workspace edit dev-environment
+  kdoitall ws new dev-environment
   kdoitall workspace list
-  kdoitall workspace list --details
-  kdoitall workspace info dev-environment
+  kdoitall ws ls --details
   kdoitall workspace open dev-environment
+  kdoitall ws o dev-environment
   kdoitall workspace close dev-environment
+  kdoitall ws c dev-environment
   kdoitall workspace delete old-workspace
+  kdoitall ws rm old-workspace
 
 For more information, see the workspace creation system documentation.
 EOF

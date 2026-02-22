@@ -40,7 +40,7 @@ screen_command() {
 
     # Dispatch to appropriate handler
     case "$subcommand" in
-        list)
+        list|ls)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/screen/list.sh"
             screen_list "${args[@]}"
@@ -60,17 +60,18 @@ screen_command() {
 
 screen_show_help() {
     cat << 'EOF' >&3
-Usage: kdoitall screen <subcommand> [options]
+Usage: kdoitall screen (scr) <subcommand> [options]
 
 Screen Subcommands:
-  list                        List detected screens with aliases
-  alias <alias> <target>      Set a screen alias (target = number or name)
-  alias remove <alias>        Remove a screen alias
+  list (ls)                        List detected screens with aliases
+  alias <alias> <target>           Set a screen alias (target = number or name)
+  alias remove <alias>             Remove a screen alias
 
 Examples:
   kdoitall screen list
+  kdoitall scr ls
   kdoitall screen alias laptop eDP-1
-  kdoitall screen alias primary 1
+  kdoitall scr alias primary 1
   kdoitall screen alias remove laptop
 
 EOF

@@ -38,12 +38,12 @@ app_command() {
             source "${LIB_DIR}/commands/app/scan.sh"
             app_scan "${args[@]}"
             ;;
-        list)
+        list|ls)
             # shellcheck source=list.sh
             source "${LIB_DIR}/commands/app/list.sh"
             app_list "${args[@]}"
             ;;
-        info)
+        info|i)
             # shellcheck source=info.sh
             source "${LIB_DIR}/commands/app/info.sh"
             app_info "${args[@]}"
@@ -53,12 +53,12 @@ app_command() {
             source "${LIB_DIR}/commands/app/validate.sh"
             app_validate "${args[@]}"
             ;;
-        options)
+        options|opts)
             # shellcheck source=options.sh
             source "${LIB_DIR}/commands/app/options.sh"
             app_options "${args[@]}"
             ;;
-        safe-mode)
+        safe-mode|sm)
             # shellcheck source=safe-mode.sh
             source "${LIB_DIR}/commands/app/safe-mode.sh"
             app_safe_mode "${args[@]}"
@@ -76,23 +76,26 @@ app_show_help() {
 Usage: kdoitall app <subcommand> [options]
 
 App Subcommands:
-  scan              Scan system for available applications and populate registry
-  list [filter]     List applications from registry
-                    Filters: all (default), terminal, desktop, both
-  info <app_id>     Show detailed information about a specific application
-  validate          Validate all application definition files
-  options <app_id>  Show launch options for an application
-  safe-mode              Interactive safe-mode validation menu
-  safe-mode skip <id>    Mark app as validated without running safe-mode
-  safe-mode reset <id>   Clear safe-mode data (will prompt again)
+  scan                    Scan system for available applications and populate registry
+  list (ls) [filter]      List applications (all, terminal, desktop, both)
+  info (i) <app_id>       Show detailed information about a specific application
+  validate                Validate all application definition files
+  options (opts) <app_id> Show launch options for an application
+  safe-mode (sm)               Interactive safe-mode validation menu
+  safe-mode (sm) skip <id>     Mark app as validated without running safe-mode
+  safe-mode (sm) reset <id>    Clear safe-mode data (will prompt again)
 
 Examples:
   kdoitall app scan
   kdoitall app list
-  kdoitall app list terminal
+  kdoitall app ls terminal
   kdoitall app info firefox
+  kdoitall app i firefox
   kdoitall app validate
   kdoitall app options konsole
+  kdoitall app opts konsole
+  kdoitall app safe-mode
+  kdoitall app sm skip firefox
 
 For more information, see the application registry documentation.
 EOF
