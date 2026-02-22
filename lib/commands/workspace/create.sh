@@ -75,6 +75,42 @@ workspace_create() {
         return 1
     fi
     
+    # 3. Post-launch focus behavior
+    local focus_window_name=""
+    echo "=== Post-Launch Behavior ===" >&3
+    echo "" >&3
+    echo "After all windows are launched, would you like to automatically focus one?" >&3
+    echo "(This will also switch to that window's virtual desktop)" >&3
+    echo "" >&3
+    echo "  0) Do nothing (stay on current desktop)" >&3
+
+    local focus_idx=0
+    local focus_entry=""
+    local focus_app_id=""
+    local focus_wname=""
+    local focus_display=""
+    for focus_entry in "${WORKSPACE_APPS[@]}"; do
+        IFS='|' read -r focus_app_id focus_wname _ _ _ _ _ <<< "$focus_entry"
+
+        focus_display=""
+        focus_display=$(db_get_display_name "$focus_app_id") || focus_display="$focus_app_id"
+
+        focus_idx=$((focus_idx + 1))
+        printf "  %d) %s (%s)\n" "$focus_idx" "$focus_wname" "$focus_display" >&3
+    done
+
+    echo "" >&3
+    echo "Select (0 to skip):" >&3
+    read -r focus_choice
+
+    if [[ "$focus_choice" =~ ^[0-9]+$ ]] && \
+       [[ "$focus_choice" -ge 1 ]] && \
+       [[ "$focus_choice" -le ${#WORKSPACE_APPS[@]} ]]; then
+        local chosen_entry=""
+        chosen_entry="${WORKSPACE_APPS[$((focus_choice - 1))]}"
+        IFS='|' read -r _ focus_window_name _ _ _ _ _ <<< "$chosen_entry"
+    fi
+
     # Final confirmation before committing to database
     echo "" >&3
     echo "=== Workspace Configuration Summary ===" >&3
@@ -103,6 +139,24 @@ workspace_create() {
     done
 
     echo "" >&3
+    if [[ -n "$focus_window_name" ]]; then
+        local focus_display_name=""
+        local focus_entry_lookup=""
+        for focus_entry_lookup in "${WORKSPACE_APPS[@]}"; do
+            local lookup_app_id=""
+            local lookup_wname=""
+            IFS='|' read -r lookup_app_id lookup_wname _ _ _ _ _ <<< "$focus_entry_lookup"
+            if [[ "$lookup_wname" == "$focus_window_name" ]]; then
+                focus_display_name=$(db_get_display_name "$lookup_app_id") || focus_display_name="$lookup_app_id"
+                break
+            fi
+        done
+        echo "Focus after launch: $focus_window_name ($focus_display_name)" >&3
+    else
+        echo "Focus after launch: None" >&3
+    fi
+
+    echo "" >&3
     echo "Proceed with workspace creation? (y/n)" >&3
     read -r confirm_create
     
@@ -120,6 +174,13 @@ workspace_create() {
         return 1
     fi
     echo "✓ Workspace created in database" >&3
+    
+    # Set focus window if configured
+    if [[ -n "$focus_window_name" ]]; then
+        if ! db_set_workspace_focus_window "$workspace_name" "$focus_window_name"; then
+            echo "Warning: Failed to set focus window preference" >&3
+        fi
+    fi
     
     # Generate scripts (passing the configuration array)
     echo "" >&3

@@ -10,6 +10,7 @@ CREATE TABLE workspace_definitions (
     workspace_name TEXT PRIMARY KEY,
     description TEXT,
     is_active BOOLEAN DEFAULT FALSE,
+    focus_window_name TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_opened_at TIMESTAMP
 );

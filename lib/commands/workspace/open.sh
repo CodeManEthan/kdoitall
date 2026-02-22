@@ -12,6 +12,10 @@ source "${LIB_DIR}/app/safe-mode.sh"
 source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
+# shellcheck source=../../db/window-info.sh
+source "${LIB_DIR}/db/window-info.sh"
+# shellcheck source=../../window-management/window.sh
+source "${LIB_DIR}/window-management/window.sh"
 
 workspace_open() {
     local workspace_name="$1"
@@ -99,6 +103,22 @@ workspace_open() {
     # Update database metadata
     db_mark_workspace_opened "$workspace_name"
     
+    # Post-launch: focus configured window if set
+    local focus_window=""
+    focus_window=$(db_get_workspace_focus_window "$workspace_name")
+
+    if [[ -n "$focus_window" ]]; then
+        local focus_uuid=""
+        focus_uuid=$(db_get_window_uuid_by_name "$focus_window")
+
+        if [[ -n "$focus_uuid" ]]; then
+            debug_log "$function_name" "Activating focus window: $focus_window ($focus_uuid)"
+            activate_window "$focus_uuid"
+        else
+            debug_log "$function_name" "Focus window '$focus_window' not found in tracked windows, skipping"
+        fi
+    fi
+
     debug_log "$function_name" "Workspace opened and database updated"
     info_log "$function_name" "Workspace '$workspace_name' opened successfully"
     debug_function_exit "$function_name"

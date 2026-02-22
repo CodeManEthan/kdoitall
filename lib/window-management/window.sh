@@ -480,6 +480,16 @@ activate_window() {
 
     validate_parameter_pass "$uuid" "uuid" || return 1
 
+    # Skip if window is already active (windowactivate toggles, which would minimize it)
+    local active_uuid=""
+    active_uuid=$(get_active_window_uuid)
+
+    if [[ "$active_uuid" == "$uuid" ]]; then
+        debug_log "$function_name" "'$uuid' is already active, skipping"
+        debug_function_exit "$function_name"
+        return
+    fi
+
     # Activate window
     kdotool windowactivate "$uuid"
     sleep "$WINDOW_DELAY"

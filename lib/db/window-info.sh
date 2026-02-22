@@ -200,3 +200,21 @@ db_dump_tracked_windows() {
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
+
+db_get_window_uuid_by_name() {
+    local window_name="$1"
+    local function_name="db_get_window_uuid_by_name"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$window_name" "window_name" || return 1
+
+    db_query \
+        "SELECT uuid FROM app_windows WHERE window_name = :window_name;" \
+        ":window_name" "$window_name"
+
+    debug_log "$function_name" "UUID for '$window_name': ${DB_RESULT[0]:-<none>}"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]] && echo "${DB_RESULT[0]}"
+    return 0
+}

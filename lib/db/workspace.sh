@@ -36,6 +36,33 @@ db_create_workspace() {
     return 0
 }
 
+db_update_workspace_description() {
+    local workspace_name="$1"
+    local description="$2"
+    local function_name="db_update_workspace_description"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    db_query \
+        "UPDATE workspace_definitions
+         SET description = :description
+         WHERE workspace_name = :workspace_name;" \
+        ":workspace_name" "$workspace_name" \
+        ":description" "$description"
+
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
+        debug_log "$function_name" "Updated description for: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to update description for: $workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
 db_delete_workspace() {
     local workspace_name="$1"
     local function_name="db_delete_workspace"
@@ -260,6 +287,33 @@ db_mark_workspace_opened() {
     fi
 }
 
+db_update_workspace_description() {
+    local workspace_name="$1"
+    local description="$2"
+    local function_name="db_update_workspace_description"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    db_query \
+        "UPDATE workspace_definitions
+         SET description = :description
+         WHERE workspace_name = :workspace_name;" \
+        ":workspace_name" "$workspace_name" \
+        ":description" "$description"
+
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
+        debug_log "$function_name" "Updated description for: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_WORKSPACE_NOT_FOUND" "$workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
 db_get_workspace_window_details() {
     local workspace_name="$1"
     local function_name="db_get_workspace_window_details"
@@ -279,5 +333,52 @@ db_get_workspace_window_details() {
     debug_log "$function_name" "Retrieved window details for workspace: $workspace_name"
     debug_function_exit "$function_name"
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}
+
+db_set_workspace_focus_window() {
+    local workspace_name="$1"
+    local focus_window_name="$2"
+    local function_name="db_set_workspace_focus_window"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    db_query \
+        "UPDATE workspace_definitions
+         SET focus_window_name = :focus_window_name
+         WHERE workspace_name = :workspace_name;" \
+        ":workspace_name" "$workspace_name" \
+        ":focus_window_name" "$focus_window_name"
+
+    if [[ "$DB_STATUS" == "OK" ]] && [[ "${DB_RESULT[0]:-0}" -eq 1 ]]; then
+        debug_log "$function_name" "Set focus_window_name='$focus_window_name' for: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set focus window for: $workspace_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+db_get_workspace_focus_window() {
+    local workspace_name="$1"
+    local function_name="db_get_workspace_focus_window"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    db_query \
+        "SELECT focus_window_name
+         FROM workspace_definitions
+         WHERE workspace_name = :workspace_name;" \
+        ":workspace_name" "$workspace_name"
+
+    debug_log "$function_name" "Focus window for '$workspace_name': ${DB_RESULT[0]:-<none>}"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]] && echo "${DB_RESULT[0]}"
     return 0
 }

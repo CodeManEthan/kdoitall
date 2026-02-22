@@ -56,6 +56,11 @@ workspace_command() {
             source "${LIB_DIR}/commands/workspace/info.sh"
             workspace_info "${args[@]}"
             ;;
+        edit)
+            # shellcheck source=edit.sh
+            source "${LIB_DIR}/commands/workspace/edit.sh"
+            workspace_edit "${args[@]}"
+            ;;
         open)
             # shellcheck source=open.sh
             source "${LIB_DIR}/commands/workspace/open.sh"
@@ -71,6 +76,11 @@ workspace_command() {
             source "${LIB_DIR}/commands/workspace/delete.sh"
             workspace_delete "${args[@]}"
             ;;
+        edit)
+            # shellcheck source=edit.sh
+            source "${LIB_DIR}/commands/workspace/edit.sh"
+            workspace_edit "${args[@]}"
+            ;;
         *)
             echo "Error: Unknown workspace subcommand: $subcommand" >&2
             workspace_show_help
@@ -85,6 +95,7 @@ Usage: kdoitall workspace <subcommand> [options]
 
 Workspace Subcommands:
   create <n>        Create a new workspace interactively
+  edit <n>          Edit an existing workspace
   list [--details]     List all defined workspaces
   info <n>          Show detailed info for a workspace
   open <n>          Open a workspace
@@ -93,6 +104,7 @@ Workspace Subcommands:
 
 Examples:
   kdoitall workspace create dev-environment
+  kdoitall workspace edit dev-environment
   kdoitall workspace list
   kdoitall workspace list --details
   kdoitall workspace info dev-environment
