@@ -103,6 +103,9 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 # Log directory (only used when LOG_TO_FILE is enabled)
 # LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
 
+# Timeout (seconds) per window during assisted close before auto-skipping
+# CLOSE_WAIT_TIMEOUT=60
+
 # Extra window positions (uncomment the array and desired positions to enable)
 # EXTRA_POSITIONS=(
 #     "Left Two-Thirds"

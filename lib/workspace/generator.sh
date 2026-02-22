@@ -61,7 +61,6 @@ generate_workspace_script() {
     # apps_ref="$3"
     local guard_name=""
     local open_func_name=""
-    local close_func_name=""
     local function_name="generate_workspace_script"
 
     debug_function_enter "$function_name" "$@"
@@ -78,7 +77,6 @@ generate_workspace_script() {
     guard_name="${guard_name//-/_}"
 
     open_func_name="open_workspace_${workspace_name//-/_}"
-    close_func_name="close_workspace_${workspace_name//-/_}"
 
     # Check if array is empty
     if [[ ${#apps_ref[@]} -eq 0 ]]; then
@@ -130,7 +128,7 @@ EOF_HEADER
         echo "" >> "$script_path"
     fi
 
-    # Source core for close function
+    # Source core for launch functions
     echo "# shellcheck disable=SC1091" >> "$script_path"
     echo "source \"\${LIB_DIR}/core/core.sh\"" >> "$script_path"
     echo "" >> "$script_path"
@@ -164,20 +162,6 @@ EOF
 
 EOF
         fi
-    done
-
-    echo "}" >> "$script_path"
-    echo "" >> "$script_path"
-
-    # === Generate close function ===
-    echo "$close_func_name() {" >> "$script_path"
-    echo "    debug_log \"Closing workspace: $workspace_name\"" >> "$script_path"
-    echo "" >> "$script_path"
-
-    for app_config in "${apps_ref[@]}"; do
-        IFS='|' read -r app_id window_name launch_function \
-                        desktop screen position parameters <<< "$app_config"
-        echo "    execute_close_window \"$window_name\"" >> "$script_path"
     done
 
     echo "}" >> "$script_path"

@@ -467,6 +467,63 @@ db_set_post_launch_metadata() {
     return 0
 }
 
+db_release_window_to_auto() {
+    local window_name="$1"
+    local function_name="db_release_window_to_auto"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$window_name" "window_name" || return 1
+
+    # Step 1: Get class, uuid, and window_title for this window
+    db_query \
+        "SELECT class, uuid, window_title FROM app_windows WHERE window_name = :window_name;" \
+        ":window_name" "$window_name"
+
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Window not found: $window_name"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    local result=""
+    result="${DB_RESULT[0]}"
+
+    local class=""
+    local uuid=""
+    local window_title=""
+    class="${result%%|*}"
+    result="${result#*|}"
+    uuid="${result%%|*}"
+    window_title="${result#*|}"
+
+    # Step 2: Find the highest existing counter for ~auto:<class>:N in ~auto:workspace
+    db_query \
+        "SELECT COALESCE(MAX(CAST(SUBSTR(window_name, LENGTH(:prefix) + 1) AS INTEGER)), 0)
+         FROM app_windows
+         WHERE workspace_name = '~auto:workspace'
+         AND window_name LIKE :pattern;" \
+        ":prefix" "~auto:${class}:" \
+        ":pattern" "~auto:${class}:%"
+
+    local max_counter=0
+    if [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]]; then
+        max_counter="${DB_RESULT[0]}"
+    fi
+
+    local next_counter=0
+    next_counter=$((max_counter + 1))
+
+    local new_window_name=""
+    new_window_name="~auto:${class}:${next_counter}"
+
+    # Step 3: Reassign the window via db_claim_window
+    db_claim_window "~auto:workspace" "$new_window_name" "$uuid" "$window_title"
+
+    debug_log "$function_name" "Released '$window_name' → '$new_window_name' in ~auto:workspace"
+    debug_function_exit "$function_name"
+}
+
 
 
 

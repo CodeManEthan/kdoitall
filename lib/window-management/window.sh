@@ -472,6 +472,19 @@ window_exists() {
     return 1
 }
 
+window_not_exists() {
+    local uuid="$1"
+    local result=""
+
+    result=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || result=""
+
+    if [[ -z "$result" ]]; then
+        return 0  # no output → window is gone
+    fi
+
+    return 1  # got output → window still exists
+}
+
 activate_window() {
     local uuid="$1"
     local function_name="activate_window"

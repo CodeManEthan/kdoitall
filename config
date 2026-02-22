@@ -22,4 +22,7 @@ LOG_TO_FILE="disabled"
 # Log directory (only used when LOG_TO_FILE is enabled)
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
 
-export SAFE_MODE_PROMPTING LOG_TO_FILE LOG_DIR
+# Timeout (seconds) per window during assisted close before auto-skipping
+CLOSE_WAIT_TIMEOUT=60
+
+export SAFE_MODE_PROMPTING LOG_TO_FILE LOG_DIR CLOSE_WAIT_TIMEOUT
