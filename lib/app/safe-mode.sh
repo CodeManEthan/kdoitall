@@ -92,7 +92,7 @@ safe_mode_launch_and_detect() {
     
     # 5. Auto-detect launch mode (may launch/close a second instance)
     local launch_mode_result
-    launch_mode_result=$(safe_mode_auto_detect_launch_mode "$app_id" "$new_uuid" "$detected_class")
+    launch_mode_result=$(safe_mode_auto_detect_launch_mode "$app_id" "$new_uuid" "$detected_class" "$launch_time_ms")
     
     local launch_mode pid_override
     IFS='|' read -r launch_mode pid_override <<< "$launch_mode_result"
@@ -742,6 +742,7 @@ safe_mode_auto_detect_launch_mode() {
     local app_id="$1"
     local existing_uuid="$2"
     local class="$3"
+    local launch_time_ms="$4"
     local function_name="safe_mode_auto_detect_launch_mode"
     
     debug_function_enter "$function_name" "$@"
@@ -749,7 +750,22 @@ safe_mode_auto_detect_launch_mode() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$existing_uuid" "existing_uuid" || return 1
     
-    echo "Testing multi-instance support..." >&3
+    # Calculate timeout from measured first-launch time (with buffer)
+    local timeout_ms=0
+    if [[ -n "$launch_time_ms" && "$launch_time_ms" -gt 0 ]]; then
+        timeout_ms=$(( (launch_time_ms * 3) / 2 ))
+        # Enforce minimum floor of 3000ms
+        if [[ "$timeout_ms" -lt 3000 ]]; then
+            timeout_ms=3000
+        fi
+    else
+        # Fallback if no launch time available
+        timeout_ms=10000
+    fi
+
+    debug_log "$function_name" "Using timeout: ${timeout_ms}ms (based on launch time: ${launch_time_ms:-unknown}ms)"
+
+    echo "Testing multi-instance support (timeout: $(( timeout_ms / 1000 ))s)..." >&3
     
     # Refresh database before second launch
     auto_detect_windows
@@ -757,9 +773,8 @@ safe_mode_auto_detect_launch_mode() {
     # Launch second instance
     (gtk-launch "$app_id" &>/dev/null &)
     
-    # Wait up to 10 seconds for a new window
     local new_uuid=""
-    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 10000 100)
+    new_uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" "$timeout_ms" 100)
     
     local detected_mode=""
     local pid_override=""

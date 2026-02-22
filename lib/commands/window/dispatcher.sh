@@ -92,9 +92,18 @@ Window Subcommands:
   status <window-name>                 Show window details
   close <window-name>                  Close a specific window
   open <window-name>                   Re-open a previously closed window
-  move <window-name> <screen> <pos>    Move/reposition a window
+  move <window-name> [move-options]    Move/reposition a window
   focus <window-name>                  Bring window to front
   minimize <window-name>               Minimize window
+
+Move Command:
+  Positional:  move <name> <desktop> [screen] [position]
+  Flags:       move <name> --desktop <n> --screen <ref> --position <pos>
+  Short flags: -d, -s, -p
+  Positions:   Fullscreen (fs), Right Half (rh), Left Half (lh),
+               Top Half (th), Bottom Half (bh), Top Left (tl),
+               Top Right (tr), Bottom Left (bl), Bottom Right (br),
+               Left Third (lt), Middle Third (mt), Right Third (rt)
 
 Examples:
   kdoitall window list
@@ -102,7 +111,10 @@ Examples:
   kdoitall window status dev-env-firefox-1
   kdoitall window close dev-env-firefox-1
   kdoitall window open dev-env-firefox-1
-  kdoitall window move dev-env-firefox-1 1 Fullscreen
+  kdoitall window move dev-env-firefox-1 2
+  kdoitall window move dev-env-firefox-1 2 1 fs
+  kdoitall window move dev-env-firefox-1 -d 2 -s 1 -p tl
+  kdoitall window move dev-env-firefox-1 --position "Right Half"
   kdoitall window focus dev-env-firefox-1
   kdoitall window minimize dev-env-firefox-1
 

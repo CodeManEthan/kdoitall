@@ -305,3 +305,240 @@ move_window_to_position() {
     debug_log "$function_name" "Moved window '$uuid' to $position_mode on screen '$screen_ref'"
     debug_function_exit "$function_name"
 }
+
+resolve_position() {
+    local input="$1"
+    local function_name="resolve_position"
+    local input_lower=""
+    local abbrev_var=""
+    local pos_var=""
+    local pos_value=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$input" "input" || return 1
+
+    # Lowercase the input for case-insensitive matching
+    input_lower="${input,,}"
+
+    # Tier 1: Check against abbreviations
+    if [[ -v POSITION_ABBREVIATIONS[$input_lower] ]]; then
+        abbrev_var="${POSITION_ABBREVIATIONS[$input_lower]}"
+        debug_log "$function_name" "Abbreviation match: '$input' → '$abbrev_var' → '${!abbrev_var}'"
+        debug_function_exit "$function_name"
+        echo "${!abbrev_var}"
+        return 0
+    fi
+
+    # Tier 2: Check against full position names (case-insensitive)
+    for pos_var in "${POSITION_MENU_ORDER[@]}"; do
+        pos_value="${!pos_var}"
+        if [[ "${pos_value,,}" == "$input_lower" ]]; then
+            debug_log "$function_name" "Full name match: '$input' → '$pos_value'"
+            debug_function_exit "$function_name"
+            echo "$pos_value"
+            return 0
+        fi
+    done
+
+    # No match found
+    debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Unknown position: '$input'"
+    debug_function_exit "$function_name"
+    return 1
+}
+
+detect_window_screen() {
+    local uuid="$1"
+    local function_name="detect_window_screen"
+    local win_position=""
+    local win_x=""
+    local win_y=""
+    local out=""
+    local screen_x=""
+    local screen_y=""
+    local screen_width=""
+    local screen_height=""
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$uuid" "uuid" || return 1
+
+    # Get window position (returns "x,y")
+    win_position=$(get_window_position "$uuid")
+    if [[ -z "$win_position" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_POSITION_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    win_x="${win_position%,*}"
+    win_y="${win_position#*,}"
+
+    debug_log "$function_name" "Window position: ($win_x, $win_y)"
+
+    # Check each enabled screen's bounding box
+    for out in "${SCREEN_OUTPUT_IDS[@]}"; do
+        if [[ "$(get_screen_info "$out" "ENABLED")" != "true" ]]; then
+            continue
+        fi
+
+        screen_x=$(get_screen_info "$out" "X")
+        screen_y=$(get_screen_info "$out" "Y")
+        screen_width=$(get_screen_info "$out" "WIDTH")
+        screen_height=$(get_screen_info "$out" "HEIGHT")
+
+        if (( win_x >= screen_x && win_x < screen_x + screen_width &&
+              win_y >= screen_y && win_y < screen_y + screen_height )); then
+            debug_log "$function_name" "Window is on screen output $out"
+            debug_function_exit "$function_name"
+            echo "$out"
+            return 0
+        fi
+    done
+
+    debug_error "$function_name" "$ERR_SCREEN_NOT_FOUND" "No screen contains position ($win_x, $win_y)"
+    debug_function_exit "$function_name"
+    return 1
+}
+
+detect_window_position() {
+    local uuid="$1"
+    local output_num="$2"
+    local function_name="detect_window_position"
+    local win_position=""
+    local win_x=""
+    local win_y=""
+    local win_size=""
+    local win_width=""
+    local win_height=""
+    local screen_x=""
+    local screen_y=""
+    local screen_width=""
+    local screen_height=""
+    local rel_x=""
+    local rel_y=""
+    local pos_var=""
+    local pos_value=""
+    local expect_x=""
+    local expect_y=""
+    local expect_w=""
+    local expect_h=""
+    local tolerance=5
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$uuid" "uuid" || return 1
+    validate_parameter_pass "$output_num" "output_num" || return 1
+
+    # Get window position (returns "x,y")
+    win_position=$(get_window_position "$uuid")
+    if [[ -z "$win_position" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_POSITION_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    win_x="${win_position%,*}"
+    win_y="${win_position#*,}"
+
+    # Get window size (returns "widthxheight")
+    win_size=$(get_window_size "$uuid")
+    if [[ -z "$win_size" ]]; then
+        debug_error "$function_name" "$ERR_WINDOW_SIZE_NOT_FOUND" "$uuid"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    win_width="${win_size%x*}"
+    win_height="${win_size#*x}"
+
+    # Get screen origin and dimensions
+    screen_x=$(get_screen_info "$output_num" "X")
+    screen_y=$(get_screen_info "$output_num" "Y")
+    screen_width=$(get_screen_info "$output_num" "WIDTH")
+    screen_height=$(get_screen_info "$output_num" "HEIGHT")
+
+    # Calculate relative position within screen
+    rel_x=$((win_x - screen_x))
+    rel_y=$((win_y - screen_y))
+
+    debug_log "$function_name" "Window relative: ($rel_x, $rel_y) size: ${win_width}x${win_height}"
+    debug_log "$function_name" "Screen dimensions: ${screen_width}x${screen_height}"
+
+    # Compare against each known position layout
+    for pos_var in "${POSITION_MENU_ORDER[@]}"; do
+        pos_value="${!pos_var}"
+
+        # Calculate expected geometry for this position (same math as move_window_to_position)
+        case "$pos_value" in
+            "$FULLSCREEN")
+                expect_x=0; expect_y=0
+                expect_w="$screen_width"; expect_h="$screen_height"
+                ;;
+            "$LEFTHALF")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width / 2)); expect_h="$screen_height"
+                ;;
+            "$RIGHTHALF")
+                expect_x=$((screen_width / 2)); expect_y=0
+                expect_w=$((screen_width / 2)); expect_h="$screen_height"
+                ;;
+            "$TOPHALF")
+                expect_x=0; expect_y=0
+                expect_w="$screen_width"; expect_h=$((screen_height / 2))
+                ;;
+            "$BOTTOMHALF")
+                expect_x=0; expect_y=$((screen_height / 2))
+                expect_w="$screen_width"; expect_h=$((screen_height / 2))
+                ;;
+            "$TOPLEFT")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width / 2)); expect_h=$((screen_height / 2))
+                ;;
+            "$TOPRIGHT")
+                expect_x=$((screen_width / 2)); expect_y=0
+                expect_w=$((screen_width / 2)); expect_h=$((screen_height / 2))
+                ;;
+            "$BOTTOMLEFT")
+                expect_x=0; expect_y=$((screen_height / 2))
+                expect_w=$((screen_width / 2)); expect_h=$((screen_height / 2))
+                ;;
+            "$BOTTOMRIGHT")
+                expect_x=$((screen_width / 2)); expect_y=$((screen_height / 2))
+                expect_w=$((screen_width / 2)); expect_h=$((screen_height / 2))
+                ;;
+            "$LEFTTHIRD")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width / 3)); expect_h="$screen_height"
+                ;;
+            "$MIDDLETHIRD")
+                expect_x=$((screen_width / 3)); expect_y=0
+                expect_w=$((screen_width / 3)); expect_h="$screen_height"
+                ;;
+            "$RIGHTTHIRD")
+                expect_x=$((screen_width * 2 / 3)); expect_y=0
+                expect_w=$((screen_width / 3)); expect_h="$screen_height"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        # Check if actual geometry matches expected within tolerance
+        if (( rel_x >= expect_x - tolerance && rel_x <= expect_x + tolerance &&
+              rel_y >= expect_y - tolerance && rel_y <= expect_y + tolerance &&
+              win_width >= expect_w - tolerance && win_width <= expect_w + tolerance &&
+              win_height >= expect_h - tolerance && win_height <= expect_h + tolerance )); then
+            debug_log "$function_name" "Position detected: '$pos_value'"
+            debug_function_exit "$function_name"
+            echo "$pos_value"
+            return 0
+        fi
+    done
+
+    # No known position matched — window has custom/manual geometry
+    debug_log "$function_name" "No known position matched for window geometry"
+    debug_function_exit "$function_name"
+    echo ""
+    return 0
+}

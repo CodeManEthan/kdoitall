@@ -90,5 +90,20 @@ declare -ga POSITION_MENU_ORDER=(
     "RIGHTTHIRD"
 )
 
+declare -gA POSITION_ABBREVIATIONS=(
+    ["fs"]="FULLSCREEN"
+    ["rh"]="RIGHTHALF"
+    ["lh"]="LEFTHALF"
+    ["th"]="TOPHALF"
+    ["bh"]="BOTTOMHALF"
+    ["tl"]="TOPLEFT"
+    ["tr"]="TOPRIGHT"
+    ["bl"]="BOTTOMLEFT"
+    ["br"]="BOTTOMRIGHT"
+    ["lt"]="LEFTTHIRD"
+    ["mt"]="MIDDLETHIRD"
+    ["rt"]="RIGHTTHIRD"
+)
+
 # shellcheck disable=SC2034
-readonly POSITION_MENU POSITION_MENU_ORDER
+readonly POSITION_MENU POSITION_MENU_ORDER POSITION_ABBREVIATIONS

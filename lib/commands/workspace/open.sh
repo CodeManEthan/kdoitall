@@ -48,6 +48,11 @@ workspace_open() {
         return 1
     fi
 
+    # Capture the currently active window before any launches
+    # Used to restore focus if no focus_window_name is configured
+    local original_window_uuid=""
+    original_window_uuid=$(get_active_window_uuid)
+
     # Check for safe mode apps (skip if prompting disabled)
     if [[ "${SAFE_MODE_PROMPTING:-enabled}" == "enabled" ]]; then
         local -a safe_mode_apps=()
@@ -116,6 +121,14 @@ workspace_open() {
             activate_window "$focus_uuid"
         else
             debug_log "$function_name" "Focus window '$focus_window' not found in tracked windows, skipping"
+        fi
+    else
+        # No focus window configured — restore the window that was active before launch
+        if [[ -n "$original_window_uuid" ]] && window_exists "$original_window_uuid"; then
+            debug_log "$function_name" "Restoring original active window: $original_window_uuid"
+            activate_window "$original_window_uuid"
+        else
+            debug_log "$function_name" "No original window to restore (was empty or no longer exists)"
         fi
     fi
 
