@@ -457,7 +457,7 @@ db_set_post_launch_metadata() {
         ":measured_time" "$measured_time"
 
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi

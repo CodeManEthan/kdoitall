@@ -32,7 +32,7 @@ db_add_launch_option() {
         ":display_order" "$display_order"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch option: $app_id.$function_name"
+        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch option: $app_id.$function_name ($DB_ERROR)"
         debug_function_exit "$func_name"
         return 1
     fi
@@ -88,7 +88,7 @@ db_add_launch_parameter() {
         ":display_order" "$display_order"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch parameter: $app_id.$function_id.$function_name"
+        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to add launch parameter: $app_id.$function_id.$function_name ($DB_ERROR)"
         debug_function_exit "$func_name"
         return 1
     fi
@@ -159,7 +159,7 @@ db_get_launch_option_id() {
         ":function_name" "$function_name"
     
     if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
-        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Launch option not found: $app_id.$function_name"
+        debug_error "$func_name" "$ERR_DATABASE_ERROR" "Launch option not found: $app_id.$function_name ($DB_ERROR)"
         debug_function_exit "$func_name"
         return 1
     fi

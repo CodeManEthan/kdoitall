@@ -51,7 +51,7 @@ db_add_application() {
         ":has_desktop_launch" "$has_desktop_launch"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -127,7 +127,7 @@ db_add_application_full() {
         ":process_name" "$process_name"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add application: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -156,7 +156,7 @@ db_delete_application() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete application: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete application: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -179,7 +179,7 @@ db_clear_safe_mode_data() {
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -424,7 +424,7 @@ db_set_app_class() {
         ":class" "$class"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -522,7 +522,7 @@ db_set_launch_mode() {
         ":launch_mode" "$launch_mode"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -571,7 +571,7 @@ db_set_window_title_pattern() {
         ":pattern" "$pattern"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -638,7 +638,7 @@ db_set_pid_validation_data() {
         ":executable_path" "$executable_path"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -723,7 +723,7 @@ db_set_launch_time() {
         ":measured" "$measured_time_ms"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -833,7 +833,7 @@ db_set_safe_mode_completed() {
         ":app_id" "$app_id"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -886,7 +886,7 @@ db_set_safe_mode_results() {
         ":launch_mode" "$launch_mode"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -916,7 +916,7 @@ db_set_requires_safe_mode() {
         ":requires" "$requires"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -1008,7 +1008,7 @@ db_mark_apps_requiring_safe_mode() {
         ":workspace" "$workspace_name"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to mark apps requiring safe mode"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to mark apps requiring safe mode ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi

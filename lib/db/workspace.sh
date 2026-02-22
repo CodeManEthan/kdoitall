@@ -26,7 +26,7 @@ db_create_workspace() {
         ":description" "$description"
     
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to create workspace: $workspace_name"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to create workspace: $workspace_name ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -57,7 +57,7 @@ db_update_workspace_description() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to update description for: $workspace_name"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to update description for: $workspace_name ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -81,7 +81,7 @@ db_delete_workspace() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete workspace: $workspace_name"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to delete workspace: $workspace_name ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -357,7 +357,7 @@ db_set_workspace_focus_window() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set focus window for: $workspace_name"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set focus window for: $workspace_name ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi

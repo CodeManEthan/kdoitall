@@ -218,3 +218,25 @@ db_get_window_uuid_by_name() {
     [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]] && echo "${DB_RESULT[0]}"
     return 0
 }
+
+db_get_workspace_windows_ordered() {
+    local workspace_name="$1"
+    local function_name="db_get_workspace_windows_ordered"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$workspace_name" "workspace_name" || return 1
+
+    db_query \
+        "SELECT aw.window_name, aw.uuid
+         FROM app_windows aw
+         INNER JOIN window_definitions wd ON aw.window_name = wd.window_name
+         WHERE aw.workspace_name = :workspace_name
+         ORDER BY wd.display_order;" \
+        ":workspace_name" "$workspace_name"
+
+    debug_log "$function_name" "Retrieved ${#DB_RESULT[@]} ordered windows for workspace: $workspace_name"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}

@@ -39,6 +39,8 @@ DB_ERROR=""    # Error message (when DB_STATUS is "ERR")
 db_query() {
     local query="$1"
     shift
+    # Collapse multiline SQL to single line for line-based protocol
+    query="${query//$'\n'/ }"
 
     local param_count=""
     param_count=$(( $# / 2 ))
@@ -77,6 +79,8 @@ db_query() {
 db_registry_query() {
     local query="$1"
     shift
+    # Collapse multiline SQL to single line for line-based protocol
+    query="${query//$'\n'/ }"
 
     local param_count=""
     param_count=$(( $# / 2 ))

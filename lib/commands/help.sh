@@ -28,6 +28,8 @@ WORKSPACE COMMANDS:
     workspace list            List all defined workspaces
     workspace open <name>     Open a workspace
     workspace close <name>    Close a workspace
+    workspace focus <name>    Focus an active workspace
+    workspace minimize <name> Minimize an active workspace
     workspace delete <name>   Delete a workspace
 
 APPLICATION COMMANDS:

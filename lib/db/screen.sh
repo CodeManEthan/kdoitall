@@ -23,7 +23,7 @@ db_set_screen_alias() {
         ":target" "$target"
 
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set screen alias: $alias -> $target"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set screen alias: $alias -> $target ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -50,7 +50,7 @@ db_remove_screen_alias() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Screen alias not found: $alias"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Screen alias not found: $alias ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi

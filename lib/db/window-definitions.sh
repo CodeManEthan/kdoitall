@@ -47,7 +47,7 @@ db_add_window_definition() {
         ":display_order" "$display_order"
 
     if [[ "$DB_STATUS" != "OK" ]]; then
-        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add window definition: $window_name"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to add window definition: $window_name ($DB_ERROR)"
         debug_function_exit "$function_name"
         return 1
     fi

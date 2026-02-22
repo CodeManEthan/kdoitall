@@ -71,6 +71,16 @@ workspace_command() {
             source "${LIB_DIR}/commands/workspace/close.sh"
             workspace_close "${args[@]}"
             ;;
+        focus)
+            # shellcheck source=focus.sh
+            source "${LIB_DIR}/commands/workspace/focus.sh"
+            workspace_focus "${args[@]}"
+            ;;
+        minimize)
+            # shellcheck source=minimize.sh
+            source "${LIB_DIR}/commands/workspace/minimize.sh"
+            workspace_minimize "${args[@]}"
+            ;;
         delete)
             # shellcheck source=delete.sh
             source "${LIB_DIR}/commands/workspace/delete.sh"
@@ -100,6 +110,8 @@ Workspace Subcommands:
   info <n>          Show detailed info for a workspace
   open <n>          Open a workspace
   close <n>         Close a workspace
+  focus <n>         Focus an active workspace (raise + activate)
+  minimize <n>      Minimize all windows in an active workspace
   delete <n>        Delete a workspace
 
 Examples:
