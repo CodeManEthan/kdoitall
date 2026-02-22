@@ -75,6 +75,8 @@ done
 source "${KDOITALL_ROOT}/config"
 # shellcheck source=../lib/core/common.sh
 source "${LIB_DIR}/core/common.sh"
+# shellcheck source=../lib/utils/positions.sh
+source "${LIB_DIR}/utils/positions.sh"
 
 # Source user config overrides (if exists)
 if [[ -f "$KDOITALL_CONFIG" ]]; then
