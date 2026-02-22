@@ -30,15 +30,36 @@ EOF
 }
 
 window_move_show_positions() {
-    cat << 'EOF' >&3
-Positions (full name or abbreviation):
-  Fullscreen (fs)    Right Half (rh)    Left Half (lh)
-  Top Half (th)      Bottom Half (bh)
-  Top Left (tl)      Top Right (tr)
-  Bottom Left (bl)   Bottom Right (br)
-  Left Third (lt)    Middle Third (mt)  Right Third (rt)
+    echo "Positions (full name or abbreviation):" >&3
 
-EOF
+    local pos_var=""
+    local pos_value=""
+    local abbrev=""
+    local abbrev_display=""
+    local key=""
+
+    for pos_var in "${POSITION_MENU_ORDER[@]}"; do
+        pos_value="${!pos_var}"
+
+        # Find the abbreviation for this position
+        abbrev=""
+        for key in "${!POSITION_ABBREVIATIONS[@]}"; do
+            if [[ "${POSITION_ABBREVIATIONS[$key]}" == "$pos_var" ]]; then
+                abbrev="$key"
+                break
+            fi
+        done
+
+        if [[ -n "$abbrev" ]]; then
+            abbrev_display=" ($abbrev)"
+        else
+            abbrev_display=""
+        fi
+
+        echo "  ${pos_value}${abbrev_display}" >&3
+    done
+
+    echo "" >&3
 }
 
 window_move() {

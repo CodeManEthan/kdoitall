@@ -283,6 +283,102 @@ move_window_to_position() {
             width=$((screen_width / 3))
             height="$screen_height"
             ;;
+        "$LEFTTWOTHIRDS")
+            x=0
+            y=0
+            width=$((screen_width * 2 / 3))
+            height="$screen_height"
+            ;;
+        "$RIGHTTWOTHIRDS")
+            x=$((screen_width / 3))
+            y=0
+            width=$((screen_width * 2 / 3))
+            height="$screen_height"
+            ;;
+        "$LEFT60")
+            x=0
+            y=0
+            width=$((screen_width * 60 / 100))
+            height="$screen_height"
+            ;;
+        "$RIGHT40")
+            x=$((screen_width * 60 / 100))
+            y=0
+            width=$((screen_width * 40 / 100))
+            height="$screen_height"
+            ;;
+        "$LEFT40")
+            x=0
+            y=0
+            width=$((screen_width * 40 / 100))
+            height="$screen_height"
+            ;;
+        "$RIGHT60")
+            x=$((screen_width * 40 / 100))
+            y=0
+            width=$((screen_width * 60 / 100))
+            height="$screen_height"
+            ;;
+        "$CENTERHALF")
+            x=$((screen_width / 4))
+            y=0
+            width=$((screen_width / 2))
+            height="$screen_height"
+            ;;
+        "$LEFT25")
+            x=0
+            y=0
+            width=$((screen_width / 4))
+            height="$screen_height"
+            ;;
+        "$RIGHT25")
+            x=$((screen_width * 3 / 4))
+            y=0
+            width=$((screen_width / 4))
+            height="$screen_height"
+            ;;
+        "$CENTERTWOTHIRDS")
+            x=$((screen_width / 6))
+            y=0
+            width=$((screen_width * 2 / 3))
+            height="$screen_height"
+            ;;
+        "$TOPTWOTHIRDS")
+            x=0
+            y=0
+            width="$screen_width"
+            height=$((screen_height * 2 / 3))
+            ;;
+        "$BOTTOMTWOTHIRDS")
+            x=0
+            y=$((screen_height / 3))
+            width="$screen_width"
+            height=$((screen_height * 2 / 3))
+            ;;
+        "$TOP60")
+            x=0
+            y=0
+            width="$screen_width"
+            height=$((screen_height * 60 / 100))
+            ;;
+        "$BOTTOM40")
+            x=0
+            y=$((screen_height * 60 / 100))
+            width="$screen_width"
+            height=$((screen_height * 40 / 100))
+            ;;
+        "$TOP40")
+            x=0
+            y=0
+            width="$screen_width"
+            height=$((screen_height * 40 / 100))
+            ;;
+        "$BOTTOM60")
+            x=0
+            y=$((screen_height * 40 / 100))
+            width="$screen_width"
+            height=$((screen_height * 60 / 100))
+            ;;
         *)
             debug_error "$function_name" "$INVALID_POSITION_MODE" "Unknown mode: $position_mode"
             debug_function_exit "$function_name"
@@ -518,6 +614,70 @@ detect_window_position() {
             "$RIGHTTHIRD")
                 expect_x=$((screen_width * 2 / 3)); expect_y=0
                 expect_w=$((screen_width / 3)); expect_h="$screen_height"
+                ;;
+            "$LEFTTWOTHIRDS")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width * 2 / 3)); expect_h="$screen_height"
+                ;;
+            "$RIGHTTWOTHIRDS")
+                expect_x=$((screen_width / 3)); expect_y=0
+                expect_w=$((screen_width * 2 / 3)); expect_h="$screen_height"
+                ;;
+            "$LEFT60")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width * 60 / 100)); expect_h="$screen_height"
+                ;;
+            "$RIGHT40")
+                expect_x=$((screen_width * 60 / 100)); expect_y=0
+                expect_w=$((screen_width * 40 / 100)); expect_h="$screen_height"
+                ;;
+            "$LEFT40")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width * 40 / 100)); expect_h="$screen_height"
+                ;;
+            "$RIGHT60")
+                expect_x=$((screen_width * 40 / 100)); expect_y=0
+                expect_w=$((screen_width * 60 / 100)); expect_h="$screen_height"
+                ;;
+            "$CENTERHALF")
+                expect_x=$((screen_width / 4)); expect_y=0
+                expect_w=$((screen_width / 2)); expect_h="$screen_height"
+                ;;
+            "$LEFT25")
+                expect_x=0; expect_y=0
+                expect_w=$((screen_width / 4)); expect_h="$screen_height"
+                ;;
+            "$RIGHT25")
+                expect_x=$((screen_width * 3 / 4)); expect_y=0
+                expect_w=$((screen_width / 4)); expect_h="$screen_height"
+                ;;
+            "$CENTERTWOTHIRDS")
+                expect_x=$((screen_width / 6)); expect_y=0
+                expect_w=$((screen_width * 2 / 3)); expect_h="$screen_height"
+                ;;
+            "$TOPTWOTHIRDS")
+                expect_x=0; expect_y=0
+                expect_w="$screen_width"; expect_h=$((screen_height * 2 / 3))
+                ;;
+            "$BOTTOMTWOTHIRDS")
+                expect_x=0; expect_y=$((screen_height / 3))
+                expect_w="$screen_width"; expect_h=$((screen_height * 2 / 3))
+                ;;
+            "$TOP60")
+                expect_x=0; expect_y=0
+                expect_w="$screen_width"; expect_h=$((screen_height * 60 / 100))
+                ;;
+            "$BOTTOM40")
+                expect_x=0; expect_y=$((screen_height * 60 / 100))
+                expect_w="$screen_width"; expect_h=$((screen_height * 40 / 100))
+                ;;
+            "$TOP40")
+                expect_x=0; expect_y=0
+                expect_w="$screen_width"; expect_h=$((screen_height * 40 / 100))
+                ;;
+            "$BOTTOM60")
+                expect_x=0; expect_y=$((screen_height * 40 / 100))
+                expect_w="$screen_width"; expect_h=$((screen_height * 60 / 100))
                 ;;
             *)
                 continue

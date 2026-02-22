@@ -82,6 +82,9 @@ if [[ -f "$KDOITALL_CONFIG" ]]; then
     source "$KDOITALL_CONFIG"
 fi
 
+# Load any extra positions enabled in user config
+load_extra_positions
+
 # Initialize file logging (depends on LOG_TO_FILE and LOG_DIR from config)
 init_file_logging
 

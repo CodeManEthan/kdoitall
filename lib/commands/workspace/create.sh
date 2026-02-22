@@ -713,83 +713,70 @@ select_screen_with_retry() {
 
 select_position_with_retry() {
     local function_name="select_position_with_retry"
-    
+    local pos_count=""
+    pos_count=${#POSITION_MENU_ORDER[@]}
+
     debug_function_enter "$function_name"
-    
+
     while true; do
         echo "" >&3
         echo "Available positions:" >&3
-        echo "  1) Fullscreen" >&3
-        echo "  2) Right Half" >&3
-        echo "  3) Left Half" >&3
-        echo "  4) Top Half" >&3
-        echo "  5) Bottom Half" >&3
-        echo "  6) Top Left" >&3
-        echo "  7) Top Right" >&3
-        echo "  8) Bottom Left" >&3
-        echo "  9) Bottom Right" >&3
-        echo " 10) Left Third" >&3
-        echo " 11) Middle Third" >&3
-        echo " 12) Right Third" >&3
+
+        local i=0
+        local pos_var=""
+        for pos_var in "${POSITION_MENU_ORDER[@]}"; do
+            ((i++)) || true
+            printf "  %2d) %s\n" "$i" "${!pos_var}" >&3
+        done
+
         read -r pos_choice
-        
+
         local position=""
-        case "$pos_choice" in
-            1) position="FULLSCREEN" ;;
-            2) position="RIGHTHALF" ;;
-            3) position="LEFTHALF" ;;
-            4) position="TOPHALF" ;;
-            5) position="BOTTOMHALF" ;;
-            6) position="TOPLEFT" ;;
-            7) position="TOPRIGHT" ;;
-            8) position="BOTTOMLEFT" ;;
-            9) position="BOTTOMRIGHT" ;;
-            10) position="LEFTTHIRD" ;;
-            11) position="MIDDLETHIRD" ;;
-            12) position="RIGHTTHIRD" ;;
-            *)
-                # Invalid input
-                echo "" >&3
-                echo "Error: Invalid position choice (entered: $pos_choice, valid range: 1-12)" >&3
-                echo "" >&3
-                echo "What would you like to do?" >&3
-                echo "1) Try again (re-select position)" >&3
-                echo "2) Go back to screen selection" >&3
-                echo "3) Choose different application" >&3
-                echo "4) Cancel" >&3
-                read -r choice
-                
-                case "$choice" in
-                    1) continue ;;
-                    2)
-                        debug_function_exit "$function_name"
-                        echo "BACK"
-                        return 1
-                        ;;
-                    3)
-                        debug_function_exit "$function_name"
-                        echo "CHANGE_APP"
-                        return 1
-                        ;;
-                    4)
-                        debug_function_exit "$function_name"
-                        return 1
-                        ;;
-                    *)
-                        echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
-                        continue
-                        ;;
-                esac
-                ;;
-        esac
-        
-        # Valid position selected
+
+        # Validate numeric input in range
+        if [[ "$pos_choice" =~ ^[0-9]+$ ]] && (( pos_choice >= 1 && pos_choice <= pos_count )); then
+            position="${POSITION_MENU_ORDER[$((pos_choice - 1))]}"
+        fi
+
         if [[ -n "$position" ]]; then
             debug_log "$function_name" "Selected position: $position"
             debug_function_exit "$function_name"
             echo "$position"
             return 0
         fi
+
+        # Invalid input
+        echo "" >&3
+        echo "Error: Invalid position choice (entered: $pos_choice, valid range: 1-$pos_count)" >&3
+        echo "" >&3
+        echo "What would you like to do?" >&3
+        echo "1) Try again (re-select position)" >&3
+        echo "2) Go back to screen selection" >&3
+        echo "3) Choose different application" >&3
+        echo "4) Cancel" >&3
+        read -r choice
+
+        case "$choice" in
+            1) continue ;;
+            2)
+                debug_function_exit "$function_name"
+                echo "BACK"
+                return 1
+                ;;
+            3)
+                debug_function_exit "$function_name"
+                echo "CHANGE_APP"
+                return 1
+                ;;
+            4)
+                debug_function_exit "$function_name"
+                return 1
+                ;;
+            *)
+                echo "Invalid choice. Please select 1, 2, 3, or 4." >&3
+                continue
+                ;;
+        esac
     done
 }
 

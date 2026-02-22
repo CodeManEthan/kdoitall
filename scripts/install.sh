@@ -102,6 +102,26 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 
 # Log directory (only used when LOG_TO_FILE is enabled)
 # LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
+
+# Extra window positions (uncomment the array and desired positions to enable)
+# EXTRA_POSITIONS=(
+#     "Left Two-Thirds"
+#     "Right Two-Thirds"
+#     "Left 60"
+#     "Right 40"
+#     "Left 40"
+#     "Right 60"
+#     "Center Half"
+#     "Left 25"
+#     "Right 25"
+#     "Center Two-Thirds"
+#     "Top Two-Thirds"
+#     "Bottom Two-Thirds"
+#     "Top 60"
+#     "Bottom 40"
+#     "Top 40"
+#     "Bottom 60"
+# )
 CONFIGEOF
     echo "✓ Created user config:      $USER_CONFIG"
 else

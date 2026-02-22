@@ -1,7 +1,7 @@
 {
   "app_id": "org.mozilla.firefox",
   "app_class": "org.mozilla.firefox",
-  "window_title_pattern": "Mozilla Firefox",
+  "window_title_pattern": " — Mozilla Firefox",
   "terminal_command": "firefox",
   "launch_mode": "LAUNCH_MODE_MULTI",
   "launch_type": "LAUNCH_TYPE_TERMINAL",
