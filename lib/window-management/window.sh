@@ -200,8 +200,11 @@ get_uuid() {
 
     # Step 1: Search by class if provided
     if [[ -n "$class" ]]; then
-        debug_log "$function_name" "Searching for windows with class: '$class'"
-        mapfile -t matching_uuids < <(kdotool search --class "$class")
+        local safe_class=""
+        safe_class=$(safe_kdotool_pattern "$class")
+
+        debug_log "$function_name" "Searching for windows with class: '$class' (escaped: '$safe_class')"
+        mapfile -t matching_uuids < <(kdotool search --class "$safe_class")
 
         if [[ ${#matching_uuids[@]} -eq 0 ]]; then
             debug_log "$function_name" "No windows found with class '$class'"

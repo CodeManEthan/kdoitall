@@ -140,15 +140,15 @@ db_add_existing_windows() {
             json_rows+=","
         fi
 
-        # Escape quotes in values for JSON safety
-        local safe_title="${window_title//\\/\\\\}"
-        safe_title="${safe_title//\"/\\\"}"
-        local safe_class="${class//\\/\\\\}"
-        safe_class="${safe_class//\"/\\\"}"
-        local safe_name="${window_name//\\/\\\\}"
-        safe_name="${safe_name//\"/\\\"}"
+        # Escape values for JSON safety
+        local json_title=""
+        json_title=$(safe_json_value "$window_title")
+        local json_class=""
+        json_class=$(safe_json_value "$class")
+        local json_window_name=""
+        json_window_name=$(safe_json_value "$window_name")
 
-        json_rows+="{\"w\":\"$safe_name\",\"u\":\"$uuid\",\"c\":\"$safe_class\",\"t\":\"$safe_title\"}"
+        json_rows+="{\"w\":\"$json_window_name\",\"u\":\"$uuid\",\"c\":\"$json_class\",\"t\":\"$json_title\"}"
     done
     json_rows+="]"
 

@@ -4,81 +4,47 @@
 # Copyright (C) 2025 Ethan Plunk
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-safe_name() {
-    local name="$1"
-    local function_name="safe_name"
+safe_kdotool_pattern() {
+    local pattern="$1"
+    local function_name="safe_kdotool_pattern"
 
     debug_function_enter "$function_name" "$@"
 
-    # Escape special characters
-    name="${name//\(/\\(}"
-    name="${name//\)/\\)}"
-    name="${name//\[/\\[}"
-    name="${name//\]/\\]}"
+    # Escape for literal matching in kdotool search regex.
+    # A single backslash-prefix strategy handles both JS template-literal
+    # safety (backtick, $) and regex literal matching simultaneously.
+    # Backslash MUST be escaped first to avoid double-escaping.
+    pattern="${pattern//\\/\\\\}"
+    pattern="${pattern//\`/\\\`}"
+    pattern="${pattern//\$/\\$}"
+    pattern="${pattern//./\\.}"
+    pattern="${pattern//\*/\\*}"
+    pattern="${pattern//+/\\+}"
+    pattern="${pattern//\?/\\?}"
+    pattern="${pattern//\(/\\(}"
+    pattern="${pattern//\)/\\)}"
+    pattern="${pattern//\[/\\[}"
+    pattern="${pattern//\]/\\]}"
+    pattern="${pattern//\{/\\{}"
+    pattern="${pattern//\}/\\}}"
+    pattern="${pattern//^/\\^}"
+    pattern="${pattern//|/\\|}"
 
-    # Pass Name
-    debug_log "$function_name" "$name"
+    debug_log "$function_name" "$pattern"
 
     debug_function_exit "$function_name"
-    echo "$name" 
+    echo "$pattern"
 }
 
-safe_file() {
-    local file_path="$1"
-    local safe_file_path=""
-    local function_name="safe_file"
+safe_json_value() {
+    local value="$1"
 
-    debug_function_enter "$function_name" "$@"
-    
-    # Apply 'safe_name' to file_path (if file exists and is not empty)
-    if [[ -f "$file_path" ]]; then
-        if [[ -s "$file_path" ]]; then
-            safe_file_path=$(safe_name "$file_path")
+    # Escape backslash and double-quote for safe embedding in JSON strings.
+    # Backslash must be escaped first to avoid double-escaping.
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
 
-            # Pass Safe File Path (only log if path actually changed)
-            if [[ "$file_path" != "$safe_file_path" ]]; then
-                debug_log "$function_name" "Renamed $file_path to $safe_file_path"
-            fi
-
-            debug_function_exit "$function_name"
-            echo "$safe_file_path"
-            return 0
-        else
-            debug_error "$function_name" "$ERR_FILE_IS_EMPTY" "$file_path"
-            debug_function_exit "$function_name"
-            return 1
-        fi
-    else
-        debug_error "$function_name" "$ERR_FILE_NOT_FOUND" "$file_path"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-}
-
-safe_directory() {
-    local directory_path="$1"
-    local safe_directory_path=""
-    local function_name="safe_directory"
-
-    debug_function_enter "$function_name" "$@"
-    
-    # Apply 'safe_name' to directory_path (if directory exists)
-    if [[ -d "$directory_path" ]]; then
-        safe_directory_path=$(safe_name "$directory_path")
-
-        # Pass Safe Directory Path (only log if path actually changed)
-        if [[ "$directory_path" != "$safe_directory_path" ]]; then
-            debug_log "$function_name" "Renamed $directory_path to $safe_directory_path"
-        fi
-
-        debug_function_exit "$function_name"
-        echo "$safe_directory_path"
-        return 0
-    fi
-    
-    debug_error "$function_name" "$ERR_DIRECTORY_NOT_FOUND" "$directory_path"
-    debug_function_exit "$function_name"
-    return 1
+    echo "$value"
 }
 
 validate_app_id_format() {

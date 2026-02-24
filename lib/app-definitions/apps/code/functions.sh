@@ -49,12 +49,11 @@ launch_vscode_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    directory_path=$(safe_directory "$directory_path") || return 1
+    validate_directory_exists "$directory_path" || return 1
 
     local directory=""
     directory=$(basename "$directory_path")
     window_title_pattern="$directory - Visual Studio Code"
-    window_title_pattern=$(safe_name "$window_title_pattern")
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_vscode" \
@@ -76,12 +75,11 @@ launch_vscode_workspace_window() {
 
     debug_function_enter "$function_name" "$@"
 
-    workspace_path=$(safe_file "$workspace_path") || return 1
+    validate_file_exists "$workspace_path" || return 1
 
     local workspace=""
     workspace=$(basename "$workspace_path" .code-workspace)
     window_title_pattern="$workspace (Workspace) - Visual Studio Code"
-    window_title_pattern=$(safe_name "$window_title_pattern")
 
     execute_launch_window \
     "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_vscode" \
