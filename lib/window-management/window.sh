@@ -84,6 +84,11 @@ get_uuid_by_process_of_elimination() {
     # Find UUIDs that exist in current windows but not in database
     for uuid in "${CURRENT_UUIDS[@]}"; do
         if [[ ! -v db_lookup[$uuid] ]]; then
+            # Skip UUIDs that were previously rejected during retry attempts
+            if [[ ${#EXCLUDED_UUIDS[@]} -gt 0 && -v EXCLUDED_UUIDS[$uuid] ]]; then
+                debug_log "$function_name" "Skipping excluded UUID: $uuid"
+                continue
+            fi
             new_uuid="$uuid"
             ((found_count++))
             debug_log "$function_name" "Found new UUID: $uuid"
@@ -111,6 +116,7 @@ get_uuid_by_process_of_elimination() {
         
         if [[ "$class" != "$found_class" ]]; then
             debug_error "$function_name" "$ERR_WINDOW_CLASS_MISMATCH" "Expected class '$class', found '$found_class' for UUID '$new_uuid'"
+            echo "REJECTED:$new_uuid"
             debug_function_exit "$function_name"
             return 1
         fi
@@ -131,19 +137,33 @@ get_uuid_by_process_of_elimination_with_retry() {
     local uuid=""
     local elapsed_ms=0
     local attempt=0
+    local result=""
+    local rejected_uuid=""
     
     debug_function_enter "$function_name" "$@"
+
+    # Initialize/reset global exclusion array for this detection cycle
+    EXCLUDED_UUIDS=()
+    declare -gA EXCLUDED_UUIDS
     
     debug_log "$function_name" "Waiting up to ${max_wait_ms}ms for window (class: '$class')"
     
     while (( elapsed_ms < max_wait_ms )); do
         ((attempt++))
+        rejected_uuid=""
         
         # Attempt to get UUID (class validation happens inside this function)
-        uuid=$(get_uuid_by_process_of_elimination "$class" "TRUE")
-        
-        if [[ -n "$uuid" ]]; then
+        result=$(get_uuid_by_process_of_elimination "$class" "TRUE") || true
+
+        if [[ "$result" == REJECTED:* ]]; then
+            # Window found but failed validation — exclude from future attempts
+            rejected_uuid="${result#REJECTED:}"
+            EXCLUDED_UUIDS["$rejected_uuid"]=1
+            debug_log "$function_name" "Excluding rejected UUID '$rejected_uuid' from future attempts"
+        elif [[ -n "$result" ]]; then
+            uuid="$result"
             debug_log "$function_name" "✓ Found UUID '$uuid' after ${elapsed_ms}ms (attempt #$attempt)"
+            unset EXCLUDED_UUIDS
             debug_function_exit "$function_name"
             echo "$uuid"
             return 0
@@ -156,7 +176,8 @@ get_uuid_by_process_of_elimination_with_retry() {
         debug_log "$function_name" "Attempt #$attempt: No UUID yet (elapsed: ${elapsed_ms}ms)"
     done
     
-    # Timeout reached
+    # Timeout reached — cleanup and report
+    unset EXCLUDED_UUIDS
     debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Timeout after ${max_wait_ms}ms waiting for window (class: '$class')"
     debug_function_exit "$function_name"
     return 1
