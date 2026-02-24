@@ -8,27 +8,12 @@ check_and_set_guard "_KDOITALL_CODE_LOADED" || return 0
 
 # shellcheck source=lib/core/core.sh
 source "${LIB_DIR}/core/core.sh"
+# shellcheck source=lib/app-definitions/loader.sh
+source "${LIB_DIR}/app-definitions/loader.sh"
+# shellcheck source=lib/db/app.sh
+source "${LIB_DIR}/db/app.sh"
 
-# Load metadata from JSON into global variables
-# This happens once when the file is sourced
-_load_app_metadata() {
-    local app_dir="${BASH_SOURCE[0]%/*}"
-    local json_file="$app_dir/metadata.json"
-
-    local metadata=""
-    metadata=$(jq -r '[
-        .terminal_command,
-        .app_id,
-        (.app_class // ""),
-        .launch_mode,
-        .launch_type
-    ] | @tsv' "$json_file")
-
-    # shellcheck disable=SC2034
-    IFS=$'\t' read -r TERMINAL_COMMAND APP_ID APP_CLASS LAUNCH_MODE LAUNCH_TYPE <<< "$metadata"
-}
-
-_load_app_metadata
+load_app_metadata "${BASH_SOURCE[0]%/*}"
 
 _launch_vscode() {
     local path="$1"
@@ -51,13 +36,26 @@ launch_vscode_window() {
 
     validate_directory_exists "$directory_path" || return 1
 
+    local launch_properties=""
+    launch_properties=$(db_get_app_launch_properties "$APP_ID")
+
+    if [[ -z "$launch_properties" ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $APP_ID"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    local class=""
+    local launch_mode=""
+    IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
+
     local directory=""
     directory=$(basename "$directory_path")
     window_title_pattern="$directory - Visual Studio Code"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_vscode" \
-    "$APP_CLASS" "$window_title_pattern" "" "$directory_path"
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_vscode" \
+    "$class" "$window_title_pattern" "" "$directory_path"
 
     debug_function_exit "$function_name"
 }
@@ -77,13 +75,26 @@ launch_vscode_workspace_window() {
 
     validate_file_exists "$workspace_path" || return 1
 
+    local launch_properties=""
+    launch_properties=$(db_get_app_launch_properties "$APP_ID")
+
+    if [[ -z "$launch_properties" ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $APP_ID"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    local class=""
+    local launch_mode=""
+    IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
+
     local workspace=""
     workspace=$(basename "$workspace_path" .code-workspace)
     window_title_pattern="$workspace (Workspace) - Visual Studio Code"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_vscode" \
-    "$APP_CLASS" "$window_title_pattern" "" "$workspace_path"
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_vscode" \
+    "$class" "$window_title_pattern" "" "$workspace_path"
 
     debug_function_exit "$function_name"
 }

@@ -8,27 +8,12 @@ check_and_set_guard "_KDOITALL_FIREFOX_LOADED" || return 0
 
 # shellcheck source=lib/core/core.sh
 source "${LIB_DIR}/core/core.sh"
+# shellcheck source=lib/app-definitions/loader.sh
+source "${LIB_DIR}/app-definitions/loader.sh"
+# shellcheck source=lib/db/app.sh
+source "${LIB_DIR}/db/app.sh"
 
-# Load metadata from JSON into global variables
-# This happens once when the file is sourced
-_load_app_metadata() {
-    local app_dir="${BASH_SOURCE[0]%/*}"
-    local json_file="$app_dir/metadata.json"
-
-    local metadata=""
-    metadata=$(jq -r '[
-        .terminal_command,
-        .app_id,
-        (.app_class // ""),
-        .launch_mode,
-        .launch_type
-    ] | @tsv' "$json_file")
-
-    # shellcheck disable=SC2034
-    IFS=$'\t' read -r TERMINAL_COMMAND APP_ID APP_CLASS LAUNCH_MODE LAUNCH_TYPE <<< "$metadata"
-}
-
-_load_app_metadata
+load_app_metadata "${BASH_SOURCE[0]%/*}"
 
 _launch_firefox() {
     local url="$1"
@@ -48,11 +33,24 @@ launch_firefox_window() {
 
     debug_function_enter "$function_name" "$@"
 
+    local launch_properties=""
+    launch_properties=$(db_get_app_launch_properties "$APP_ID")
+
+    if [[ -z "$launch_properties" ]]; then
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "Application not found: $APP_ID"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    local class=""
+    local launch_mode=""
+    IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
+
     window_title_pattern=" — Mozilla Firefox"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$LAUNCH_MODE" "$LAUNCH_TYPE" "_launch_firefox" \
-    "$APP_CLASS" "$window_title_pattern" "" "$url"
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_firefox" \
+    "$class" "$window_title_pattern" "" "$url"
 
     debug_function_exit "$function_name"
 }

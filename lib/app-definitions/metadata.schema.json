@@ -3,34 +3,11 @@
   "title": "kdoitall Application Metadata",
   "description": "Metadata schema for kdoitall application definitions",
   "type": "object",
-  "required": ["app_id", "terminal_command", "launch_options"],
+  "required": ["terminal_command", "launch_options"],
   "properties": {
-    "app_id": {
-      "type": "string",
-      "pattern": "^[a-z0-9._-]+$",
-      "description": "Unique application identifier"
-    },
-    "app_class": {
-      "type": "string",
-      "description": "X11 window class for window detection"
-    },
-    "window_title_pattern": {
-      "type": "string",
-      "description": "Default window title pattern for desktop-launched windows"
-    },
     "terminal_command": {
       "type": "string",
       "description": "Command to validate terminal availability"
-    },
-    "launch_mode": {
-      "type": "string",
-      "enum": ["LAUNCH_MODE_UNIQUE", "LAUNCH_MODE_MULTI"],
-      "description": "How application handles multiple instances"
-    },
-    "launch_type": {
-      "type": "string",
-      "enum": ["LAUNCH_TYPE_TERMINAL", "LAUNCH_TYPE_DESKTOP"],
-      "description": "Primary launch method"
     },
     "launch_options": {
       "type": "array",

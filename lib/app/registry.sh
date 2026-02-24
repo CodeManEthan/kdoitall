@@ -103,17 +103,8 @@ registry_scan_applications() {
                 app_directory_path=$(registry_get_app_directory_path "$app_id")
                 local json_file="${app_directory_path}/metadata.json"
                 
-                # Extract all metadata in a single jq call
-                local metadata_tsv=""
-                metadata_tsv=$(json_get_all_metadata "$json_file")
-
-                local launch_mode_constant=""
-                IFS=$'\t' read -r terminal_command app_class launch_mode_constant window_title_pattern <<< "$metadata_tsv"
-
-                # Resolve constant name (e.g., LAUNCH_MODE_UNIQUE) to value (e.g., unique)
-                if [[ -n "$launch_mode_constant" ]]; then
-                    launch_mode="${!launch_mode_constant}"
-                fi
+                # Extract terminal_command from metadata
+                terminal_command=$(json_get_all_metadata "$json_file")
                 
                 if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true

@@ -15,18 +15,15 @@ json_validate_metadata() {
     validate_parameter_pass "$json_file" "json_file" || return 1
     validate_file_exists "$json_file" || return 1
     
-    # Single jq call: validate structure and extract all data for bash-level checks
+    # Single jq call: validate structure and extract launch options for bash-level checks
     # Output format:
-    #   Line 1: app_id\tlaunch_mode\tlaunch_type
-    #   Lines 2+: function_name\tdescription\tparam_count\tparam1_name\tparam1_desc\t...
+    #   Lines: function_name\tdescription\tparam_count\tparam1_name\tparam1_desc\t...
     local validation_output=""
     if ! validation_output=$(jq -r '
-        if (.app_id == null) then error("missing required field: app_id")
-        elif (.terminal_command == null) then error("missing required field: terminal_command")
+        if (.terminal_command == null) then error("missing required field: terminal_command")
         elif (.launch_options == null) then error("missing required field: launch_options")
         elif (.launch_options | length == 0) then error("launch_options array is empty")
         else
-            ([.app_id, (.launch_mode // ""), (.launch_type // "")] | @tsv),
             (.launch_options | to_entries[] |
                 .value as $opt | .key as $idx |
                 if ($opt.function_name == null or $opt.function_name == "") then
@@ -53,46 +50,7 @@ json_validate_metadata() {
         return 1
     fi
 
-    # Parse first line: top-level fields
-    local first_line=""
-    first_line=$(head -1 <<< "$validation_output")
-
-    local app_id=""
-    local launch_mode=""
-    local launch_type=""
-    IFS=$'\t' read -r app_id launch_mode launch_type <<< "$first_line"
-
-    # Validate app_id format
-    if ! [[ "$app_id" =~ ^[a-z0-9._-]+$ ]]; then
-        debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid app_id format: $app_id"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Validate launch_mode enum
-    if [[ -n "$launch_mode" ]] && \
-       [[ "$launch_mode" != "LAUNCH_MODE_SINGLE" ]] && \
-       [[ "$launch_mode" != "LAUNCH_MODE_UNIQUE" ]] && \
-       [[ "$launch_mode" != "LAUNCH_MODE_MULTI" ]] && \
-       [[ "$launch_mode" != "LAUNCH_MODE_SINGLE_OR_UNIQUE" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid launch_mode: $launch_mode"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Validate launch_type enum
-    if [[ -n "$launch_type" ]] && \
-       [[ "$launch_type" != "LAUNCH_TYPE_TERMINAL" ]] && \
-       [[ "$launch_type" != "LAUNCH_TYPE_DESKTOP" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid launch_type: $launch_type"
-        debug_function_exit "$function_name"
-        return 1
-    fi
-
-    # Parse remaining lines: launch options with parameters
-    local option_lines=""
-    option_lines=$(tail -n +2 <<< "$validation_output")
-
+    # Parse launch options with parameters
     local line=""
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -143,7 +101,7 @@ json_validate_metadata() {
 
             ((p++))
         done
-    done <<< "$option_lines"
+    done <<< "$validation_output"
 
     debug_log "$function_name" "✓ JSON validation passed for $json_file"
     debug_function_exit "$function_name"
