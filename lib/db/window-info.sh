@@ -271,3 +271,47 @@ db_get_active_workspace_window_status() {
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
+
+db_get_quick_window_list() {
+    local function_name="db_get_quick_window_list"
+
+    debug_function_enter "$function_name"
+
+    # Retrieve all live windows suitable for the quick picker.
+    # Display name resolution (tiered):
+    #   1. Direct app_id join → applications.display_name
+    #   2. Class match → applications.app_class → display_name
+    #   3. Fallback → raw class value (capitalization done in bash)
+    # Filters out KDE system/infrastructure windows via class blocklist.
+    db_query \
+        "SELECT
+            aw.uuid,
+            aw.class,
+            COALESCE(aw.window_title, ''),
+            COALESCE(a_direct.display_name, a_class.display_name, aw.class),
+            aw.workspace_name,
+            COALESCE(aw.app_id, '')
+         FROM app_windows aw
+         LEFT JOIN applications a_direct ON aw.app_id = a_direct.app_id
+         LEFT JOIN applications a_class ON aw.app_id IS NULL
+            AND a_class.app_class = aw.class
+         WHERE aw.class NOT IN (
+            'plasmashell', 'kwin_wayland', 'kwin_x11', 'kwin',
+            'xdg-desktop-portal-kde', 'org.kde.kscreen.osd',
+            'kded5', 'kded6',
+            'polkit-kde-authentication-agent-1',
+            'ksplashqml', 'ksmserver', 'org.kde.plasmashell'
+         )
+         ORDER BY aw.class, aw.window_title;"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to get quick window list: $DB_ERROR"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Retrieved ${#DB_RESULT[@]} windows for quick picker"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}

@@ -196,6 +196,12 @@ case "$COMMAND" in
         window_command "$@"
         ;;
 
+    quick|q)
+        # shellcheck source=../lib/commands/quick/dispatcher.sh
+        source "${LIB_DIR}/commands/quick/dispatcher.sh"
+        quick_command "$@"
+        ;;
+
     status|st)
         # shellcheck source=../lib/commands/status.sh
         source "${LIB_DIR}/commands/status.sh"

@@ -56,6 +56,9 @@ WINDOW COMMANDS (window | win):
     window focus (f) <window-name>                  Bring window to front
     window minimize (min) <window-name>             Minimize window
 
+QUICK ACTION (quick | q):
+    quick                   Interactive window picker for ad-hoc actions
+
 CONFIGURATION:
     Project defaults:     <install-dir>/config
     User overrides:       ~/.config/kdoitall/config
