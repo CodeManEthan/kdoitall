@@ -12,6 +12,7 @@ source "${LIB_DIR}/db/window-info.sh"
 CURRENT_UUIDS=()
 CURRENT_CLASSES=()
 CURRENT_TITLES=()
+declare -gA EXCLUDED_UUIDS=()
 
 refresh_current_windows() {
     local function_name="refresh_current_windows"
@@ -144,7 +145,6 @@ get_uuid_by_process_of_elimination_with_retry() {
 
     # Initialize/reset global exclusion array for this detection cycle
     EXCLUDED_UUIDS=()
-    declare -gA EXCLUDED_UUIDS
     
     debug_log "$function_name" "Waiting up to ${max_wait_ms}ms for window (class: '$class')"
     
@@ -177,8 +177,8 @@ get_uuid_by_process_of_elimination_with_retry() {
     done
     
     # Timeout reached — cleanup and report
-    unset EXCLUDED_UUIDS
-    debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Timeout after ${max_wait_ms}ms waiting for window (class: '$class')"
+    EXCLUDED_UUIDS=()
+    debug_log "$function_name" "Timeout after ${max_wait_ms}ms waiting for window (class: '$class')"
     debug_function_exit "$function_name"
     return 1
 }

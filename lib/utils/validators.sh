@@ -26,7 +26,8 @@ safe_kdotool_pattern() {
     pattern="${pattern//\[/\\[}"
     pattern="${pattern//\]/\\]}"
     pattern="${pattern//\{/\\{}"
-    pattern="${pattern//\}/\\}}"
+    local rb="}"
+    pattern="${pattern//$rb/\\$rb}"
     pattern="${pattern//^/\\^}"
     pattern="${pattern//|/\\|}"
 

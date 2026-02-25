@@ -134,68 +134,138 @@ execute_launch_window() {
     # Brief pause to let the launch command take effect
     sleep "$LAUNCH_DELAY"
 
-    # --- Quick check: did the app focus an existing window? ---
+    # --- Detection strategy depends on launch mode ---
     local current_active_uuid=""
-    current_active_uuid=$(get_active_window_uuid)
+    local current_window_count=""
 
-    # Get fresh window count
-    get_existing_windows_uuid
-    local current_window_count=${#CURRENT_UUIDS[@]}
+    if [[ "$launch_mode" == "$LAUNCH_MODE_SINGLE_OR_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_UNKNOWN" ]]; then
+        # Apps that may or may not allow multiple instances:
+        # Try process of elimination first (give the app a chance to create a new window),
+        # then fall back to existing window detection if no new window appeared.
 
-    debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
+        debug_log "$function_name" "Detection order: process of elimination → quick check → fallback (mode: $launch_mode)"
 
-    if [[ -n "$current_active_uuid" && "$current_active_uuid" != "$pre_launch_active_uuid" && "$current_window_count" -eq "$pre_launch_window_count" ]]; then
-        # Active window changed and no new windows appeared
-        debug_log "$function_name" "Active window changed, no new windows — checking existing window focus"
-
-        if [[ "$active_matches_target_class" == "true" ]]; then
-            # Pre-launch active window had the same class as target
-            local current_active_class=""
-            current_active_class=$(get_window_class "$current_active_uuid") || true
-
-            if [[ "$current_active_class" == "$class" ]]; then
-                # Active changed to a DIFFERENT window with target class
-                uuid="$current_active_uuid"
-                detection_method="existing_window"
-                debug_log "$function_name" "App focused different existing window of same class: $uuid"
-            else
-                # Active changed to something else — app toggled/minimized the original
-                uuid="$pre_launch_active_uuid"
-                detection_method="existing_window"
-                debug_log "$function_name" "App toggled active window, reclaiming: $uuid"
-            fi
-        elif [[ -n "$class" ]]; then
-            # Normal case: pre-launch active had a different class
-            local current_active_class=""
-            current_active_class=$(get_window_class "$current_active_uuid") || true
-
-            if [[ "$current_active_class" == "$class" ]]; then
-                uuid="$current_active_uuid"
-                detection_method="existing_window"
-                debug_log "$function_name" "App focused existing window with target class: $uuid"
-            fi
-        fi
-    fi
-
-    # --- Process of elimination: wait for a new window to appear ---
-    if [[ -z "$uuid" ]]; then
-        debug_log "$function_name" "Quick check did not find existing window, trying process of elimination"
+        # --- Process of elimination: wait for a new window to appear ---
+        debug_log "$function_name" "Trying process of elimination first"
         uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5000 100) || true
 
         if [[ -n "$uuid" ]]; then
             detection_method="new_window"
             debug_log "$function_name" "Process of elimination found new window: $uuid"
         fi
-    fi
 
-    # --- Final fallback: class/title search ---
-    if [[ -z "$uuid" && -n "$class" ]]; then
-        debug_log "$function_name" "Process of elimination failed, trying class/title fallback"
-        uuid=$(get_uuid "$class" "$window_title_pattern") || true
+        # --- Quick check: did the app focus an existing window? ---
+        if [[ -z "$uuid" ]]; then
+            debug_log "$function_name" "No new window, checking if app focused an existing window"
+            current_active_uuid=$(get_active_window_uuid)
 
-        if [[ -n "$uuid" ]]; then
-            detection_method="existing_window"
-            debug_log "$function_name" "Fallback found window: $uuid"
+            get_existing_windows_uuid
+            current_window_count=${#CURRENT_UUIDS[@]}
+
+            debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
+
+            if [[ -n "$current_active_uuid" && "$current_active_uuid" != "$pre_launch_active_uuid" && "$current_window_count" -eq "$pre_launch_window_count" ]]; then
+                debug_log "$function_name" "Active window changed, no new windows — checking existing window focus"
+
+                if [[ "$active_matches_target_class" == "true" ]]; then
+                    local current_active_class=""
+                    current_active_class=$(get_window_class "$current_active_uuid") || true
+
+                    if [[ "$current_active_class" == "$class" ]]; then
+                        uuid="$current_active_uuid"
+                        detection_method="existing_window"
+                        debug_log "$function_name" "App focused different existing window of same class: $uuid"
+                    else
+                        uuid="$pre_launch_active_uuid"
+                        detection_method="existing_window"
+                        debug_log "$function_name" "App toggled active window, reclaiming: $uuid"
+                    fi
+                elif [[ -n "$class" ]]; then
+                    local current_active_class=""
+                    current_active_class=$(get_window_class "$current_active_uuid") || true
+
+                    if [[ "$current_active_class" == "$class" ]]; then
+                        uuid="$current_active_uuid"
+                        detection_method="existing_window"
+                        debug_log "$function_name" "App focused existing window with target class: $uuid"
+                    fi
+                fi
+            fi
+        fi
+
+        # --- Final fallback: class/title search ---
+        if [[ -z "$uuid" && -n "$class" ]]; then
+            debug_log "$function_name" "Quick check failed, trying class/title fallback"
+            uuid=$(get_uuid "$class" "$window_title_pattern") || true
+
+            if [[ -n "$uuid" ]]; then
+                detection_method="existing_window"
+                debug_log "$function_name" "Fallback found window: $uuid"
+            fi
+        fi
+
+    else
+        # MULTI / UNIQUE modes:
+        # Try quick check first (existing window focus), then process of elimination.
+
+        debug_log "$function_name" "Detection order: quick check → process of elimination → fallback (mode: $launch_mode)"
+
+        # --- Quick check: did the app focus an existing window? ---
+        current_active_uuid=$(get_active_window_uuid)
+
+        get_existing_windows_uuid
+        current_window_count=${#CURRENT_UUIDS[@]}
+
+        debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
+
+        if [[ -n "$current_active_uuid" && "$current_active_uuid" != "$pre_launch_active_uuid" && "$current_window_count" -eq "$pre_launch_window_count" ]]; then
+            debug_log "$function_name" "Active window changed, no new windows — checking existing window focus"
+
+            if [[ "$active_matches_target_class" == "true" ]]; then
+                local current_active_class=""
+                current_active_class=$(get_window_class "$current_active_uuid") || true
+
+                if [[ "$current_active_class" == "$class" ]]; then
+                    uuid="$current_active_uuid"
+                    detection_method="existing_window"
+                    debug_log "$function_name" "App focused different existing window of same class: $uuid"
+                else
+                    uuid="$pre_launch_active_uuid"
+                    detection_method="existing_window"
+                    debug_log "$function_name" "App toggled active window, reclaiming: $uuid"
+                fi
+            elif [[ -n "$class" ]]; then
+                local current_active_class=""
+                current_active_class=$(get_window_class "$current_active_uuid") || true
+
+                if [[ "$current_active_class" == "$class" ]]; then
+                    uuid="$current_active_uuid"
+                    detection_method="existing_window"
+                    debug_log "$function_name" "App focused existing window with target class: $uuid"
+                fi
+            fi
+        fi
+
+        # --- Process of elimination: wait for a new window to appear ---
+        if [[ -z "$uuid" ]]; then
+            debug_log "$function_name" "Quick check did not find existing window, trying process of elimination"
+            uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" 5000 100) || true
+
+            if [[ -n "$uuid" ]]; then
+                detection_method="new_window"
+                debug_log "$function_name" "Process of elimination found new window: $uuid"
+            fi
+        fi
+
+        # --- Final fallback: class/title search ---
+        if [[ -z "$uuid" && -n "$class" ]]; then
+            debug_log "$function_name" "Process of elimination failed, trying class/title fallback"
+            uuid=$(get_uuid "$class" "$window_title_pattern") || true
+
+            if [[ -n "$uuid" ]]; then
+                detection_method="existing_window"
+                debug_log "$function_name" "Fallback found window: $uuid"
+            fi
         fi
     fi
 
