@@ -1,0 +1,15 @@
+{
+  "terminal_command": "konsole",
+  "launch_options": [
+    {
+      "function_name": "launch_org_kde_konsole_window",
+      "description": "'Open directory.'",
+      "parameters": [
+        {
+          "name": "DirectoryPath",
+          "description": "'Path to directory'"
+        }
+      ]
+    }
+  ]
+}

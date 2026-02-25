@@ -23,6 +23,9 @@ STATUS:
     status (st)           Show current state of active workspaces and windows
     update                Update kdoitall (git pull + rebuild app registry)
 
+QUICK ACTION (quick | q):
+    quick                   Interactive window picker for ad-hoc actions
+
 WORKSPACE COMMANDS (workspace | ws):
     workspace create (new) <name>   Create new workspace interactively
     workspace list (ls)             List all defined workspaces
@@ -55,9 +58,6 @@ WINDOW COMMANDS (window | win):
     window move (mv) <window-name> <screen> <pos>   Move/reposition a window
     window focus (f) <window-name>                  Bring window to front
     window minimize (min) <window-name>             Minimize window
-
-QUICK ACTION (quick | q):
-    quick                   Interactive window picker for ad-hoc actions
 
 CONFIGURATION:
     Project defaults:     <install-dir>/config

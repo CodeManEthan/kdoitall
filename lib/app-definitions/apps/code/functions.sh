@@ -15,13 +15,13 @@ source "${LIB_DIR}/db/app.sh"
 
 load_app_metadata "${BASH_SOURCE[0]%/*}"
 
-_launch_vscode() {
+_launch_code() {
     local path="$1"
 
     code --new-window "$path" > /dev/null 2>&1 & disown
 }
 
-launch_vscode_window() {
+launch_code_window() {
     local workspace_name="$1"
     local window_name="$2"
     local desktop="$3"
@@ -30,7 +30,7 @@ launch_vscode_window() {
     local directory_path="$6"
     
     local window_title_pattern=""
-    local function_name="launch_vscode_window"
+    local function_name="launch_code_window"
 
     debug_function_enter "$function_name" "$@"
 
@@ -60,7 +60,7 @@ launch_vscode_window() {
     debug_function_exit "$function_name"
 }
 
-launch_vscode_workspace_window() {
+launch_code_workspace_window() {
     local workspace_name="$1"
     local window_name="$2"
     local desktop="$3"
@@ -69,7 +69,7 @@ launch_vscode_workspace_window() {
     local workspace_path="$6"
 
     local window_title_pattern=""
-    local function_name="launch_vscode_workspace_window"
+    local function_name="launch_code_workspace_window"
 
     debug_function_enter "$function_name" "$@"
 

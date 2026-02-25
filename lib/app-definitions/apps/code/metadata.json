@@ -2,7 +2,7 @@
   "terminal_command": "code",
   "launch_options": [
     {
-      "function_name": "launch_vscode_window",
+      "function_name": "launch_code_window",
       "description": "Open directory or file",
       "parameters": [
         {
@@ -12,7 +12,7 @@
       ]
     },
     {
-      "function_name": "launch_vscode_workspace_window",
+      "function_name": "launch_code_workspace_window",
       "description": "Open .code-workspace file",
       "parameters": [
         {
