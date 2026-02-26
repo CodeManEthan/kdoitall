@@ -179,11 +179,11 @@ workspace_close() {
                 fi
 
                 if [[ "$skip" == "true" ]]; then
-                    # Release window to ~auto:workspace
+                    # Release window to ~workspace
                     db_release_window_to_auto "$window_name"
                     ((skipped_count++)) || true
                     info_log "$function_name" "Skipped window: $window_name"
-                    debug_log "$function_name" "Released to ~auto:workspace: $window_name ($uuid)"
+                    debug_log "$function_name" "Released to ~workspace: $window_name ($uuid)"
                 fi
             fi
 

@@ -100,7 +100,7 @@ db_claim_window() {
 
 db_add_existing_windows() {
     local window_name=""
-    local workspace_name="~auto:workspace"
+    local workspace_name="~workspace"
     local function_name="db_add_existing_windows"
 
     # Track class counts for unique naming
@@ -132,7 +132,7 @@ db_add_existing_windows() {
         fi
         
         # Create unique window name with counter
-        window_name="~auto:${class}:${class_counts[$class]}"
+        window_name="~${class}:${class_counts[$class]}"
 
         if [[ "$first" == "true" ]]; then
             first="false"
@@ -497,14 +497,14 @@ db_release_window_to_auto() {
     uuid="${result%%|*}"
     window_title="${result#*|}"
 
-    # Step 2: Find the highest existing counter for ~auto:<class>:N in ~auto:workspace
+    # Step 2: Find the highest existing counter for ~<class>:N in ~workspace
     db_query \
         "SELECT COALESCE(MAX(CAST(SUBSTR(window_name, LENGTH(:prefix) + 1) AS INTEGER)), 0)
          FROM app_windows
-         WHERE workspace_name = '~auto:workspace'
+         WHERE workspace_name = '~workspace'
          AND window_name LIKE :pattern;" \
-        ":prefix" "~auto:${class}:" \
-        ":pattern" "~auto:${class}:%"
+        ":prefix" "~${class}:" \
+        ":pattern" "~${class}:%"
 
     local max_counter=0
     if [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]]; then
@@ -515,12 +515,12 @@ db_release_window_to_auto() {
     next_counter=$((max_counter + 1))
 
     local new_window_name=""
-    new_window_name="~auto:${class}:${next_counter}"
+    new_window_name="~${class}:${next_counter}"
 
     # Step 3: Reassign the window via db_claim_window
-    db_claim_window "~auto:workspace" "$new_window_name" "$uuid" "$window_title"
+    db_claim_window "~workspace" "$new_window_name" "$uuid" "$window_title"
 
-    debug_log "$function_name" "Released '$window_name' → '$new_window_name' in ~auto:workspace"
+    debug_log "$function_name" "Released '$window_name' → '$new_window_name' in ~workspace"
     debug_function_exit "$function_name"
 }
 

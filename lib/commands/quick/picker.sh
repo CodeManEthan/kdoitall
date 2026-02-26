@@ -129,7 +129,7 @@ quick_show_picker() {
         loc="${QUICK_LOCATIONS[$i]}"
 
         # Workspace annotation for non-auto windows
-        if [[ "$ws" != "~auto:workspace" && -n "$ws" ]]; then
+        if [[ "$ws" != "~workspace" && -n "$ws" ]]; then
             title="[ws]${ws} ${title}"
         fi
 

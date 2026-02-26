@@ -164,7 +164,7 @@ db_get_untracked_windows() {
             aw.class,
             COALESCE(aw.window_title, '')
          FROM app_windows aw
-         WHERE aw.workspace_name = '~auto:workspace'
+         WHERE aw.workspace_name = '~workspace'
          AND aw.class NOT IN (
             'plasmashell', 'kwin_wayland', 'kwin_x11', 'kwin',
             'xdg-desktop-portal-kde', 'org.kde.kscreen.osd',

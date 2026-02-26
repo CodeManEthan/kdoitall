@@ -28,7 +28,9 @@ QUICK ACTION (quick | q):
 
 WORKSPACE COMMANDS (workspace | ws):
     workspace create (new) <name>   Create new workspace interactively
+    workspace edit (e) <n>       Edit an existing workspace
     workspace list (ls)             List all defined workspaces
+    workspace info (i) <n>       Show detailed info for a workspace
     workspace open (o) <name>       Open a workspace
     workspace close (c) <name>      Close a workspace
     workspace focus (f) <name>      Focus an active workspace

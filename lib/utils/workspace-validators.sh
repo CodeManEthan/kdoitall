@@ -62,6 +62,14 @@ validate_window_name() {
         return 1
     fi
     
+    # Block reserved prefix used for auto-tracked windows
+    if [[ "$window_name" == "~"* ]]; then
+        debug_error "$function_name" "$ERR_INVALID_WINDOW_NAME" "Window name cannot start with '~' (reserved prefix): $window_name"
+        echo "Window name cannot start with '~' (reserved prefix): $window_name" >&3
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
     # Check format (alphanumeric, hyphens, underscores only)
     if ! [[ "$window_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
         debug_error "$function_name" "$ERR_INVALID_WINDOW_NAME" "Invalid characters in window name: $window_name"

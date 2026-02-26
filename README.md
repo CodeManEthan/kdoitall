@@ -80,19 +80,47 @@ OPTIONS:
     --info           Show key milestones during execution
     --verbose        Enable verbose output
 
-WORKSPACE COMMANDS:
-    workspace create <name>   Create new workspace interactively
-    workspace list            List all defined workspaces
-    workspace open <name>     Open a workspace
-    workspace close <name>    Close a workspace
-    workspace delete <name>   Delete a workspace
+STATUS:
+    status (st)           Show current state of active workspaces and windows
+    update                Update kdoitall (git pull + rebuild app registry)
 
-APPLICATION COMMANDS:
+QUICK ACTION (quick | q):
+    quick                   Interactive window picker for ad-hoc actions
+
+WORKSPACE COMMANDS (workspace | ws):
+    workspace create (new) <n>   Create new workspace interactively
+    workspace edit (e) <n>       Edit an existing workspace
+    workspace list (ls)             List all defined workspaces
+    workspace info (i) <n>       Show detailed info for a workspace
+    workspace open (o) <n>       Open a workspace
+    workspace close (c) <n>      Close a workspace
+    workspace focus (f) <n>      Focus an active workspace
+    workspace minimize (min) <n> Minimize an active workspace
+    workspace delete (rm) <n>    Delete a workspace
+
+APPLICATION COMMANDS (app):
     app scan                  Scan system for available applications
-    app list [filter]         List applications (all, terminal, desktop, both)
-    app info <app_id>         Show detailed info about an application
+    app list (ls) [filter]    List applications (all, terminal, desktop, both)
+    app info (i) <app_id>     Show detailed information about an application
     app validate              Validate all application definition files
-    app options <app_id>      Show launch options for an application
+    app options (opts) <id>   Show launch options for an application
+    app safe-mode (sm)             Interactive safe-mode validation menu
+    app safe-mode (sm) skip <id>   Mark app as validated (skip safe-mode)
+    app safe-mode (sm) reset <id>  Clear safe-mode data for an app
+
+SCREEN COMMANDS (screen | scr):
+    screen list (ls)                       List detected screens with aliases
+    screen alias <alias> <target>          Set a screen alias
+    screen alias remove <alias>            Remove a screen alias
+
+WINDOW COMMANDS (window | win):
+    window list (ls) [workspace]                    List tracked windows
+    window status (st) <window-name>                Show window details
+    window close (c) <window-name>                  Close a specific window
+    window open (o) <window-name>                   Re-open a previously closed window
+    window move (mv) <window-name> <screen> <pos>   Move/reposition a window
+    window focus (f) <window-name>                  Bring window to front
+    window minimize (min) <window-name>             Minimize window
 ```
 
 ## Adding Application Support
@@ -110,7 +138,6 @@ This is v0.1.0 — the initial public release. Core workspace and application ma
 Known limitations:
 
 - Application definitions exist only for VS Code and Firefox
-- No workspace editing (must delete and recreate)
 - Limited error recovery during workspace open/close
 
 ## Contributing

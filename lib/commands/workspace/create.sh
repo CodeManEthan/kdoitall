@@ -267,7 +267,10 @@ add_application_to_workspace() {
                     sed 's/[^a-z0-9-]//g' | \
                     sed 's/--*/-/g')
                 
-                window_name="${workspace_name}-${sanitized_display_name}-${instance_count}"
+                window_name="${workspace_name}-${sanitized_display_name}"
+                if [[ "$instance_count" -gt 1 ]]; then
+                    window_name="${window_name}-${instance_count}"
+                fi
                 
                 current_state="$STATE_WINDOW_NAME"
                 ;;
