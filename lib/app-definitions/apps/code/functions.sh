@@ -54,7 +54,7 @@ launch_code_window() {
     window_title_pattern="$directory - Visual Studio Code"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_vscode" \
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_code" \
     "$class" "$window_title_pattern" "" "$directory_path"
 
     debug_function_exit "$function_name"
@@ -93,7 +93,7 @@ launch_code_workspace_window() {
     window_title_pattern="$workspace (Workspace) - Visual Studio Code"
 
     execute_launch_window \
-    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_vscode" \
+    "$workspace_name" "$window_name" "$APP_ID" "$desktop" "$screen" "$position" "$launch_mode" "$LAUNCH_TYPE" "_launch_code" \
     "$class" "$window_title_pattern" "" "$workspace_path"
 
     debug_function_exit "$function_name"

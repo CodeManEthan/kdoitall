@@ -240,30 +240,27 @@ get_uuid() {
         mapfile -t matching_uuids < <(kdotool search)
     fi
 
-    # Step 2: Filter by window title if provided
-    if [[ -n "$window_title" ]]; then
-        debug_log "$function_name" "Filtering ${#matching_uuids[@]} windows by title: '$window_title'"
+    # Step 2: Filter by window title if needed to disambiguate
+    if [[ -n "$window_title" && ${#matching_uuids[@]} -gt 1 ]]; then
+        debug_log "$function_name" "Multiple matches (${#matching_uuids[@]}), filtering by title: '$window_title'"
         
         local -a title_matches=()
         local current_title=""
         
         for uuid in "${matching_uuids[@]}"; do
             current_title=$(kdotool getwindowname "$uuid")
-            if [[ "$current_title" == "$window_title" ]]; then
+            if [[ "$current_title" == *"$window_title"* ]]; then
                 title_matches+=("$uuid")
                 debug_log "$function_name" "Title match: UUID '$uuid' has title '$current_title'"
             fi
         done
         
-        matching_uuids=("${title_matches[@]}")
-        
-        if [[ ${#matching_uuids[@]} -eq 0 ]]; then
-            debug_log "$function_name" "No windows found matching title '$window_title'"
-            debug_function_exit "$function_name"
-            return 0
+        if [[ ${#title_matches[@]} -gt 0 ]]; then
+            matching_uuids=("${title_matches[@]}")
+            debug_log "$function_name" "Narrowed to ${#matching_uuids[@]} window(s) by title"
+        else
+            debug_log "$function_name" "No title matches, keeping all ${#matching_uuids[@]} class matches"
         fi
-        
-        debug_log "$function_name" "Found ${#matching_uuids[@]} window(s) matching filters"
     fi
 
     # Step 3: Return result based on match count

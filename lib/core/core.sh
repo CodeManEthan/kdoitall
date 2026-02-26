@@ -134,9 +134,14 @@ execute_launch_window() {
     # Brief pause to let the launch command take effect
     sleep "$LAUNCH_DELAY"
 
-    # --- Detection strategy depends on launch mode ---
+    # --- Capture post-launch snapshot once, before mode-specific detection ---
     local current_active_uuid=""
-    local current_window_count=""
+    current_active_uuid=$(get_active_window_uuid)
+
+    get_existing_windows_uuid
+    local current_window_count=${#CURRENT_UUIDS[@]}
+
+    debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
 
     if [[ "$launch_mode" == "$LAUNCH_MODE_SINGLE_OR_UNIQUE" || "$launch_mode" == "$LAUNCH_MODE_UNKNOWN" ]]; then
         # Apps that may or may not allow multiple instances:
@@ -157,12 +162,6 @@ execute_launch_window() {
         # --- Quick check: did the app focus an existing window? ---
         if [[ -z "$uuid" ]]; then
             debug_log "$function_name" "No new window, checking if app focused an existing window"
-            current_active_uuid=$(get_active_window_uuid)
-
-            get_existing_windows_uuid
-            current_window_count=${#CURRENT_UUIDS[@]}
-
-            debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
 
             if [[ -n "$current_active_uuid" && "$current_active_uuid" != "$pre_launch_active_uuid" && "$current_window_count" -eq "$pre_launch_window_count" ]]; then
                 debug_log "$function_name" "Active window changed, no new windows — checking existing window focus"
@@ -211,13 +210,6 @@ execute_launch_window() {
         debug_log "$function_name" "Detection order: quick check → process of elimination → fallback (mode: $launch_mode)"
 
         # --- Quick check: did the app focus an existing window? ---
-        current_active_uuid=$(get_active_window_uuid)
-
-        get_existing_windows_uuid
-        current_window_count=${#CURRENT_UUIDS[@]}
-
-        debug_log "$function_name" "Post-launch state: active='$current_active_uuid', window_count=$current_window_count"
-
         if [[ -n "$current_active_uuid" && "$current_active_uuid" != "$pre_launch_active_uuid" && "$current_window_count" -eq "$pre_launch_window_count" ]]; then
             debug_log "$function_name" "Active window changed, no new windows — checking existing window focus"
 
