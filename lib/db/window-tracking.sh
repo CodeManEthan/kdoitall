@@ -131,8 +131,12 @@ db_add_existing_windows() {
             ((class_counts[$class]++))
         fi
         
-        # Create unique window name with counter
-        window_name="~${class}:${class_counts[$class]}"
+        # Create unique window name: no suffix for first, -N for subsequent
+        if [[ "${class_counts[$class]}" -eq 1 ]]; then
+            window_name="~${class}"
+        else
+            window_name="~${class}-${class_counts[$class]}"
+        fi
 
         if [[ "$first" == "true" ]]; then
             first="false"
@@ -497,25 +501,42 @@ db_release_window_to_auto() {
     uuid="${result%%|*}"
     window_title="${result#*|}"
 
-    # Step 2: Find the highest existing counter for ~<class>:N in ~workspace
-    db_query \
-        "SELECT COALESCE(MAX(CAST(SUBSTR(window_name, LENGTH(:prefix) + 1) AS INTEGER)), 0)
-         FROM app_windows
-         WHERE workspace_name = '~workspace'
-         AND window_name LIKE :pattern;" \
-        ":prefix" "~${class}:" \
-        ":pattern" "~${class}:%"
+    # Step 2: Determine window name — use ~<class> if available, otherwise ~<class>-N
+    local new_window_name=""
 
-    local max_counter=0
-    if [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]]; then
-        max_counter="${DB_RESULT[0]}"
+    # Check if ~<class> (no suffix) already exists
+    db_query \
+        "SELECT COUNT(*) FROM app_windows
+         WHERE workspace_name = '~workspace'
+         AND window_name = :exact;" \
+        ":exact" "~${class}"
+
+    local exact_exists=0
+    if [[ ${#DB_RESULT[@]} -gt 0 && "${DB_RESULT[0]:-0}" -gt 0 ]]; then
+        exact_exists=1
     fi
 
-    local next_counter=0
-    next_counter=$((max_counter + 1))
+    if [[ "$exact_exists" -eq 0 ]]; then
+        new_window_name="~${class}"
+    else
+        # Find highest existing counter from ~<class>-N pattern
+        db_query \
+            "SELECT COALESCE(MAX(CAST(SUBSTR(window_name, LENGTH(:prefix) + 1) AS INTEGER)), 1)
+             FROM app_windows
+             WHERE workspace_name = '~workspace'
+             AND window_name LIKE :pattern;" \
+            ":prefix" "~${class}-" \
+            ":pattern" "~${class}-%"
 
-    local new_window_name=""
-    new_window_name="~${class}:${next_counter}"
+        local max_counter=1
+        if [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]]; then
+            max_counter="${DB_RESULT[0]}"
+        fi
+
+        local next_counter=0
+        next_counter=$((max_counter + 1))
+        new_window_name="~${class}-${next_counter}"
+    fi
 
     # Step 3: Reassign the window via db_claim_window
     db_claim_window "~workspace" "$new_window_name" "$uuid" "$window_title"

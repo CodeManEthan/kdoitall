@@ -160,7 +160,7 @@ registry_scan_applications() {
                 debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
             fi
             
-        done < <(find "$location" -maxdepth 1 -name "*.desktop" -type f -print0 2>/dev/null)
+        done < <(find "$location" -maxdepth 1 -name "*.desktop" \( -type f -o -type l \) -print0 2>/dev/null)
     done
     
     echo "" >&3
