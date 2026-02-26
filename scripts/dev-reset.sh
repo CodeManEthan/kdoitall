@@ -18,6 +18,23 @@ DB_FILE="$DB_DIR/kdoitall.db"
 SCHEMA_FILE="$PROJECT_ROOT/database/schema.sql"
 REGISTRY_SQL="$PROJECT_ROOT/database/app-registry.sql"
 REGISTRY_DB="$PROJECT_ROOT/database/app-registry.db"
+SCRIPTS_DIR="$DB_DIR/workspaces"
+
+# Parse options
+remove_scripts=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --scripts|-s)
+            remove_scripts=true
+            shift
+            ;;
+        *)
+            echo "Usage: dev-reset.sh [--scripts|-s]"
+            echo "  --scripts, -s  Also remove generated workspace scripts"
+            exit 1
+            ;;
+    esac
+done
 
 # Verify schema file exists
 if [[ ! -f "$SCHEMA_FILE" ]]; then
@@ -29,6 +46,16 @@ fi
 if [[ -f "$DB_FILE" ]]; then
     rm -f "$DB_FILE"
     echo "✓ Removed existing database"
+fi
+
+# Remove generated workspace scripts if requested
+if [[ "$remove_scripts" == true ]]; then
+    if [[ -d "$SCRIPTS_DIR" ]]; then
+        rm -rf "$SCRIPTS_DIR"
+        echo "✓ Removed generated workspace scripts"
+    else
+        echo "  No workspace scripts directory found"
+    fi
 fi
 
 # Ensure database directory exists

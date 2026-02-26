@@ -16,6 +16,8 @@ source "${LIB_DIR}/db/app.sh"
 source "${LIB_DIR}/db/launch-options.sh"
 # shellcheck source=../../utils/workspace-validators.sh
 source "${LIB_DIR}/utils/workspace-validators.sh"
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 
 # State constants for workflow
 readonly STATE_SELECT_APP=1
@@ -44,26 +46,26 @@ workspace_create() {
 
     # 1. Prompt for description
     echo "" >&3
-    echo "Creating workspace: $workspace_name" >&3
-    echo "Enter workspace description (optional, press Enter to skip):" >&3
+    print_header "Creating workspace: $workspace_name"
+    print_prompt "Enter workspace description (optional, press Enter to skip):"
     read -r description
     echo "" >&3
     
     # 2. Application addition loop
     while true; do
-        echo "=== Add Application to Workspace ===" >&3
+        print_header "Add Application to Workspace"
         echo "" >&3
         
         if ! add_application_to_workspace "$workspace_name" "$display_order" WORKSPACE_APPS; then
             echo "" >&3
-            echo "Application addition cancelled." >&3
+            print_warning "Application addition cancelled."
             break
         fi
         
         ((display_order++))
         
         echo "" >&3
-        echo "Add another application? (y/n)" >&3
+        print_prompt "Add another application? (y/n)"
         read -r continue_adding
         [[ "$continue_adding" != "y" ]] && break
     done
@@ -77,7 +79,7 @@ workspace_create() {
     
     # 3. Post-launch focus behavior
     local focus_window_name=""
-    echo "=== Post-Launch Behavior ===" >&3
+    print_header "Post-Launch Behavior"
     echo "" >&3
     echo "After all windows are launched, would you like to automatically focus one?" >&3
     echo "(This will also switch to that window's virtual desktop)" >&3
@@ -100,7 +102,7 @@ workspace_create() {
     done
 
     echo "" >&3
-    echo "Select (0 to skip):" >&3
+    print_prompt "Select (0 to skip):"
     read -r focus_choice
 
     if [[ "$focus_choice" =~ ^[0-9]+$ ]] && \
@@ -113,7 +115,7 @@ workspace_create() {
 
     # Final confirmation before committing to database
     echo "" >&3
-    echo "=== Workspace Configuration Summary ===" >&3
+    print_header "Workspace Configuration Summary"
     echo "Workspace: $workspace_name" >&3
     echo "Description: ${description:-<none>}" >&3
     echo "" >&3
@@ -157,46 +159,44 @@ workspace_create() {
     fi
 
     echo "" >&3
-    echo "Proceed with workspace creation? (y/n)" >&3
+    print_prompt "Proceed with workspace creation? (y/n)"
     read -r confirm_create
     
     if [[ "$confirm_create" != "y" ]]; then
-        echo "Workspace creation cancelled" >&3
+        print_warning "Workspace creation cancelled."
         debug_function_exit "$function_name"
         return 0
     fi
     
-    # Create workspace in database
     echo "" >&3
-    echo "Creating workspace in database..." >&3
+    print_info "Creating workspace in database..."
     if ! db_create_workspace "$workspace_name" "$description"; then
         debug_function_exit "$function_name"
         return 1
     fi
-    echo "✓ Workspace created in database" >&3
+    print_success "Workspace created in database"
     
     # Set focus window if configured
     if [[ -n "$focus_window_name" ]]; then
         if ! db_set_workspace_focus_window "$workspace_name" "$focus_window_name"; then
-            echo "Warning: Failed to set focus window preference" >&3
+            print_warning "Failed to set focus window preference"
         fi
     fi
     
-    # Generate scripts (passing the configuration array)
     echo "" >&3
-    echo "Generating workspace scripts..." >&3
+    print_info "Generating workspace scripts..."
     
-    if ! generate_workspace_scripts "$workspace_name" WORKSPACE_APPS; then
+    if ! generate_workspace_scripts "$workspace_name"; then
         debug_error "$function_name" "$ERR_SCRIPT_GENERATION_FAILED"
+        print_error "Script generation failed. Rolling back workspace..."
+        db_delete_workspace "$workspace_name"
         debug_function_exit "$function_name"
         return 1
     fi
     
-    echo "✓ Scripts generated successfully" >&3
+    print_success "Scripts generated successfully"
     echo "" >&3
-    echo "================================================================" >&3
-    echo "Workspace '$workspace_name' created successfully!" >&3
-    echo "================================================================" >&3
+    print_banner "Workspace '$workspace_name' created successfully!"
     echo "" >&3
     echo "Open with:  kdoitall workspace open $workspace_name" >&3
     echo "Close with: kdoitall workspace close $workspace_name" >&3
@@ -238,8 +238,7 @@ add_application_to_workspace() {
     while [[ "$current_state" != "$STATE_COMPLETE" ]]; do
         case "$current_state" in
             "$STATE_SELECT_APP")
-                echo "Step 1: Select Application" >&3
-                echo "--------------------------" >&3
+                print_step "Step 1: Select Application"
                 
                 if ! app_id=$(select_application_with_retry); then
                     debug_function_exit "$function_name"
@@ -286,9 +285,8 @@ add_application_to_workspace() {
                 
             "$STATE_WINDOW_NAME")
                 echo "" >&3
-                echo "Step 2: Window Name" >&3
-                echo "-------------------" >&3
-                echo "Window name [$window_name]:" >&3
+                print_step "Step 2: Window Name"
+                print_prompt "Window name [$window_name]:"
                 read -r custom_name
 
                 if [[ -n "$custom_name" ]]; then
@@ -345,6 +343,32 @@ add_application_to_workspace() {
                     esac
                 fi
 
+                if db_window_definition_exists "$window_name"; then
+                    print_warning "Window name already in use by another workspace: $window_name"
+                    echo "" >&3
+                    echo "What would you like to do?" >&3
+                    echo "1) Try again (re-enter window name)" >&3
+                    echo "2) Go back to application selection" >&3
+                    echo "3) Cancel" >&3
+                    read -r choice
+
+                    case "$choice" in
+                        1) continue ;;
+                        2)
+                            current_state="$STATE_SELECT_APP"
+                            continue
+                            ;;
+                        3)
+                            debug_function_exit "$function_name"
+                            return 1
+                            ;;
+                        *)
+                            echo "Invalid choice. Please select 1, 2, or 3." >&3
+                            continue
+                            ;;
+                    esac
+                fi
+
                 current_state="$STATE_LAUNCH_TYPE"
                 ;;
                 
@@ -362,8 +386,7 @@ add_application_to_workspace() {
                     launch_type_interactive=true
                     step_offset=0
                     echo "" >&3
-                    echo "Step 3: Launch Type" >&3
-                    echo "-------------------" >&3
+                    print_step "Step 3: Launch Type"
                 else
                     launch_type_interactive=false
                     step_offset=-1
@@ -385,8 +408,7 @@ add_application_to_workspace() {
                 
             "$STATE_DESKTOP")
                 echo "" >&3
-                echo "Step $((4 + step_offset)): Window Positioning" >&3
-                echo "--------------------------" >&3
+                print_step "Step $((4 + step_offset)): Window Positioning"
                 
                 if ! desktop_number=$(select_desktop_with_retry); then
                     # User chose to go back or cancel
@@ -455,8 +477,7 @@ add_application_to_workspace() {
                 
             "$STATE_LAUNCH_FUNC")
                 echo "" >&3
-                echo "Step $((5 + step_offset)): Launch Function" >&3
-                echo "-----------------------" >&3
+                print_step "Step $((5 + step_offset)): Launch Function"
                 
                 if ! launch_function=$(select_launch_function_with_retry "$app_id"); then
                     # User chose to go back or cancel
@@ -477,8 +498,7 @@ add_application_to_workspace() {
                 
             "$STATE_PARAMETERS")
                 echo "" >&3
-                echo "Step $((6 + step_offset)): Function Parameters" >&3
-                echo "---------------------------" >&3
+                print_step "Step $((6 + step_offset)): Function Parameters"
                 echo "Enter parameters for this function (space-separated):" >&3
                 echo "  Example: /path/to/project" >&3
                 echo "  (press Enter to skip if no parameters needed)" >&3
@@ -494,7 +514,7 @@ add_application_to_workspace() {
     apps_array_ref+=("$app_id|$window_name|$launch_function|$desktop_number|$screen_number|$position|$parameters")
     
     echo "" >&3
-    echo "✓ Added: $window_name ($app_id)" >&3
+    print_success "Added: $window_name ($app_id)"
     
     debug_function_exit "$function_name"
     return 0
@@ -586,7 +606,7 @@ select_desktop_with_retry() {
     
     while true; do
         echo "Detected virtual desktops: $DETECTED_DESKTOP_COUNT" >&3
-        echo "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):" >&3
+        print_prompt "Enter desktop number (1-$DETECTED_DESKTOP_COUNT):"
         read -r desktop_number
         
         # Validate input
@@ -677,7 +697,7 @@ select_screen_with_retry() {
         done
         
         echo "" >&3
-        echo "Enter screen (number, name, or alias):" >&3
+        print_prompt "Enter screen (number, name, or alias):"
         read -r screen_input
         
         # Validate input via resolve_screen_reference
@@ -691,7 +711,7 @@ select_screen_with_retry() {
         
         # Invalid input
         echo "" >&3
-        echo "Error: Invalid screen reference: $screen_input" >&3
+        print_error "Invalid screen reference: $screen_input"
         echo "" >&3
         echo "What would you like to do?" >&3
         echo "1) Try again (re-enter screen)" >&3
@@ -759,7 +779,7 @@ select_position_with_retry() {
 
         # Invalid input
         echo "" >&3
-        echo "Error: Invalid position choice (entered: $pos_choice, valid range: 1-$pos_count)" >&3
+        print_error "Invalid position choice (entered: $pos_choice, valid range: 1-$pos_count)"
         echo "" >&3
         echo "What would you like to do?" >&3
         echo "1) Try again (re-select position)" >&3
@@ -861,8 +881,7 @@ select_application() {
     
     # Display applications
     echo "" >&3
-    echo "Available Applications:" >&3
-    echo "======================" >&3
+    print_header "Available Applications"
     echo "" >&3
     
     # First pass: detect duplicate display names
@@ -893,7 +912,7 @@ select_application() {
         fi
         
         if (( counter % 2 == 0 )); then
-            printf "\e[2m%3d) %-45s %s\e[0m\n" "$counter" "$label" "$types" >&3
+            printf "${COLOR_DIM}%3d) %-45s %s${COLOR_RESET}\n" "$counter" "$label" "$types" >&3
         else
             printf "%3d) %-45s %s\n" "$counter" "$label" "$types" >&3
         fi
@@ -901,9 +920,9 @@ select_application() {
     done <<< "$apps"
     
     echo "" >&3
-    echo "Legend: [desktop] = Desktop launch, [terminal] = Terminal launch" >&3
+    print_info "Legend: [desktop] = Desktop launch, [terminal] = Terminal launch"
     echo "" >&3
-    echo "Select application (1-$((counter-1))):" >&3
+    print_prompt "Select application (1-$((counter-1))):"
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \
@@ -991,8 +1010,7 @@ select_launch_function() {
     fi
     
     echo "" >&3
-    echo "Available Launch Functions:" >&3
-    echo "===========================" >&3
+    print_header "Available Launch Functions"
     echo "" >&3
     
     local counter=1
@@ -1004,7 +1022,7 @@ select_launch_function() {
         ((counter++))
     done <<< "$options"
     
-    echo "Select launch function (1-$((counter-1))):" >&3
+    print_prompt "Select launch function (1-$((counter-1))):"
     read -r selection
     
     if ! [[ "$selection" =~ ^[0-9]+$ ]] || \

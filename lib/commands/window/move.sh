@@ -22,6 +22,7 @@ Flag mode (any combination, any order):
   kdoitall window move <name> --desktop <n>    (-d)
   kdoitall window move <name> --screen <ref>   (-s)
   kdoitall window move <name> --position <pos> (-p)
+  kdoitall window move <n> --focus          (-f)   Focus window after moving
 
 Unspecified properties are preserved. Only what you specify changes.
 
@@ -68,6 +69,7 @@ window_move() {
     local new_desktop=""
     local new_screen=""
     local new_position=""
+    local focus_after_move=false
     local flag_mode=false
     local -a positional_args=()
 
@@ -111,6 +113,10 @@ window_move() {
                     debug_function_exit "$function_name"
                     return 1
                 fi
+                ;;
+            --focus|-f)
+                focus_after_move=true
+                shift
                 ;;
             --help|-h)
                 window_move_show_help
@@ -305,12 +311,8 @@ window_move() {
 
             local old_sx=""
             local old_sy=""
-            local old_sw=""
-            local old_sh=""
             old_sx=$(get_screen_info "$current_screen_output" "X")
             old_sy=$(get_screen_info "$current_screen_output" "Y")
-            old_sw=$(get_screen_info "$current_screen_output" "WIDTH")
-            old_sh=$(get_screen_info "$current_screen_output" "HEIGHT")
 
             # Relative offset from old screen origin
             local rel_x=$((win_x - old_sx))
@@ -376,6 +378,13 @@ window_move() {
         debug_log "$function_name" "Repositioned to '$new_position'"
     fi
 
+    # Focus window if requested
+    if [[ "$focus_after_move" == true ]]; then
+        activate_window "$uuid"
+        raise_window "$uuid"
+        debug_log "$function_name" "Focused window '$window_name'"
+    fi
+
     # ──────────────────────────────────────────────
     # STEP 8: Confirmation message
     # ──────────────────────────────────────────────
@@ -391,6 +400,9 @@ window_move() {
         msg+=" position='$new_position'"
     elif [[ "$use_relative_fallback" == true ]]; then
         msg+=" position=preserved"
+    fi
+    if [[ "$focus_after_move" == true ]]; then
+        msg+=" [focused]"
     fi
     echo "$msg" >&3
 

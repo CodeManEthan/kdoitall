@@ -199,13 +199,13 @@ declare -A ERROR_MESSAGES=(
     [$ERR_FUNCTION_NOT_FOUND]="Function not found in file"
 
     # Workspace
-    [ERR_WORKSPACE_EXISTS]="Workspace already exists"
-    [ERR_WORKSPACE_NOT_FOUND]="Workspace not found"
-    [ERR_INVALID_WORKSPACE_NAME]="Invalid workspace name"
-    [ERR_INVALID_WINDOW_NAME]="Invalid window name"
-    [ERR_WORKSPACE_INSERT_FAILED]="Failed to create workspace in database"
-    [ERR_SCRIPT_GENERATION_FAILED]="Failed to generate workspace scripts"
-    [ERR_NO_APPLICATIONS]="No applications configured for workspace"
+    [$ERR_WORKSPACE_EXISTS]="Workspace already exists"
+    [$ERR_WORKSPACE_NOT_FOUND]="Workspace not found"
+    [$ERR_INVALID_WORKSPACE_NAME]="Invalid workspace name"
+    [$ERR_INVALID_WINDOW_NAME]="Invalid window name"
+    [$ERR_WORKSPACE_INSERT_FAILED]="Failed to create workspace in database"
+    [$ERR_SCRIPT_GENERATION_FAILED]="Failed to generate workspace scripts"
+    [$ERR_NO_APPLICATIONS]="No applications configured for workspace"
 
     # Safe Mode
     [$ERR_SAFE_MODE_CANCELLED]="Safe mode cancelled by user"

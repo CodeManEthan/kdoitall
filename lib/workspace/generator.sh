@@ -13,14 +13,9 @@ source "${LIB_DIR}/db/window-definitions.sh"
 
 generate_workspace_scripts() {
     local workspace_name="$1"
-    # apps_array_ref="$2"
     local function_name="generate_workspace_scripts"
 
     debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$2" "apps_array_ref" || return 1
-    # shellcheck disable=SC2034
-    local -n apps_array_ref="$2"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
@@ -34,14 +29,14 @@ generate_workspace_scripts() {
     fi
 
     # Generate combined workspace script
-    if ! generate_workspace_script "$workspace_name" "$workspace_script" apps_array_ref; then
+    if ! generate_workspace_script "$workspace_name" "$workspace_script"; then
         debug_error "$function_name" "Failed to generate workspace script"
         debug_function_exit "$function_name"
         return 1
     fi
 
     # Store window definitions in database for re-open support
-    if ! store_window_definitions "$workspace_name" apps_array_ref; then
+    if ! store_window_definitions "$workspace_name"; then
         debug_error "$function_name" "Failed to store window definitions"
         debug_function_exit "$function_name"
         return 1
@@ -58,15 +53,11 @@ generate_workspace_scripts() {
 generate_workspace_script() {
     local workspace_name="$1"
     local script_path="$2"
-    # apps_ref="$3"
     local guard_name=""
     local open_func_name=""
     local function_name="generate_workspace_script"
 
     debug_function_enter "$function_name" "$@"
-
-    validate_parameter_pass "$3" "apps_ref" || return 1
-    local -n apps_ref="$3"
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_parameter_pass "$script_path" "script_path" || return 1
@@ -79,7 +70,7 @@ generate_workspace_script() {
     open_func_name="open_workspace_${workspace_name//-/_}"
 
     # Check if array is empty
-    if [[ ${#apps_ref[@]} -eq 0 ]]; then
+    if [[ ${#WORKSPACE_APPS[@]} -eq 0 ]]; then
         debug_error "$function_name" "No applications configured for workspace"
         debug_function_exit "$function_name"
         return 1
@@ -104,7 +95,8 @@ EOF_HEADER
 
     # Collect unique app files that need sourcing (terminal launch only)
     local -A app_files_to_source
-    for app_config in "${apps_ref[@]}"; do
+    local has_app_files=false
+    for app_config in "${WORKSPACE_APPS[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
 
@@ -114,12 +106,13 @@ EOF_HEADER
             app_directory_path=$(db_get_app_directory_path "$app_id")
             if [[ -n "$app_directory_path" ]]; then
                 app_files_to_source["${app_directory_path}/functions.sh"]=1
+                has_app_files=true
             fi
         fi
     done
 
     # Add source statements
-    if [[ ${#app_files_to_source[@]} -gt 0 ]]; then
+    if [[ "$has_app_files" == true ]]; then
         echo "# Source required application files" >> "$script_path"
         for app_file in "${!app_files_to_source[@]}"; do
             echo "# shellcheck source=${app_file#"${KDOITALL_ROOT}"/}" >> "$script_path"
@@ -138,7 +131,7 @@ EOF_HEADER
     echo "    debug_log \"Opening workspace: $workspace_name\"" >> "$script_path"
     echo "" >> "$script_path"
 
-    for app_config in "${apps_ref[@]}"; do
+    for app_config in "${WORKSPACE_APPS[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
 
@@ -177,16 +170,13 @@ store_window_definitions() {
 
     debug_function_enter "$function_name" "$@"
 
-    validate_parameter_pass "$2" "apps_ref" || return 1
-    local -n apps_ref="$2"
-
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
     # Clear any existing definitions for this workspace (handles re-creation)
     db_delete_window_definitions_for_workspace "$workspace_name"
 
     local display_order=0
-    for app_config in "${apps_ref[@]}"; do
+    for app_config in "${WORKSPACE_APPS[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
 
@@ -194,7 +184,7 @@ store_window_definitions() {
             "$window_name" "$workspace_name" "$app_id" "$launch_function" \
             "$desktop" "$screen" "$position" "$parameters" "$display_order"
 
-        ((display_order++))
+        display_order=$((display_order + 1))
     done
 
     debug_log "$function_name" "Stored $display_order window definitions for workspace: $workspace_name"

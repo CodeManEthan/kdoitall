@@ -15,6 +15,8 @@ source "${LIB_DIR}/db/launch-options.sh"
 source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
+# shellcheck source=colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 
 display_tracked_windows() {
     local function_name="display_tracked_windows"
@@ -375,7 +377,7 @@ display_applications_list() {
         
         # Format and display with alternating dim rows
         if (( line_counter % 2 == 0 )); then
-            printf "\e[2m%-30s %-30s %s\e[0m\n" \
+            printf "${COLOR_DIM}%-30s %-30s %s${COLOR_RESET}\n" \
                 "$display_short" "$app_id_short" "$types" >&3
         else
             printf "%-30s %-30s %s\n" \
@@ -595,8 +597,8 @@ display_status_active_workspaces() {
             echo "" >&3
             # Dim workspace header if it has any dead windows
             if [[ -n "${workspace_has_dead[$workspace_name]+_}" ]]; then
-                printf "\e[2mWorkspace: %s\e[0m\n" "$current_workspace" >&3
-                printf "\e[2m───────────────────────────────────────────────────────\e[0m\n" >&3
+                printf "${COLOR_DIM}Workspace: %s${COLOR_RESET}\n" "$current_workspace" >&3
+                printf "${COLOR_DIM}───────────────────────────────────────────────────────${COLOR_RESET}\n" >&3
             else
                 echo "Workspace: $current_workspace" >&3
                 echo "───────────────────────────────────────────────────────" >&3
@@ -633,8 +635,8 @@ display_status_active_workspaces() {
                 position_label="N/A"
             fi
 
-            printf "\e[2m  %d. %-22s %s\e[0m\n" "$index" "$display_name" "$window_name" >&3
-            printf "\e[2m     %-36s %s\e[0m\n" "$position_label" "(window not found)" >&3
+            printf "${COLOR_DIM}  %d. %-22s %s${COLOR_RESET}\n" "$index" "$display_name" "$window_name" >&3
+            printf "${COLOR_DIM}     %-36s %s${COLOR_RESET}\n" "$position_label" "(window not found)" >&3
         fi
 
     done <<< "$result"
