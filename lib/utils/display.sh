@@ -660,6 +660,7 @@ display_status_untracked_windows() {
 
     echo "" >&3
     echo "Other Tracked Windows" >&3
+    printf "  %-28s %-20s %s\n" "WINDOW NAME" "CLASS" "TITLE" >&3
     echo "───────────────────────────────────────────────────────" >&3
 
     while IFS='|' read -r window_name uuid class window_title; do
@@ -668,7 +669,7 @@ display_status_untracked_windows() {
         local title_display=""
         title_display="${window_title:-$class}"
 
-        printf "  %-28s %-16s %s\n" "$window_name" "$class" "$title_display" >&3
+        printf "  %-28s %-20s %s\n" "$window_name" "$class" "$title_display" >&3
     done <<< "$result"
 
     debug_function_exit "$function_name"

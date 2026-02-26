@@ -165,6 +165,14 @@ db_get_untracked_windows() {
             COALESCE(aw.window_title, '')
          FROM app_windows aw
          WHERE aw.workspace_name = '~auto:workspace'
+         AND aw.class NOT IN (
+            'plasmashell', 'kwin_wayland', 'kwin_x11', 'kwin',
+            'xdg-desktop-portal-kde', 'org.kde.kscreen.osd',
+            'kded5', 'kded6',
+            'polkit-kde-authentication-agent-1',
+            'ksplashqml', 'ksmserver', 'org.kde.plasmashell',
+            'xwaylandvideobridge'
+         )
          ORDER BY aw.class;"
 
     debug_log "$function_name" "Retrieved untracked windows"

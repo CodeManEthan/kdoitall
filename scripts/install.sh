@@ -92,6 +92,9 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 #     "/usr/share/applications"
 #     "/usr/local/share/applications"
 #     "$HOME/.local/share/applications"
+#     "/var/lib/flatpak/exports/share/applications"
+#     "$HOME/.local/share/flatpak/exports/share/applications"
+#     "/var/lib/snapd/desktop/applications"
 # )
 
 # Safe-mode prompting during workspace open
