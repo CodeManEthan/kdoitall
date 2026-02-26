@@ -373,7 +373,7 @@ _edit_window() {
                 local app_info_ef=""
                 app_info_ef=$(db_get_application "$e_app_id")
                 local has_terminal_ef=""
-                has_terminal_ef=$(echo "$app_info_ef" | cut -d'|' -f7)
+                has_terminal_ef=$(echo "$app_info_ef" | cut -d'|' -f8)
 
                 if [[ "$has_terminal_ef" != "1" && "$has_terminal_ef" != "TRUE" ]]; then
                     echo "This application does not support terminal launch." >&3

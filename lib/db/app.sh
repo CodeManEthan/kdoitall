@@ -74,6 +74,7 @@ db_add_application_full() {
     local window_title_pattern="${10:-}"
     local supports_pid_validation="${11:-}"
     local process_name="${12:-}"
+    local app_name="${13:-}"
     local function_name="db_add_application_full"
     
     debug_function_enter "$function_name" "$@"
@@ -96,14 +97,16 @@ db_add_application_full() {
 
     db_query \
         "INSERT OR REPLACE INTO applications (
-            app_id, display_name, desktop_file_path,
+            app_id, app_name, display_name, desktop_file_path,
             app_directory_path, terminal_command, app_class,
             has_terminal_launch, has_desktop_launch,
             launch_mode, window_title_pattern,
             supports_pid_validation, process_name,
             last_validated
         ) VALUES (
-            :app_id, :display_name, :desktop_file,
+            :app_id,
+            CASE WHEN :app_name != '' THEN :app_name ELSE NULL END,
+            :display_name, :desktop_file,
             :app_directory_path, :terminal_command,
             CASE WHEN :app_class != '' THEN :app_class ELSE NULL END,
             :has_terminal_launch, :has_desktop_launch,
@@ -114,6 +117,7 @@ db_add_application_full() {
             datetime('now')
         );" \
         ":app_id" "$app_id" \
+        ":app_name" "$app_name" \
         ":display_name" "$display_name" \
         ":desktop_file" "$desktop_file_path" \
         ":app_directory_path" "$app_directory_path" \
@@ -298,7 +302,7 @@ db_get_application() {
     
     # Query database with all fields
     db_query \
-        "SELECT app_id, display_name, desktop_file_path,
+        "SELECT app_id, app_name, display_name, desktop_file_path,
                 app_directory_path, terminal_command, app_class,
                 has_terminal_launch, has_desktop_launch,
                 last_validated, safe_mode_completed, safe_mode_timestamp,
@@ -402,6 +406,42 @@ db_get_app_class() {
     debug_log "$function_name" "Retrieved app_class for $app_id: ${result:-NULL}"
     debug_function_exit "$function_name"
     echo "$result"
+    return 0
+}
+
+db_get_app_name() {
+    local app_id="$1"
+    local function_name="db_get_app_name"
+    local result=""
+    
+    debug_function_enter "$function_name" "$@"
+    
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    
+    db_query \
+        "SELECT app_name FROM applications WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    
+    result="${DB_RESULT[0]:-}"
+    
+    debug_log "$function_name" "Retrieved app_name for $app_id: ${result:-NULL}"
+    debug_function_exit "$function_name"
+    echo "$result"
+    return 0
+}
+
+db_get_class_to_app_name_map() {
+    local function_name="db_get_class_to_app_name_map"
+    
+    debug_function_enter "$function_name"
+    
+    db_query \
+        "SELECT app_class, app_name FROM applications
+         WHERE app_name IS NOT NULL AND app_class IS NOT NULL;"
+    
+    debug_log "$function_name" "Retrieved ${#DB_RESULT[@]} class-to-app_name mappings"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
 }
 

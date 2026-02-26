@@ -32,6 +32,7 @@ registry_scan_applications() {
     local has_desktop_launch=false
     local supports_pid_validation=""
     local process_name=""
+    local app_name=""
     
     debug_function_enter "$function_name"
     
@@ -93,6 +94,7 @@ registry_scan_applications() {
             has_terminal_launch=false
             supports_pid_validation=""
             process_name=""
+            app_name=""
             
             debug_log "$function_name" "Processing: $app_id ($display_name)"
             
@@ -126,18 +128,21 @@ registry_scan_applications() {
                 reg_metadata=$(app_registry_get_metadata "$app_id")
 
                 if [[ -n "$reg_metadata" ]]; then
+                    local reg_app_name=""
                     local reg_app_class=""
                     local reg_window_title=""
                     local reg_launch_mode=""
                     local reg_supports_pid=""
                     local reg_process_name=""
 
-                    reg_app_class=$(echo "$reg_metadata" | cut -d'|' -f2)
-                    reg_window_title=$(echo "$reg_metadata" | cut -d'|' -f3)
-                    reg_launch_mode=$(echo "$reg_metadata" | cut -d'|' -f4)
-                    reg_supports_pid=$(echo "$reg_metadata" | cut -d'|' -f5)
-                    reg_process_name=$(echo "$reg_metadata" | cut -d'|' -f6)
+                    reg_app_name=$(echo "$reg_metadata" | cut -d'|' -f2)
+                    reg_app_class=$(echo "$reg_metadata" | cut -d'|' -f3)
+                    reg_window_title=$(echo "$reg_metadata" | cut -d'|' -f4)
+                    reg_launch_mode=$(echo "$reg_metadata" | cut -d'|' -f5)
+                    reg_supports_pid=$(echo "$reg_metadata" | cut -d'|' -f6)
+                    reg_process_name=$(echo "$reg_metadata" | cut -d'|' -f7)
 
+                    [[ -z "$app_name" && -n "$reg_app_name" ]] && app_name="$reg_app_name"
                     [[ -z "$app_class" && -n "$reg_app_class" ]] && app_class="$reg_app_class"
                     [[ -z "$window_title_pattern" && -n "$reg_window_title" ]] && window_title_pattern="$reg_window_title"
                     [[ -z "$launch_mode" && -n "$reg_launch_mode" ]] && launch_mode="$reg_launch_mode"
@@ -153,7 +158,8 @@ registry_scan_applications() {
                                   "$app_directory_path" "$terminal_command" "$app_class" \
                                   "$has_terminal_launch" "$has_desktop_launch" \
                                   "$launch_mode" "$window_title_pattern" \
-                                  "$supports_pid_validation" "$process_name"; then
+                                  "$supports_pid_validation" "$process_name" \
+                                  "$app_name"; then
                 debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
                 ((app_count++))
             else

@@ -106,6 +106,18 @@ db_add_existing_windows() {
     # Track class counts for unique naming
     local -A class_counts
 
+    # Build class→app_name lookup from applications table
+    local -A class_to_app_name
+    local map_line=""
+    local map_class=""
+    local map_name=""
+    while IFS= read -r map_line; do
+        [[ -z "$map_line" ]] && continue
+        map_class="${map_line%%|*}"
+        map_name="${map_line#*|}"
+        class_to_app_name[$map_class]="$map_name"
+    done < <(db_get_class_to_app_name_map)
+
     debug_function_enter "$function_name"
 
     # Validate that required global arrays are populated
@@ -124,18 +136,28 @@ db_add_existing_windows() {
         local uuid="${CURRENT_UUIDS[$i]}"
         local window_title="${CURRENT_TITLES[$i]}"
         
-        # Increment counter for this class
-        if [[ -z "${class_counts[$class]+_}" ]]; then
-            class_counts[$class]=1
+        # Resolve name base: prefer app_name over raw class
+        local resolved_app_name=""
+        local name_base=""
+        if [[ -n "${class_to_app_name[$class]+_}" ]]; then
+            resolved_app_name="${class_to_app_name[$class]}"
+            name_base="$resolved_app_name"
         else
-            ((class_counts[$class]++))
+            name_base="$class"
+        fi
+
+        # Increment counter for this name base
+        if [[ -z "${class_counts[$name_base]+_}" ]]; then
+            class_counts[$name_base]=1
+        else
+            ((class_counts[$name_base]++))
         fi
         
         # Create unique window name: no suffix for first, -N for subsequent
-        if [[ "${class_counts[$class]}" -eq 1 ]]; then
-            window_name="~${class}"
+        if [[ "${class_counts[$name_base]}" -eq 1 ]]; then
+            window_name="~${name_base}"
         else
-            window_name="~${class}-${class_counts[$class]}"
+            window_name="~${name_base}-${class_counts[$name_base]}"
         fi
 
         if [[ "$first" == "true" ]]; then
@@ -151,19 +173,22 @@ db_add_existing_windows() {
         json_class=$(safe_json_value "$class")
         local json_window_name=""
         json_window_name=$(safe_json_value "$window_name")
+        local json_app_name=""
+        json_app_name=$(safe_json_value "$resolved_app_name")
 
-        json_rows+="{\"w\":\"$json_window_name\",\"u\":\"$uuid\",\"c\":\"$json_class\",\"t\":\"$json_title\"}"
+        json_rows+="{\"w\":\"$json_window_name\",\"u\":\"$uuid\",\"c\":\"$json_class\",\"t\":\"$json_title\",\"n\":\"$json_app_name\"}"
     done
     json_rows+="]"
 
     # Single INSERT: batch all windows at once using json_each
     db_query \
-        "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, window_title, is_tab)
+        "INSERT OR IGNORE INTO app_windows (workspace_name, window_name, uuid, class, window_title, app_name, is_tab)
          SELECT :workspace,
                 json_extract(value, '$.w'),
                 json_extract(value, '$.u'),
                 json_extract(value, '$.c'),
                 json_extract(value, '$.t'),
+                CASE WHEN json_extract(value, '$.n') != '' THEN json_extract(value, '$.n') ELSE NULL END,
                 FALSE
          FROM json_each(:rows);" \
         ":workspace" "$workspace_name" \
@@ -479,9 +504,9 @@ db_release_window_to_auto() {
 
     validate_parameter_pass "$window_name" "window_name" || return 1
 
-    # Step 1: Get class, uuid, and window_title for this window
+    # Step 1: Get class, uuid, window_title, and app_name for this window
     db_query \
-        "SELECT class, uuid, window_title FROM app_windows WHERE window_name = :window_name;" \
+        "SELECT class, uuid, window_title, app_name FROM app_windows WHERE window_name = :window_name;" \
         ":window_name" "$window_name"
 
     if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
@@ -496,20 +521,31 @@ db_release_window_to_auto() {
     local class=""
     local uuid=""
     local window_title=""
+    local app_name=""
     class="${result%%|*}"
     result="${result#*|}"
     uuid="${result%%|*}"
-    window_title="${result#*|}"
+    result="${result#*|}"
+    window_title="${result%%|*}"
+    app_name="${result#*|}"
 
-    # Step 2: Determine window name — use ~<class> if available, otherwise ~<class>-N
+    # Determine name base: prefer app_name over raw class
+    local name_base=""
+    if [[ -n "$app_name" ]]; then
+        name_base="$app_name"
+    else
+        name_base="$class"
+    fi
+
+    # Step 2: Determine window name — use ~<name_base> if available, otherwise ~<name_base>-N
     local new_window_name=""
 
-    # Check if ~<class> (no suffix) already exists
+    # Check if ~<name_base> (no suffix) already exists
     db_query \
         "SELECT COUNT(*) FROM app_windows
          WHERE workspace_name = '~workspace'
          AND window_name = :exact;" \
-        ":exact" "~${class}"
+        ":exact" "~${name_base}"
 
     local exact_exists=0
     if [[ ${#DB_RESULT[@]} -gt 0 && "${DB_RESULT[0]:-0}" -gt 0 ]]; then
@@ -517,16 +553,16 @@ db_release_window_to_auto() {
     fi
 
     if [[ "$exact_exists" -eq 0 ]]; then
-        new_window_name="~${class}"
+        new_window_name="~${name_base}"
     else
-        # Find highest existing counter from ~<class>-N pattern
+        # Find highest existing counter from ~<name_base>-N pattern
         db_query \
             "SELECT COALESCE(MAX(CAST(SUBSTR(window_name, LENGTH(:prefix) + 1) AS INTEGER)), 1)
              FROM app_windows
              WHERE workspace_name = '~workspace'
              AND window_name LIKE :pattern;" \
-            ":prefix" "~${class}-" \
-            ":pattern" "~${class}-%"
+            ":prefix" "~${name_base}-" \
+            ":pattern" "~${name_base}-%"
 
         local max_counter=1
         if [[ ${#DB_RESULT[@]} -gt 0 && -n "${DB_RESULT[0]}" ]]; then
@@ -535,7 +571,7 @@ db_release_window_to_auto() {
 
         local next_counter=0
         next_counter=$((max_counter + 1))
-        new_window_name="~${class}-${next_counter}"
+        new_window_name="~${name_base}-${next_counter}"
     fi
 
     # Step 3: Reassign the window via db_claim_window

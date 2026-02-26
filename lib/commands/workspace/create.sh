@@ -260,14 +260,23 @@ add_application_to_workspace() {
                     fi
                 done
                 
-                local sanitized_display_name=""
-                sanitized_display_name=$(echo "$display_name" | \
-                    tr '[:upper:]' '[:lower:]' | \
-                    tr ' _' '-' | \
-                    sed 's/[^a-z0-9-]//g' | \
-                    sed 's/--*/-/g')
+                # Prefer app_name for window name base, fall back to sanitized display_name
+                local app_name=""
+                app_name=$(db_get_app_name "$app_id")
                 
-                window_name="${workspace_name}-${sanitized_display_name}"
+                if [[ -n "$app_name" ]]; then
+                    window_name="${workspace_name}-${app_name}"
+                else
+                    local sanitized_display_name=""
+                    sanitized_display_name=$(echo "$display_name" | \
+                        tr '[:upper:]' '[:lower:]' | \
+                        tr ' _' '-' | \
+                        sed 's/[^a-z0-9-]//g' | \
+                        sed 's/--*/-/g')
+                    
+                    window_name="${workspace_name}-${sanitized_display_name}"
+                fi
+                
                 if [[ "$instance_count" -gt 1 ]]; then
                     window_name="${window_name}-${instance_count}"
                 fi
@@ -344,9 +353,9 @@ add_application_to_workspace() {
                 local app_info_lt=""
                 app_info_lt=$(db_get_application "$app_id")
                 local has_terminal_lt=""
-                has_terminal_lt=$(echo "$app_info_lt" | cut -d'|' -f7)
+                has_terminal_lt=$(echo "$app_info_lt" | cut -d'|' -f8)
                 local has_desktop_lt=""
-                has_desktop_lt=$(echo "$app_info_lt" | cut -d'|' -f8)
+                has_desktop_lt=$(echo "$app_info_lt" | cut -d'|' -f9)
 
                 if [[ ("$has_terminal_lt" == "1" || "$has_terminal_lt" == "TRUE") && \
                       ("$has_desktop_lt" == "1" || "$has_desktop_lt" == "TRUE") ]]; then
@@ -923,8 +932,8 @@ choose_launch_type() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     
     app_info=$(db_get_application "$app_id")
-    has_terminal_launch=$(echo "$app_info" | cut -d'|' -f7)
-    has_desktop_launch=$(echo "$app_info" | cut -d'|' -f8)
+    has_terminal_launch=$(echo "$app_info" | cut -d'|' -f8)
+    has_desktop_launch=$(echo "$app_info" | cut -d'|' -f9)
     
     # If only one type available, use it
     if [[ ("$has_terminal_launch" == "1" || "$has_terminal_launch" == "TRUE") && ("$has_desktop_launch" == "0" || "$has_desktop_launch" == "FALSE") ]]; then

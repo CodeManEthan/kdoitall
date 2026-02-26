@@ -23,6 +23,7 @@ CREATE TABLE app_windows (
     pid INTEGER,
     window_title TEXT,
     app_id TEXT,
+    app_name TEXT,
     is_tab BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (workspace_name) REFERENCES workspaces(workspace_name) ON DELETE CASCADE,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
@@ -39,6 +40,7 @@ CREATE TABLE tabs (
 
 CREATE TABLE applications (
     app_id TEXT PRIMARY KEY,
+    app_name TEXT,
     display_name TEXT NOT NULL,
     desktop_file_path TEXT,
     app_class TEXT,

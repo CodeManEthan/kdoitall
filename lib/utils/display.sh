@@ -209,7 +209,7 @@ display_application_info() {
     fi
     
     # Parse the pipe-delimited output
-    IFS='|' read -r _ display_name desktop_file_path \
+    IFS='|' read -r _ app_name display_name desktop_file_path \
         app_directory_path terminal_command app_class \
         has_terminal_launch has_desktop_launch last_validated \
         safe_mode_completed safe_mode_timestamp \
@@ -236,6 +236,7 @@ display_application_info() {
     echo "=========================================================" >&3
     echo "Name:                $display_name" >&3
     echo "App ID:              $app_id" >&3
+    echo "App Name:            ${app_name:-Not set}" >&3
     echo "Desktop File:        $desktop_file_path" >&3
     
     # Show app file path if available

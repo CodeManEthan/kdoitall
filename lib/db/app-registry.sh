@@ -50,7 +50,7 @@ app_registry_get_metadata() {
     fi
 
     db_registry_query \
-        "SELECT app_id, app_class, window_title_pattern, launch_mode,
+        "SELECT app_id, app_name, app_class, window_title_pattern, launch_mode,
                 supports_pid_validation, process_name
          FROM app_registry
          WHERE app_id = :app_id;" \
