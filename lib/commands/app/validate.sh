@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_APP_VALIDATE_COMMAND_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../../app/registry.sh
 source "${LIB_DIR}/app/registry.sh"
 
@@ -14,13 +16,13 @@ app_validate() {
     
     debug_function_enter "$function_name" "$@"
     
-    echo "Validating application definition files..." >&3
+    print_info "Validating application definition files..."
     echo "" >&3
     
     # Call the registry validation function
     if registry_validate_all_app_files; then
         echo "" >&3
-        echo "✓ All application files are valid" >&3
+        print_success "All application files are valid"
         debug_log "$function_name" "Validation completed successfully"
         debug_function_exit "$function_name"
         return 0

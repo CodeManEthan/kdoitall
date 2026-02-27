@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_SCREEN_ALIAS_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../../db/screen.sh
 source "${LIB_DIR}/db/screen.sh"
 
@@ -26,9 +28,9 @@ screen_alias() {
         fi
 
         if db_remove_screen_alias "$alias_name"; then
-            echo "✓ Alias '$alias_name' removed" >&3
+            print_success "Alias '$alias_name' removed"
         else
-            echo "Error: Alias '$alias_name' not found" >&3
+            print_error "Alias '$alias_name' not found"
         fi
 
         debug_function_exit "$function_name"
@@ -49,19 +51,19 @@ screen_alias() {
 
     # Validate alias name: not empty, alphanumeric/hyphens/underscores, not a pure number, max 50 chars
     if [[ ${#alias_name} -gt 50 ]]; then
-        echo "Error: Alias name too long (max 50 characters)" >&3
+        print_error "Alias name too long (max 50 characters)"
         debug_function_exit "$function_name"
         return 1
     fi
 
     if ! [[ "$alias_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        echo "Error: Invalid characters in alias name (use alphanumeric, hyphens, underscores)" >&3
+        print_error "Invalid characters in alias name (use alphanumeric, hyphens, underscores)"
         debug_function_exit "$function_name"
         return 1
     fi
 
     if [[ "$alias_name" =~ ^[0-9]+$ ]]; then
-        echo "Error: Alias name cannot be a pure number (would conflict with screen numbers)" >&3
+        print_error "Alias name cannot be a pure number (would conflict with screen numbers)"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -69,7 +71,7 @@ screen_alias() {
     # Resolve the target to verify it points to a valid screen
     local resolved_output=""
     if ! resolved_output=$(resolve_screen_reference "$target"); then
-        echo "Error: Target '$target' does not resolve to an enabled screen" >&3
+        print_error "Target '$target' does not resolve to an enabled screen"
         debug_function_exit "$function_name"
         return 1
     fi
@@ -83,7 +85,7 @@ screen_alias() {
         return 1
     fi
 
-    echo "✓ Alias '$alias_name' set to '$screen_name'" >&3
+    print_success "Alias '$alias_name' set to '$screen_name'"
     debug_function_exit "$function_name"
     return 0
 }

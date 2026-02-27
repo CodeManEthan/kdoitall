@@ -6,6 +6,9 @@
 
 check_and_set_guard "_KDOITALL_QUICK_COMBO_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
+
 _quick_action_combo_move() {
     local uuid="$1"
     local display_name="$2"
@@ -32,7 +35,7 @@ _quick_action_combo_move() {
     read -r -p "Enter combo: " input
 
     if [[ -z "$input" ]]; then
-        echo "No input provided." >&3
+        print_error "No input provided."
         debug_function_exit "$function_name"
         return 1
     fi
@@ -50,7 +53,7 @@ _quick_action_combo_move() {
     # ── Validate desktop ──
     if [[ "$raw_desktop" != "." ]]; then
         if ! validate_desktop_number "$raw_desktop" > /dev/null 2>&1; then
-            echo "Error: Invalid desktop '${raw_desktop}' (must be 1-${DETECTED_DESKTOP_COUNT})" >&3
+            print_error "Invalid desktop '${raw_desktop}' (must be 1-${DETECTED_DESKTOP_COUNT})"
             debug_function_exit "$function_name"
             return 1
         fi
@@ -62,7 +65,7 @@ _quick_action_combo_move() {
     if [[ "$raw_screen" != "." ]]; then
         target_screen_output=$(resolve_screen_reference "$raw_screen") || true
         if [[ -z "$target_screen_output" ]]; then
-            echo "Error: Invalid screen reference '${raw_screen}'" >&3
+            print_error "Invalid screen reference '${raw_screen}'"
             debug_function_exit "$function_name"
             return 1
         fi
@@ -73,7 +76,7 @@ _quick_action_combo_move() {
     if [[ "$raw_position" != "." ]]; then
         new_position=$(resolve_position "$raw_position") || true
         if [[ -z "$new_position" ]]; then
-            echo "Error: Invalid position '${raw_position}'" >&3
+            print_error "Invalid position '${raw_position}'"
             debug_function_exit "$function_name"
             return 1
         fi
@@ -81,7 +84,7 @@ _quick_action_combo_move() {
 
     # Must have at least one non-skip value
     if [[ -z "$new_desktop" && -z "$new_screen" && -z "$new_position" ]]; then
-        echo "All values skipped — nothing to do." >&3
+        print_info "All values skipped — nothing to do."
         debug_function_exit "$function_name"
         return 0
     fi
@@ -97,7 +100,7 @@ _quick_action_combo_move() {
     if [[ -n "$new_screen" || -n "$new_position" ]]; then
         current_screen=$(detect_window_screen "$uuid") || true
         if [[ -z "$current_screen" ]]; then
-            echo "Error: Could not detect which screen this window is on." >&3
+            print_error "Could not detect which screen this window is on."
             debug_function_exit "$function_name"
             return 1
         fi
@@ -123,7 +126,7 @@ _quick_action_combo_move() {
 
     # ── Confirmation ──
     local msg=""
-    msg="✓ Moved ${display_name}:"
+    msg="Moved ${display_name}:"
     if [[ -n "$new_desktop" ]]; then
         msg+=" Desktop ${new_desktop}"
     fi
@@ -133,7 +136,7 @@ _quick_action_combo_move() {
     if [[ -n "$new_position" ]]; then
         msg+=" ${new_position}"
     fi
-    echo "$msg" >&3
+    print_success "$msg"
 
     debug_function_exit "$function_name"
 }

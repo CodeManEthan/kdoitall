@@ -6,59 +6,61 @@
 
 check_and_set_guard "_KDOITALL_UTILS_COLORS_LOADED" || return 0
 
-# Color constants - disabled if fd 3 is not a terminal or NO_COLOR is set
+# UI color constants - disabled if fd 3 is not a terminal or NO_COLOR is set
+# Prefixed with UI_ to avoid colliding with debug.sh's COLOR_* variables,
+# which target stderr and use their own TTY detection.
 if [[ -t 3 ]] && [[ -z "${NO_COLOR:-}" ]]; then
-    COLOR_RED='\033[0;31m'
-    COLOR_GREEN='\033[0;32m'
-    COLOR_YELLOW='\033[0;33m'
-    COLOR_CYAN='\033[0;36m'
-    COLOR_BOLD='\033[1m'
-    COLOR_DIM='\033[2m'
-    COLOR_RESET='\033[0m'
+    UI_COLOR_RED='\033[0;31m'
+    UI_COLOR_GREEN='\033[0;32m'
+    UI_COLOR_YELLOW='\033[0;33m'
+    UI_COLOR_CYAN='\033[0;36m'
+    UI_COLOR_BOLD='\033[1m'
+    UI_COLOR_DIM='\033[2m'
+    UI_COLOR_RESET='\033[0m'
 else
-    COLOR_RED=''
-    COLOR_GREEN=''
-    COLOR_YELLOW=''
-    COLOR_CYAN=''
-    COLOR_BOLD=''
-    COLOR_DIM=''
-    COLOR_RESET=''
+    UI_COLOR_RED=''
+    UI_COLOR_GREEN=''
+    UI_COLOR_YELLOW=''
+    UI_COLOR_CYAN=''
+    UI_COLOR_BOLD=''
+    UI_COLOR_DIM=''
+    UI_COLOR_RESET=''
 fi
 
 # --- Helper functions ---
 # All output to fd 3 (user-facing output)
 
 print_success() {
-    echo -e "${COLOR_GREEN}✓ $1${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_GREEN}✓ $1${UI_COLOR_RESET}" >&3
 }
 
 print_error() {
-    echo -e "${COLOR_RED}✗ $1${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_RED}✗ $1${UI_COLOR_RESET}" >&3
 }
 
 print_warning() {
-    echo -e "${COLOR_YELLOW}⚠ $1${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_YELLOW}⚠ $1${UI_COLOR_RESET}" >&3
 }
 
 print_header() {
-    echo -e "${COLOR_BOLD}${COLOR_CYAN}=== $1 ===${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_CYAN}=== $1 ===${UI_COLOR_RESET}" >&3
 }
 
 print_banner() {
-    echo -e "${COLOR_BOLD}${COLOR_GREEN}================================================================${COLOR_RESET}" >&3
-    echo -e "${COLOR_BOLD}${COLOR_GREEN}$1${COLOR_RESET}" >&3
-    echo -e "${COLOR_BOLD}${COLOR_GREEN}================================================================${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_GREEN}================================================================${UI_COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_GREEN}$1${UI_COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_GREEN}================================================================${UI_COLOR_RESET}" >&3
 }
 
 print_prompt() {
-    echo -e "${COLOR_BOLD}$1${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_YELLOW}$1${UI_COLOR_RESET}" >&3
 }
 
 print_info() {
-    echo -e "${COLOR_DIM}$1${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_DIM}$1${UI_COLOR_RESET}" >&3
 }
 
 print_step() {
-    echo -e "${COLOR_BOLD}${COLOR_CYAN}$1${COLOR_RESET}" >&3
-    echo -e "${COLOR_CYAN}$(printf '%0.s-' $(seq 1 ${#1}))${COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_BOLD}${UI_COLOR_CYAN}$1${UI_COLOR_RESET}" >&3
+    echo -e "${UI_COLOR_CYAN}$(printf '%0.s-' $(seq 1 ${#1}))${UI_COLOR_RESET}" >&3
 }

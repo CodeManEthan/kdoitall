@@ -10,6 +10,8 @@ check_and_set_guard "_KDOITALL_WORKSPACE_INFO_LOADED" || return 0
 source "${LIB_DIR}/db/workspace.sh"
 # shellcheck source=../../utils/display.sh
 source "${LIB_DIR}/utils/display.sh"
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 
 workspace_info() {
     local workspace_name="$1"
@@ -43,8 +45,7 @@ workspace_info() {
 
     # Display workspace metadata
     echo "" >&3
-    echo "Workspace: $workspace_name" >&3
-    echo "===================" >&3
+    print_header "Workspace: $workspace_name"
 
     [[ -n "$description" ]] && echo "Description: $description" >&3
 
@@ -53,6 +54,11 @@ workspace_info() {
     [[ -n "$last_opened" ]] && echo "Last opened: $last_opened" >&3
 
     [[ "$is_active" == "1" || "$is_active" == "TRUE" ]] && echo "Status: ACTIVE" >&3
+
+    # Display focus window
+    local focus_window=""
+    focus_window=$(db_get_workspace_focus_window "$workspace_name")
+    echo "Focus window: ${focus_window:-<none>}" >&3
 
     # Display detailed window configuration
     display_workspace_windows "$workspace_name"

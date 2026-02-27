@@ -308,7 +308,8 @@ db_get_quick_window_list() {
             'xdg-desktop-portal-kde', 'org.kde.kscreen.osd',
             'kded5', 'kded6',
             'polkit-kde-authentication-agent-1',
-            'ksplashqml', 'ksmserver', 'org.kde.plasmashell'
+            'ksplashqml', 'ksmserver', 'org.kde.plasmashell',
+            'xwaylandvideobridge'
          )
          ORDER BY aw.class, aw.window_title;"
 

@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_APP_SCAN_COMMAND_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../../app/registry.sh
 source "${LIB_DIR}/app/registry.sh"
 
@@ -14,13 +16,13 @@ app_scan() {
     
     debug_function_enter "$function_name" "$@"
     
-    echo "Scanning system for applications..." >&3
+    print_info "Scanning system for applications..."
     echo "" >&3
     
     # Call the registry scan function
     if registry_scan_applications; then
         echo "" >&3
-        echo "✓ Application scan completed successfully" >&3
+        print_success "Application scan completed successfully"
         debug_log "$function_name" "Application scan completed"
         debug_function_exit "$function_name"
         return 0

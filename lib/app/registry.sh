@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_APPLICATION_REGISTRY_LOADED" || return 0
 
+# shellcheck source=../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../db/launch-options.sh
@@ -170,7 +172,7 @@ registry_scan_applications() {
     done
     
     echo "" >&3
-    echo "Scan complete: $app_count applications added to registry" >&3
+    print_info "Scan complete: $app_count applications added to registry"
     debug_log "$function_name" "Scan complete: $app_count applications processed"
     debug_function_exit "$function_name"
     
@@ -263,7 +265,7 @@ registry_validate_all_app_files() {
 
     validate_directory_exists "$app_definitions_dir" || return 1
     
-    echo "Validating application definitions in: $app_definitions_dir" >&3
+    print_info "Validating application definitions in: $app_definitions_dir"
     echo "" >&3
     
     # Iterate through all directories in app-definitions/apps
@@ -275,10 +277,10 @@ registry_validate_all_app_files() {
         local app_id=""
         app_id=$(basename "$app_dir")
         
-        echo "Checking: $app_id" >&3
+        print_info "Checking: $app_id"
         
         if registry_validate_app_metadata "$app_dir"; then
-            echo "  ✓ Valid" >&3
+            print_success "Valid"
             ((valid_apps++))
         else
             ((invalid_apps++))
@@ -288,12 +290,10 @@ registry_validate_all_app_files() {
     done
     
     # Summary
-    echo "================================" >&3
-    echo "Validation Summary:" >&3
+    print_header "Validation Summary"
     echo "  Total apps:    $total_apps" >&3
     echo "  Valid:         $valid_apps" >&3
     echo "  Invalid:       $invalid_apps" >&3
-    echo "================================" >&3
     
     debug_log "$function_name" "Validation complete: $valid_apps/$total_apps valid"
     debug_function_exit "$function_name"

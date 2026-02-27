@@ -323,7 +323,7 @@ db_get_workspace_window_details() {
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
 
     db_query \
-        "SELECT a.display_name, wd.app_id, wd.desktop, wd.screen, wd.position, wd.display_order
+        "SELECT a.display_name, wd.app_id, wd.window_name, wd.desktop, wd.screen, wd.position, wd.display_order
          FROM window_definitions wd
          LEFT JOIN applications a ON wd.app_id = a.app_id
          WHERE wd.workspace_name = :workspace_name

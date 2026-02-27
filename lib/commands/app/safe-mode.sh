@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_COMMAND_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../../app/safe-mode.sh
 source "${LIB_DIR}/app/safe-mode.sh"
 # shellcheck source=../../db/app.sh
@@ -34,7 +36,7 @@ app_safe_mode() {
             db_set_safe_mode_completed "$app_id"
             local display_name
             display_name=$(db_get_display_name "$app_id")
-            echo "✓ Safe mode skipped for $display_name ($app_id)" >&3
+            print_success "Safe mode skipped for $display_name ($app_id)"
             debug_function_exit "$function_name"
             return 0
             ;;
@@ -52,7 +54,7 @@ app_safe_mode() {
             db_clear_safe_mode_data "$app_id"
             local display_name
             display_name=$(db_get_display_name "$app_id")
-            echo "✓ Safe mode data cleared for $display_name ($app_id)" >&3
+            print_success "Safe mode data cleared for $display_name ($app_id)"
             echo "  This app will be prompted for safe mode on next workspace open." >&3
             debug_function_exit "$function_name"
             return 0
@@ -67,7 +69,7 @@ app_safe_mode() {
     
     if [[ "$pending_count" -eq 0 ]]; then
         echo "" >&3
-        echo "✅ No applications need safe mode validation" >&3
+        print_success "No applications need safe mode validation"
         echo "" >&3
         debug_function_exit "$function_name"
         return 0
@@ -80,7 +82,7 @@ app_safe_mode() {
         
         if [[ "$pending_count" -eq 0 ]]; then
             echo "" >&3
-            echo "✅ All applications have completed safe mode!" >&3
+            print_success "All applications have completed safe mode!"
             echo "" >&3
             debug_function_exit "$function_name"
             return 0
@@ -116,20 +118,20 @@ app_safe_mode() {
         # Handle quit
         if [[ "$choice" == "q" ]]; then
             echo "" >&3
-            echo "Exiting safe mode. $pending_count app(s) still need validation." >&3
+            print_info "Exiting safe mode. $pending_count app(s) still need validation."
             debug_function_exit "$function_name"
             return 0
         fi
         
         # Validate choice is a number
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo "Invalid choice. Please enter a number or 'Q'." >&3
+            print_error "Invalid choice. Please enter a number or 'Q'."
             continue
         fi
         
         # Validate choice is in range
         if [[ "$choice" -lt 1 || "$choice" -gt "${#app_list[@]}" ]]; then
-            echo "Invalid choice. Please select 1-${#app_list[@]}." >&3
+            print_error "Invalid choice. Please select 1-${#app_list[@]}."
             continue
         fi
         
@@ -137,13 +139,13 @@ app_safe_mode() {
         local selected_app_id="${app_list[$((choice - 1))]}"
         
         echo "" >&3
-        echo "Starting safe mode for: $selected_app_id" >&3
+        print_info "Starting safe mode for: $selected_app_id"
         echo "" >&3
         
         # Run safe mode for selected app
         if safe_mode_launch_and_detect "$selected_app_id"; then
             echo "" >&3
-            echo "✅ Safe mode completed for $selected_app_id" >&3
+            print_success "Safe mode completed for $selected_app_id"
             echo "" >&3
             
             # Check if more apps remain
@@ -155,15 +157,15 @@ app_safe_mode() {
                 
                 if [[ "$continue_choice" == "n" ]]; then
                     echo "" >&3
-                    echo "$pending_count app(s) still need validation." >&3
-                    echo "Run 'kdoitall app safe-mode' again when ready." >&3
+                    print_info "$pending_count app(s) still need validation."
+                    print_info "Run 'kdoitall app safe-mode' again when ready."
                     debug_function_exit "$function_name"
                     return 0
                 fi
             fi
         else
             echo "" >&3
-            echo "❌ Safe mode failed for $selected_app_id" >&3
+            print_error "Safe mode failed for $selected_app_id"
             echo "" >&3
             
             read -r -p "Try another app? [Y/n]: " retry_choice

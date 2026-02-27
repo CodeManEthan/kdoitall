@@ -912,7 +912,7 @@ select_application() {
         fi
         
         if (( counter % 2 == 0 )); then
-            printf "${COLOR_DIM}%3d) %-45s %s${COLOR_RESET}\n" "$counter" "$label" "$types" >&3
+            printf "${UI_COLOR_DIM}%3d) %-45s %s${UI_COLOR_RESET}\n" "$counter" "$label" "$types" >&3
         else
             printf "%3d) %-45s %s\n" "$counter" "$label" "$types" >&3
         fi

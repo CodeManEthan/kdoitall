@@ -7,6 +7,8 @@
 check_and_set_guard "_KDOITALL_APP_SAFE_MODE_LOADED" || return 0
 
 # Source required modules
+# shellcheck source=../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
 # shellcheck source=../db/window-definitions.sh
@@ -32,7 +34,7 @@ safe_mode_launch_and_detect() {
     
     # Brief notice replaces the old multi-step preparation
     echo "" >&3
-    echo "ℹ️  Starting safe mode for $display_name..." >&3
+    print_info "Starting safe mode for $display_name..."
     echo "" >&3
     
     # Launch and measure time — also detects UUID
@@ -129,7 +131,7 @@ safe_mode_launch_and_detect() {
             close_window "$new_uuid"
             
             echo "" >&3
-            echo "✅ Safe mode complete for $display_name" >&3
+            print_success "Safe mode complete for $display_name"
             echo "" >&3
             
             debug_function_exit "$function_name" "Success"
@@ -142,7 +144,7 @@ safe_mode_launch_and_detect() {
             db_set_safe_mode_completed "$app_id"
             
             echo "" >&3
-            echo "⏭️  Skipped safe mode for $display_name" >&3
+            print_info "Skipped safe mode for $display_name"
             echo "" >&3
             
             debug_function_exit "$function_name" "Skipped"
@@ -259,7 +261,7 @@ prompt_safe_mode() {
                 return 0
                 ;;
             *)
-                echo "Invalid choice. Please select A, S, D, or Q." >&3
+                print_error "Invalid choice. Please select A, S, D, or Q."
                 continue
                 ;;
         esac
@@ -308,7 +310,7 @@ prompt_safe_mode_disable_menu() {
             done
             apps_ref=()
             echo "" >&3
-            echo "✓ Safe mode skipped for all listed apps." >&3
+            print_success "Safe mode skipped for all listed apps."
             debug_function_exit "$function_name" "All apps skipped"
             echo "open"
             return 0
@@ -334,7 +336,7 @@ prompt_safe_mode_disable_menu() {
                 apps_ref=("${apps_ref[@]:0:$idx}" "${apps_ref[@]:$((idx + 1))}")
 
                 echo "" >&3
-                echo "✓ Safe mode skipped for $selected_name." >&3
+                print_success "Safe mode skipped for $selected_name."
 
                 if [[ ${#apps_ref[@]} -eq 0 ]]; then
                     debug_function_exit "$function_name" "All apps removed"
@@ -347,7 +349,7 @@ prompt_safe_mode_disable_menu() {
                 return 0
             fi
 
-            echo "Invalid choice." >&3
+            print_error "Invalid choice."
             debug_function_exit "$function_name" "Invalid choice"
             echo "back"
             return 0
@@ -395,13 +397,13 @@ CONFIGEOF
 
     if [[ "${SAFE_MODE_PROMPTING:-}" == "disabled" ]]; then
         echo "" >&3
-        echo "✓ Safe-mode prompting disabled in $config_file" >&3
-        echo "  Re-enable by changing SAFE_MODE_PROMPTING to \"enabled\" in that file." >&3
+        print_success "Safe-mode prompting disabled in $config_file"
+        print_info "  Re-enable by changing SAFE_MODE_PROMPTING to \"enabled\" in that file."
     else
         echo "" >&3
-        echo "⚠️  Failed to update config file automatically." >&3
-        echo "  Manually edit $config_file and set:" >&3
-        echo "    SAFE_MODE_PROMPTING=\"disabled\"" >&3
+        print_warning "Failed to update config file automatically."
+        print_info "  Manually edit $config_file and set:"
+        print_info "    SAFE_MODE_PROMPTING=\"disabled\""
     fi
 
     debug_function_exit "$function_name"
@@ -439,18 +441,18 @@ safe_mode_measure_launch_time() {
     echo "" >&3
     
     # Refresh database before launch
-    echo "Scanning existing windows..." >&3
+    print_info "Scanning existing windows..."
     auto_detect_windows
 
     # Record start time (milliseconds since epoch)
     start_time=$(date +%s%3N)
     
     # Launch application
-    echo "Launching $display_name..." >&3
+    print_info "Launching $display_name..."
     (gtk-launch "$app_id" &>/dev/null &)
     
     # Wait for window with extended timeout using retry function
-    echo "Waiting for window to appear (timeout: 30 seconds)..." >&3
+    print_info "Waiting for window to appear (timeout: 30 seconds)..."
     echo "" >&3
     
     # Use get_uuid_by_process_of_elimination_with_retry with 30 second timeout
@@ -481,7 +483,7 @@ safe_mode_measure_launch_time() {
     minimize_window "$uuid"
     
     echo "" >&3
-    echo "✓ Window detected after ${elapsed_ms}ms" >&3
+    print_success "Window detected after ${elapsed_ms}ms"
     echo "" >&3
     # Store measurement in database
     db_set_launch_time "$app_id" "$elapsed_ms"
@@ -626,7 +628,7 @@ safe_mode_manual_title_pattern_selection() {
     mapfile -t suggestions < <(parse_window_title_segments "$current_title")
     
     if [[ ${#suggestions[@]} -eq 0 ]]; then
-        echo "No separators found in the window title." >&3
+        print_info "No separators found in the window title."
         echo "" >&3
         read -r -p "Enter a custom pattern (or press Enter to skip): " pattern
         
@@ -638,7 +640,7 @@ safe_mode_manual_title_pattern_selection() {
         # Validate custom pattern exists in title
         if [[ ! "$current_title" =~ $pattern ]]; then
             echo "" >&3
-            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!" >&3
+            print_warning "Pattern \"$pattern\" not found in current title!"
             read -r -p "Save anyway? [y/N]: " save_anyway
             save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
             
@@ -649,7 +651,7 @@ safe_mode_manual_title_pattern_selection() {
         fi
         
         echo "" >&3
-        echo "✓ Title pattern selected: \"$pattern\"" >&3
+        print_success "Title pattern selected: \"$pattern\""
         
         debug_function_exit "$function_name"
         echo "$pattern"
@@ -677,14 +679,14 @@ safe_mode_manual_title_pattern_selection() {
     
     # Skip
     if [[ -z "$choice" || "$choice" == "0" ]]; then
-        echo "Skipping title pattern." >&3
+        print_info "Skipping title pattern."
         debug_function_exit "$function_name" "Skipped"
         return 0
     fi
     
     # Validate choice is a number
     if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-        echo "Invalid choice. Skipping title pattern." >&3
+        print_error "Invalid choice. Skipping title pattern."
         debug_function_exit "$function_name" "Invalid input"
         return 0
     fi
@@ -697,7 +699,7 @@ safe_mode_manual_title_pattern_selection() {
         read -r -p "Enter custom pattern: " pattern
         
         if [[ -z "$pattern" ]]; then
-            echo "No pattern entered. Skipping." >&3
+            print_info "No pattern entered. Skipping."
             debug_function_exit "$function_name" "No custom pattern entered"
             return 0
         fi
@@ -705,12 +707,12 @@ safe_mode_manual_title_pattern_selection() {
         # Validate custom pattern exists in title
         if [[ ! "$current_title" =~ $pattern ]]; then
             echo "" >&3
-            echo "⚠️  Warning: Pattern \"$pattern\" not found in current title!" >&3
+            print_warning "Pattern \"$pattern\" not found in current title!"
             read -r -p "Save anyway? [y/N]: " save_anyway
             save_anyway=$(echo "$save_anyway" | tr '[:upper:]' '[:lower:]')
             
             if [[ "$save_anyway" != "y" ]]; then
-                echo "Pattern not saved." >&3
+                print_info "Pattern not saved."
                 debug_function_exit "$function_name" "Custom pattern rejected"
                 return 0
             fi
@@ -721,7 +723,7 @@ safe_mode_manual_title_pattern_selection() {
         
         # Validate index is in range
         if [[ "$suggestion_index" -lt 0 || "$suggestion_index" -ge "${#suggestions[@]}" ]]; then
-            echo "Invalid choice. Skipping title pattern." >&3
+            print_error "Invalid choice. Skipping title pattern."
             debug_function_exit "$function_name" "Choice out of range"
             return 0
         fi
@@ -730,7 +732,7 @@ safe_mode_manual_title_pattern_selection() {
     fi
     
     echo "" >&3
-    echo "✓ Title pattern selected: \"$pattern\"" >&3
+    print_success "Title pattern selected: \"$pattern\""
     
     debug_log "$function_name" "Title pattern selected: $pattern"
     debug_function_exit "$function_name"
@@ -765,7 +767,7 @@ safe_mode_auto_detect_launch_mode() {
 
     debug_log "$function_name" "Using timeout: ${timeout_ms}ms (based on launch time: ${launch_time_ms:-unknown}ms)"
 
-    echo "Testing multi-instance support (timeout: $(( timeout_ms / 1000 ))s)..." >&3
+    print_info "Testing multi-instance support (timeout: $(( timeout_ms / 1000 ))s)..."
     
     # Refresh database before second launch
     auto_detect_windows
@@ -805,7 +807,7 @@ safe_mode_auto_detect_launch_mode() {
         debug_log "$function_name" "No second window detected → single_or_unique mode"
     fi
     
-    echo "✓ Launch mode detected: $detected_mode" >&3
+    print_success "Launch mode detected: $detected_mode"
     
     debug_function_exit "$function_name"
     # Return pipe-separated: mode|pid_override
@@ -884,7 +886,7 @@ safe_mode_display_summary_and_confirm() {
             return 0
             ;;
         *)
-            echo "Invalid choice. Accepting results." >&3
+            print_info "Invalid choice. Accepting results."
             debug_function_exit "$function_name" "Accepted (default)"
             echo "accept"
             return 0
@@ -912,7 +914,7 @@ safe_mode_store_metadata() {
     debug_log "$function_name" "Stored: class=$class"
     
     echo "" >&3
-    echo "✓ Metadata stored successfully:" >&3
+    print_success "Metadata stored successfully:"
     echo "  • Class: $class" >&3
     
     debug_function_exit "$function_name"

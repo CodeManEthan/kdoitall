@@ -6,6 +6,9 @@
 
 check_and_set_guard "_KDOITALL_QUICK_PICKER_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
+
 # Global arrays populated by quick_show_picker for selection reference
 QUICK_UUIDS=()
 QUICK_CLASSES=()
@@ -35,7 +38,7 @@ quick_show_picker() {
     window_list=$(db_get_quick_window_list) || true
 
     if [[ -z "$window_list" ]]; then
-        echo "No manageable windows found." >&3
+        print_warning "No manageable windows found."
         debug_function_exit "$function_name"
         return 1
     fi
@@ -68,7 +71,7 @@ quick_show_picker() {
     count=${#QUICK_UUIDS[@]}
 
     if [[ "$count" -eq 0 ]]; then
-        echo "No manageable windows found." >&3
+        print_warning "No manageable windows found."
         debug_function_exit "$function_name"
         return 1
     fi
@@ -103,7 +106,7 @@ quick_show_picker() {
 
     # Display header
     echo "" >&3
-    echo "Active Windows:" >&3
+    print_header "Active Windows"
     printf "  %-4s %-18s %-14s %-35s %s\n" "#" "APP NAME" "CLASS" "TITLE" "LOCATION" >&3
     printf "  %-4s %-18s %-14s %-35s %s\n" \
         "$(printf '%.0s─' {1..3})" \
@@ -172,6 +175,6 @@ quick_show_picker() {
             return 0
         fi
 
-        echo "Invalid selection. Enter a number between 1 and ${count}." >&3
+        print_error "Invalid selection. Enter a number between 1 and ${count}."
     done
 }

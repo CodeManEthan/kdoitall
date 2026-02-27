@@ -377,7 +377,7 @@ display_applications_list() {
         
         # Format and display with alternating dim rows
         if (( line_counter % 2 == 0 )); then
-            printf "${COLOR_DIM}%-30s %-30s %s${COLOR_RESET}\n" \
+            printf "${UI_COLOR_DIM}%-30s %-30s %s${UI_COLOR_RESET}\n" \
                 "$display_short" "$app_id_short" "$types" >&3
         else
             printf "%-30s %-30s %s\n" \
@@ -508,15 +508,15 @@ display_workspace_windows() {
 
     echo "Windows ($window_count):" >&3
 
-    while IFS='|' read -r display_name app_id desktop screen position display_order; do
+    while IFS='|' read -r display_name app_id window_name desktop screen position display_order; do
         local name=""
         name="${display_name:-$app_id}"
 
         local index=0
         index=$((display_order + 1))
 
-        printf "  %d. %-22s Screen %s, Desktop %s, %s\n" \
-            "$index" "$name" "$screen" "$desktop" "$position" >&3
+        printf "  %d. %-22s %-30s Screen %s, Desktop %s, %s\n" \
+            "$index" "$name" "($window_name)" "$screen" "$desktop" "$position" >&3
     done <<< "$window_details"
 
     debug_function_exit "$function_name"
@@ -540,7 +540,7 @@ display_workspace_applications() {
     fi
 
     local app_names=""
-    while IFS='|' read -r display_name app_id _ _ _ _; do
+    while IFS='|' read -r display_name app_id _ _ _ _ _; do
         local name=""
         name="${display_name:-$app_id}"
 
@@ -597,8 +597,8 @@ display_status_active_workspaces() {
             echo "" >&3
             # Dim workspace header if it has any dead windows
             if [[ -n "${workspace_has_dead[$workspace_name]+_}" ]]; then
-                printf "${COLOR_DIM}Workspace: %s${COLOR_RESET}\n" "$current_workspace" >&3
-                printf "${COLOR_DIM}───────────────────────────────────────────────────────${COLOR_RESET}\n" >&3
+                printf "${UI_COLOR_DIM}Workspace: %s${UI_COLOR_RESET}\n" "$current_workspace" >&3
+                printf "${UI_COLOR_DIM}───────────────────────────────────────────────────────${UI_COLOR_RESET}\n" >&3
             else
                 echo "Workspace: $current_workspace" >&3
                 echo "───────────────────────────────────────────────────────" >&3
@@ -635,8 +635,8 @@ display_status_active_workspaces() {
                 position_label="N/A"
             fi
 
-            printf "${COLOR_DIM}  %d. %-22s %s${COLOR_RESET}\n" "$index" "$display_name" "$window_name" >&3
-            printf "${COLOR_DIM}     %-36s %s${COLOR_RESET}\n" "$position_label" "(window not found)" >&3
+            printf "${UI_COLOR_DIM}  %d. %-22s %s${UI_COLOR_RESET}\n" "$index" "$display_name" "$window_name" >&3
+            printf "${UI_COLOR_DIM}     %-36s %s${UI_COLOR_RESET}\n" "$position_label" "(window not found)" >&3
         fi
 
     done <<< "$result"

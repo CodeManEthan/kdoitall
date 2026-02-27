@@ -6,6 +6,9 @@
 
 check_and_set_guard "_KDOITALL_QUICK_ACTIONS_LOADED" || return 0
 
+# shellcheck source=../../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
+
 quick_show_actions() {
     local uuid="$1"
     local display_name="$2"
@@ -20,7 +23,7 @@ quick_show_actions() {
 
     # Display selected window summary
     echo "" >&3
-    echo "Selected: ${display_name} — \"${window_title}\" (${location})" >&3
+    print_info "Selected: ${display_name} — \"${window_title}\" (${location})"
     echo "" >&3
 
     # Display action menu
@@ -83,7 +86,7 @@ quick_show_actions() {
                 return 0
                 ;;
             *)
-                echo "Invalid selection. Enter a number between 1 and 7." >&3
+                print_error "Invalid selection. Enter a number between 1 and 7."
                 continue
                 ;;
         esac
@@ -98,7 +101,7 @@ _quick_action_focus() {
     debug_function_enter "$function_name" "$@"
 
     kdotool activate_window "$uuid"
-    echo "✓ Focused: ${display_name}" >&3
+    print_success "Focused: ${display_name}"
 
     debug_function_exit "$function_name"
 }
@@ -111,7 +114,7 @@ _quick_action_minimize() {
     debug_function_enter "$function_name" "$@"
 
     kdotool minimize_window "$uuid"
-    echo "✓ Minimized: ${display_name}" >&3
+    print_success "Minimized: ${display_name}"
 
     debug_function_exit "$function_name"
 }
@@ -134,7 +137,7 @@ _quick_action_close() {
         db_delete_window "$window_name"
     fi
 
-    echo "✓ Closed: ${display_name}" >&3
+    print_success "Closed: ${display_name}"
 
     debug_function_exit "$function_name"
 }
@@ -175,11 +178,11 @@ _quick_action_move_desktop() {
             break
         fi
 
-        echo "Invalid selection. Enter a number between 1 and ${DETECTED_DESKTOP_COUNT}." >&3
+        print_error "Invalid selection. Enter a number between 1 and ${DETECTED_DESKTOP_COUNT}."
     done
 
     move_window_to_desktop "$uuid" "$selection"
-    echo "✓ Moved ${display_name} to Desktop ${selection}" >&3
+    print_success "Moved ${display_name} to Desktop ${selection}"
 
     debug_function_exit "$function_name"
 }
@@ -244,7 +247,7 @@ _quick_action_move_screen() {
             break
         fi
 
-        echo "Invalid selection. Enter a number between 1 and ${screen_count}." >&3
+        print_error "Invalid selection. Enter a number between 1 and ${screen_count}."
     done
 
     target_output="${screen_list[$((selection - 1))]}"
@@ -252,7 +255,7 @@ _quick_action_move_screen() {
     # Position preservation: detect current position and reapply on new screen
     _quick_move_to_screen_with_position "$uuid" "$current_screen" "$target_output"
 
-    echo "✓ Moved ${display_name} to Screen ${target_output}" >&3
+    print_success "Moved ${display_name} to Screen ${target_output}"
 
     debug_function_exit "$function_name"
 }
@@ -336,7 +339,7 @@ _quick_action_move_position() {
     # Detect current screen (needed for move_window_to_position)
     current_screen=$(detect_window_screen "$uuid") || true
     if [[ -z "$current_screen" ]]; then
-        echo "Error: Could not detect which screen this window is on." >&3
+        print_error "Could not detect which screen this window is on."
         debug_function_exit "$function_name"
         return 1
     fi
@@ -425,11 +428,11 @@ _quick_action_move_position() {
             break
         fi
 
-        echo "Invalid selection. Enter a number, abbreviation, or position name." >&3
+        print_error "Invalid selection. Enter a number, abbreviation, or position name."
     done
 
     move_window_to_position "$uuid" "$current_screen" "$resolved_position"
-    echo "✓ Moved ${display_name} to ${resolved_position}" >&3
+    print_success "Moved ${display_name} to ${resolved_position}"
 
     debug_function_exit "$function_name"
 }

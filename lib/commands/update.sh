@@ -6,6 +6,8 @@
 
 check_and_set_guard "_KDOITALL_UPDATE_COMMAND_LOADED" || return 0
 
+# shellcheck source=../utils/colors.sh
+source "${LIB_DIR}/utils/colors.sh"
 # shellcheck source=../db/app-registry.sh
 source "${LIB_DIR}/db/app-registry.sh"
 
@@ -27,7 +29,7 @@ update_command() {
     # Get old app count before update
     old_app_count=$(app_registry_count_apps)
 
-    echo "Updating kdoitall..." >&3
+    print_info "Updating kdoitall..."
 
     # --- Git pull ---
     if ! git -C "$KDOITALL_ROOT" pull --ff-only 2>&1; then
@@ -57,19 +59,19 @@ update_command() {
             app_diff_display=", ${app_diff} removed"
         fi
 
-        echo "✓ Rebuilt app registry (${new_app_count} apps${app_diff_display})" >&3
+        print_success "Rebuilt app registry (${new_app_count} apps${app_diff_display})"
     else
-        echo "⚠ App registry seed file not found — skipping rebuild" >&3
+        print_warning "App registry seed file not found — skipping rebuild"
     fi
 
     # --- Report version change ---
     if [[ "$old_version" != "$new_version" ]]; then
-        echo "✓ Updated to v${new_version} (was v${old_version})" >&3
+        print_success "Updated to v${new_version} (was v${old_version})"
     else
-        echo "✓ Already at v${new_version}" >&3
+        print_success "Already at v${new_version}"
     fi
 
-    echo "✓ Done" >&3
+    print_success "Done"
 
     debug_function_exit "$function_name"
     return 0
