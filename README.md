@@ -3,11 +3,11 @@
 **KDE Desktop Automation Tool**
 
 ![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
-![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-green.svg)
+![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-green.svg)
 
 ## About
 
-kdoitall automates workspace management on KDE Plasma desktops. Define a workspace as a collection of applications, assign each one a screen, virtual desktop, and window position, then open and close the entire workspace with a single command.
+kdoitall automates workspace management on KDE Plasma desktops. Define a workspace as a collection of applications, assign each one a screen, virtual desktop, and window position, then open and close the entire workspace with a single command. Individual windows can also be manipulated on-the-fly using `kdoitall quick` and the window commands, without needing to define a workspace.
 
 It supports multi-screen and multi-desktop setups on both Wayland and X11, uses SQLite for state tracking, and detects installed applications automatically from `.desktop` files.
 
@@ -15,7 +15,7 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 
 - **Workspace management** — Create, open, close, and delete named workspaces with interactive configuration
 - **Multi-screen and multi-desktop** — Place windows on specific screens and virtual desktops
-- **12 window position presets** — Fullscreen, halves (left/right/top/bottom), thirds (left/middle/right), and quadrants (top-left/top-right/bottom-left/bottom-right)
+- **28 window position presets** — 12 defaults (fullscreen, halves, thirds, and quadrants) plus 16 optional positions (two-thirds, 60/40, center, and quarter splits) enabled via `EXTRA_POSITIONS` config
 - **Application registry** — Auto-detects installed applications from `.desktop` files via `app scan`
 - **Custom launch functions** — Per-application launch behavior through the app-definitions system
 - **Database-driven state** — SQLite-backed tracking of workspaces, applications, and window state
@@ -34,10 +34,7 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 | `kscreen-doctor` | Screen/display detection       |
 | `sqlite3`        | Database operations            |
 | `jq`             | JSON parsing                   |
-| `bc`             | Window position calculations   |
 | `gtk-launch`     | Application launching          |
-
-The install script will detect your package manager and show the correct install command for any missing dependencies.
 
 > **Note:** `kdotool` is not available in standard package repos for most distributions. The install script can automatically download and install it for you, or you can install it manually from https://github.com/jinliu/kdotool
 
@@ -47,8 +44,6 @@ git clone https://github.com/CodeManEthan/kdoitall.git
 cd kdoitall
 ./scripts/install.sh
 ```
-
-The install script creates the necessary data and config directories, initializes the database, and places an executable wrapper in `~/.local/bin/`. No sudo required.
 
 To uninstall:
 ```bash
@@ -118,27 +113,19 @@ WINDOW COMMANDS (window | win):
     window status (st) <window-name>                Show window details
     window close (c) <window-name>                  Close a specific window
     window open (o) <window-name>                   Re-open a previously closed window
-    window move (mv) <window-name> <screen> <pos>   Move/reposition a window
+    window move (mv) <window-name> <screen> <pos>   Move/reposition a window (Accepts --focus|-f)
     window focus (f) <window-name>                  Bring window to front
     window minimize (min) <window-name>             Minimize window
 ```
 
-## Adding Application Support
-
-kdoitall discovers applications via `.desktop` files, but some applications benefit from custom launch behavior (e.g., opening a specific profile or workspace). This is handled through the app-definitions system in `lib/app-definitions/apps/`.
-
-Each app definition is a directory named after the application's `.desktop` file ID, containing a `metadata.json` and an optional `functions.sh` for custom launch logic. kdoitall currently ships with definitions for VS Code and Firefox.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on adding support for new applications.
-
 ## Project Status
 
-This is v0.1.0 — the initial public release. Core workspace and application management features are functional, but the project is in early development. Expect rough edges.
+kdoitall is in a stable state with a broad set of features for workspace automation and window management. Further testing is ongoing to improve reliability and handle remaining edge cases.
 
-Known limitations:
+Current gaps:
 
-- Application definitions exist only for VS Code and Firefox
-- Limited error recovery during workspace open/close
+- Limited metadata coverage in the app-registry database — most applications still require safe-mode to gather launch properties
+- Application definitions only exist for VS Code and Firefox — other apps use generic launch behavior
 
 ## Contributing
 
