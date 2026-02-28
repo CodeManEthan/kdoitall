@@ -156,7 +156,7 @@ registry_scan_applications() {
             fi
             
             # Add application to database with all metadata in a single call
-            if db_add_application_full "$app_id" "$display_name" "$desktop_file_path" \
+            if db_upsert_application_scan "$app_id" "$display_name" "$desktop_file_path" \
                                   "$app_directory_path" "$terminal_command" "$app_class" \
                                   "$has_terminal_launch" "$has_desktop_launch" \
                                   "$launch_mode" "$window_title_pattern" \
@@ -171,9 +171,15 @@ registry_scan_applications() {
         done < <(find "$location" -maxdepth 1 -name "*.desktop" \( -type f -o -type l \) -print0 2>/dev/null)
     done
     
+    # Remove applications no longer installed on the system
+    local found_app_ids=""
+    found_app_ids=$(printf '%s\n' "${!processed_apps[@]}")
+    local removed_count=""
+    removed_count=$(db_remove_uninstalled_applications "$found_app_ids")
+
     echo "" >&3
-    print_info "Scan complete: $app_count applications added to registry"
-    debug_log "$function_name" "Scan complete: $app_count applications processed"
+    print_info "Scan complete: $app_count applications found, $removed_count removed"
+    debug_log "$function_name" "Scan complete: $app_count processed, $removed_count removed"
     debug_function_exit "$function_name"
     
     return 0

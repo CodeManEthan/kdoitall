@@ -28,7 +28,7 @@ app_info() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_UNKNOWN" "registry_get_application_info failed"
+        debug_error "$function_name" "$ERR_APP_ID_INVALID" "display_application_info failed"
         debug_function_exit "$function_name"
         return 1
     fi

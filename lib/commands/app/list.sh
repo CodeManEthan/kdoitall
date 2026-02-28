@@ -33,7 +33,7 @@ app_list() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_UNKNOWN" "registry_list_applications failed"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "display_applications_list failed"
         debug_function_exit "$function_name"
         return 1
     fi

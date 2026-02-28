@@ -18,6 +18,9 @@ workspace_list() {
 
     debug_function_enter "$function_name" "$@"
 
+    # Sync active flags: deactivate workspaces with no live windows
+    db_deactivate_empty_workspaces > /dev/null
+
     # Parse flags
     while [[ $# -gt 0 ]]; do
         case "$1" in

@@ -141,6 +141,185 @@ db_add_application_full() {
     return 0
 }
 
+db_upsert_application_scan() {
+    local app_id="$1"
+    local display_name="$2"
+    local desktop_file_path="$3"
+    local app_directory_path="$4"
+    local terminal_command="$5"
+    local app_class="$6"
+    local has_terminal_launch="$7"
+    local has_desktop_launch="$8"
+    local launch_mode="${9:-}"
+    local window_title_pattern="${10:-}"
+    local supports_pid_validation="${11:-}"
+    local process_name="${12:-}"
+    local app_name="${13:-}"
+    local function_name="db_upsert_application_scan"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$display_name" "display_name" || return 1
+    validate_parameter_pass "$desktop_file_path" "desktop_file_path" || return 1
+    validate_parameter_pass "$has_terminal_launch" "has_terminal_launch" || return 1
+    validate_parameter_pass "$has_desktop_launch" "has_desktop_launch" || return 1
+
+    has_terminal_launch=$(normalize_boolean "$has_terminal_launch")
+    has_desktop_launch=$(normalize_boolean "$has_desktop_launch")
+
+    # Convert supports_pid_validation to SQLite boolean if provided
+    local supports_pid_bool=""
+    if [[ -n "$supports_pid_validation" ]]; then
+        supports_pid_bool=0
+        [[ "$supports_pid_validation" == "1" || "$supports_pid_validation" == "true" ]] && supports_pid_bool=1
+    fi
+
+    if db_application_exists "$app_id"; then
+        # UPDATE existing app: only overwrite scan-sourced fields
+        # Registry-sourced fields only update when the new value is non-empty
+        db_query \
+            "UPDATE applications SET
+                display_name = :display_name,
+                desktop_file_path = :desktop_file,
+                app_directory_path = :app_directory_path,
+                terminal_command = :terminal_command,
+                has_terminal_launch = :has_terminal_launch,
+                has_desktop_launch = :has_desktop_launch,
+                app_name = CASE WHEN :app_name != '' THEN :app_name ELSE app_name END,
+                app_class = CASE WHEN :app_class != '' THEN :app_class ELSE app_class END,
+                launch_mode = CASE WHEN :launch_mode != '' THEN :launch_mode ELSE launch_mode END,
+                window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
+                supports_pid_validation = CASE WHEN :supports_pid != '' THEN :supports_pid ELSE supports_pid_validation END,
+                process_name = CASE WHEN :process_name != '' THEN :process_name ELSE process_name END,
+                last_validated = datetime('now')
+            WHERE app_id = :app_id;" \
+            ":app_id" "$app_id" \
+            ":display_name" "$display_name" \
+            ":desktop_file" "$desktop_file_path" \
+            ":app_directory_path" "$app_directory_path" \
+            ":terminal_command" "$terminal_command" \
+            ":has_terminal_launch" "$has_terminal_launch" \
+            ":has_desktop_launch" "$has_desktop_launch" \
+            ":app_name" "$app_name" \
+            ":app_class" "$app_class" \
+            ":launch_mode" "$launch_mode" \
+            ":title_pattern" "$window_title_pattern" \
+            ":supports_pid" "$supports_pid_bool" \
+            ":process_name" "$process_name"
+
+        if [[ "$DB_STATUS" != "OK" ]]; then
+            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to update application: $app_id ($DB_ERROR)"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+
+        debug_log "$function_name" "Updated existing application: $app_id ($display_name)"
+    else
+        # INSERT new app with all provided data
+        db_query \
+            "INSERT INTO applications (
+                app_id, app_name, display_name, desktop_file_path,
+                app_directory_path, terminal_command, app_class,
+                has_terminal_launch, has_desktop_launch,
+                launch_mode, window_title_pattern,
+                supports_pid_validation, process_name,
+                last_validated
+            ) VALUES (
+                :app_id,
+                CASE WHEN :app_name != '' THEN :app_name ELSE NULL END,
+                :display_name, :desktop_file,
+                :app_directory_path, :terminal_command,
+                CASE WHEN :app_class != '' THEN :app_class ELSE NULL END,
+                :has_terminal_launch, :has_desktop_launch,
+                CASE WHEN :launch_mode != '' THEN :launch_mode ELSE NULL END,
+                CASE WHEN :title_pattern != '' THEN :title_pattern ELSE NULL END,
+                CASE WHEN :supports_pid != '' THEN :supports_pid ELSE NULL END,
+                CASE WHEN :process_name != '' THEN :process_name ELSE NULL END,
+                datetime('now')
+            );" \
+            ":app_id" "$app_id" \
+            ":app_name" "$app_name" \
+            ":display_name" "$display_name" \
+            ":desktop_file" "$desktop_file_path" \
+            ":app_directory_path" "$app_directory_path" \
+            ":terminal_command" "$terminal_command" \
+            ":app_class" "$app_class" \
+            ":has_terminal_launch" "$has_terminal_launch" \
+            ":has_desktop_launch" "$has_desktop_launch" \
+            ":launch_mode" "$launch_mode" \
+            ":title_pattern" "$window_title_pattern" \
+            ":supports_pid" "$supports_pid_bool" \
+            ":process_name" "$process_name"
+
+        if [[ "$DB_STATUS" != "OK" ]]; then
+            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to insert application: $app_id ($DB_ERROR)"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+
+        debug_log "$function_name" "Inserted new application: $app_id ($display_name)"
+    fi
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_remove_uninstalled_applications() {
+    local found_app_ids="$1"
+    local function_name="db_remove_uninstalled_applications"
+    local removed_count=0
+
+    debug_function_enter "$function_name"
+
+    # Get all existing app_ids from database
+    local existing_ids=""
+    db_query "SELECT app_id FROM applications;"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to query existing applications ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No existing applications to check"
+        debug_function_exit "$function_name"
+        echo "0"
+        return 0
+    fi
+
+    # Check each existing app_id against the found list
+    local db_app_id=""
+    for db_app_id in "${DB_RESULT[@]}"; do
+        [[ -z "$db_app_id" ]] && continue
+
+        # Check if this app_id was found during the scan
+        local found=false
+        local found_id=""
+        while IFS= read -r found_id; do
+            if [[ "$found_id" == "$db_app_id" ]]; then
+                found=true
+                break
+            fi
+        done <<< "$found_app_ids"
+
+        if [[ "$found" == "false" ]]; then
+            debug_log "$function_name" "Removing uninstalled application: $db_app_id"
+            if db_delete_application "$db_app_id"; then
+                ((removed_count++))
+            else
+                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to remove: $db_app_id"
+            fi
+        fi
+    done
+
+    debug_log "$function_name" "Removed $removed_count uninstalled applications"
+    debug_function_exit "$function_name"
+    echo "$removed_count"
+    return 0
+}
+
 db_delete_application() {
     local app_id="$1"
     local function_name="db_delete_application"
@@ -230,21 +409,21 @@ db_list_applications() {
             query="SELECT app_id, display_name, has_terminal_launch,
                           has_desktop_launch
                    FROM applications
-                   ORDER BY display_name;"
+                   ORDER BY display_name COLLATE NOCASE;"
             ;;
         terminal)
             query="SELECT app_id, display_name, has_terminal_launch,
                           has_desktop_launch
                    FROM applications
                    WHERE has_terminal_launch = TRUE
-                   ORDER BY display_name;"
+                   ORDER BY display_name COLLATE NOCASE;"
             ;;
         desktop)
             query="SELECT app_id, display_name, has_terminal_launch,
                           has_desktop_launch
                    FROM applications
                    WHERE has_desktop_launch = TRUE
-                   ORDER BY display_name;"
+                   ORDER BY display_name COLLATE NOCASE;"
             ;;
         *)
             debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Invalid filter: $filter"

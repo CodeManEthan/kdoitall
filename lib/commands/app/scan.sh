@@ -29,7 +29,7 @@ app_scan() {
     else
         echo "" >&3
         echo "✗ Application scan failed" >&2
-        debug_error "$function_name" "$ERR_UNKNOWN" "registry_scan_applications failed"
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "registry_scan_applications failed"
         debug_function_exit "$function_name"
         return 1
     fi
