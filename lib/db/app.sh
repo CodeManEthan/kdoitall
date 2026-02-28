@@ -567,6 +567,27 @@ db_get_display_name() {
     return 0
 }
 
+db_find_apps_by_display_name() {
+    local name="$1"
+    local function_name="db_find_apps_by_display_name"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$name" "name" || return 1
+
+    db_query \
+        "SELECT app_id, display_name
+         FROM applications
+         WHERE LOWER(display_name) = LOWER(:name)
+         ORDER BY app_id;" \
+        ":name" "$name"
+
+    debug_log "$function_name" "Found ${#DB_RESULT[@]} app(s) matching display name: $name"
+    debug_function_exit "$function_name"
+    printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}
+
 db_get_app_class() {
     local app_id="$1"
     local function_name="db_get_app_class"

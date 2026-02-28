@@ -78,7 +78,7 @@ Usage: kdoitall app <subcommand> [options]
 App Subcommands:
   scan                    Scan system for available applications and populate registry
   list (ls) [filter]      List applications (all, terminal, desktop, both)
-  info (i) <app_id>       Show detailed information about a specific application
+  info (i) <app_id|name>   Show detailed information about a specific application
   validate                Validate all application definition files
   options (opts) <app_id> Show launch options for an application
   safe-mode (sm)               Interactive safe-mode validation menu
@@ -91,6 +91,7 @@ Examples:
   kdoitall app ls terminal
   kdoitall app info firefox
   kdoitall app i firefox
+  kdoitall app info "Firefox"
   kdoitall app validate
   kdoitall app options konsole
   kdoitall app opts konsole

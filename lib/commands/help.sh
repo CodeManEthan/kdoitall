@@ -40,7 +40,7 @@ WORKSPACE COMMANDS (workspace | ws):
 APPLICATION COMMANDS (app):
     app scan                  Scan system for available applications
     app list (ls) [filter]    List applications (all, terminal, desktop, both)
-    app info (i) <app_id>     Show detailed information about an application
+    app info (i) <app_id|name> Show detailed information about an application
     app validate              Validate all application definition files
     app options (opts) <id>   Show launch options for an application
     app safe-mode (sm)             Interactive safe-mode validation menu
