@@ -118,3 +118,63 @@ CREATE TABLE window_definitions (
     FOREIGN KEY (workspace_name) REFERENCES workspace_definitions(workspace_name) ON DELETE CASCADE,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
 );
+CREATE TABLE ai_task_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_name TEXT NOT NULL,
+    window_name TEXT NOT NULL,
+    link_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(task_name, window_name)
+);
+
+CREATE TABLE ai_window_importance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    task_name TEXT,
+    window_name TEXT NOT NULL,
+    workspace_name TEXT,
+    class TEXT,
+    window_title TEXT,
+    importance_score INTEGER NOT NULL,
+    suggested_action TEXT,
+    reason TEXT,
+    screenshot_path TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE ai_automation_cycles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cycle_name TEXT NOT NULL,
+    cycle_step INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE ai_window_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    task_name TEXT,
+    parent_window_name TEXT NOT NULL,
+    child_window_name TEXT NOT NULL,
+    link_type TEXT NOT NULL DEFAULT 'popup',
+    confidence INTEGER NOT NULL DEFAULT 0,
+    rationale TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(run_id, parent_window_name, child_window_name, link_type)
+);
+
+CREATE TABLE ai_run_summaries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL UNIQUE,
+    task_name TEXT,
+    model_name TEXT,
+    task_summary TEXT,
+    sqlite_state_summary TEXT,
+    popup_link_summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ai_window_importance_run_id ON ai_window_importance(run_id);
+CREATE INDEX idx_ai_window_links_run_id ON ai_window_links(run_id);
+CREATE INDEX idx_ai_window_links_task_name ON ai_window_links(task_name);

@@ -19,6 +19,7 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 - **Application registry** — Auto-detects installed applications from `.desktop` files via `app scan`
 - **Custom launch functions** — Per-application launch behavior through the app-definitions system
 - **Database-driven state** — SQLite-backed tracking of workspaces, applications, and window state
+- **GPT-5 AI operations (optional)** — Window importance ranking, task-window linkage, automation cycles, and idea generation
 
 ## Requirements
 
@@ -79,6 +80,15 @@ STATUS:
     status (st)           Show current state of active workspaces and windows
     update                Update kdoitall (git pull + rebuild app registry)
 
+AI COMMANDS (ai):
+    ai analyze [task]                 Rank windows by importance for a task (GPT-5)
+    ai popup-link [task]              Link popup/dialog windows to parent windows
+    ai sqlite-summary [task]          Summarize latest AI sqlite state and links
+    ai prune [threshold] [--apply]    Close low-importance windows from latest rank
+    ai link <window> <task> [reason]  Link task context to windows
+    ai cycle <action> <name> [notes]  Track automation/change cycles
+    ai ideas [context]                Generate 15 cool automation ideas
+
 QUICK ACTION (quick | q):
     quick                   Interactive window picker for ad-hoc actions
 
@@ -138,4 +148,30 @@ Copyright (C) 2025 Ethan Plunk
 
 Licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
 See the LICENSE file for the full license text.
+```
+## GPT-5 Setup (Optional)
+
+Set your API key in your shell profile:
+
+```bash
+export OPENAI_API_KEY="your-key"
+export OPENAI_MODEL="gpt-5"
+```
+
+Optional screenshot command override (must support `{uuid}` and `{path}` placeholders):
+
+```bash
+export AI_SCREENSHOT_CMD='kdotool window screenshot "{uuid}" "{path}"'
+```
+
+### Example AI workflow
+
+```bash
+kdoitall ai analyze "building code"
+kdoitall ai popup-link "building code"
+kdoitall ai sqlite-summary "building code"
+kdoitall ai prune 35 --apply
+kdoitall ai link ~code "building code" "main editor"
+kdoitall ai cycle start "building code" "initial plan"
+kdoitall ai ideas "code + test + docs workflow"
 ```

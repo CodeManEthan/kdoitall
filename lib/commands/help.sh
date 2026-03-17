@@ -23,6 +23,15 @@ STATUS:
     status (st)           Show current state of active workspaces and windows
     update                Update kdoitall (git pull + rebuild app registry)
 
+AI COMMANDS (ai):
+    ai analyze [task]                Rank windows by task importance (GPT-5)
+    ai popup-link [task]             Link popup/dialog windows to parent windows
+    ai sqlite-summary [task]         Summarize AI sqlite state + popup links
+    ai prune [threshold] [--apply]   Close low-importance windows from latest rank
+    ai link <window> <task> [reason] Link task context to a window
+    ai cycle <action> <name> [notes] Track automation/change cycles
+    ai ideas [context]               Generate 15 cool automation ideas
+
 QUICK ACTION (quick | q):
     quick                   Interactive window picker for ad-hoc actions
 
