@@ -109,6 +109,12 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 # Timeout (seconds) per window during assisted close before auto-skipping
 # CLOSE_WAIT_TIMEOUT=60
 
+# GPT-5 / OpenAI API integration (optional)
+# OPENAI_API_KEY=""
+# OPENAI_MODEL="gpt-5"
+# AI_SCREENSHOT_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/ai-screenshots"
+# AI_SCREENSHOT_CMD="kdotool window screenshot \"{uuid}\" \"{path}\""
+
 # Extra window positions (uncomment the array and desired positions to enable)
 # EXTRA_POSITIONS=(
 #     "Left Two-Thirds"

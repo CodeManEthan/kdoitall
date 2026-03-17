@@ -29,3 +29,11 @@ LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
 CLOSE_WAIT_TIMEOUT=60
 
 export SAFE_MODE_PROMPTING LOG_TO_FILE LOG_DIR CLOSE_WAIT_TIMEOUT
+
+# GPT-5 / OpenAI API integration (optional)
+OPENAI_API_KEY=""
+OPENAI_MODEL="gpt-5"
+AI_SCREENSHOT_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/ai-screenshots"
+AI_SCREENSHOT_CMD="kdotool window screenshot \"{uuid}\" \"{path}\""
+
+export OPENAI_API_KEY OPENAI_MODEL AI_SCREENSHOT_DIR AI_SCREENSHOT_CMD

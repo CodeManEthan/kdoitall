@@ -202,6 +202,12 @@ case "$COMMAND" in
         quick_command "$@"
         ;;
 
+    ai)
+        # shellcheck source=../lib/commands/ai/dispatcher.sh
+        source "${LIB_DIR}/commands/ai/dispatcher.sh"
+        ai_command "$@"
+        ;;
+
     status|st)
         # shellcheck source=../lib/commands/status.sh
         source "${LIB_DIR}/commands/status.sh"
