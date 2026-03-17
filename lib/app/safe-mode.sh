@@ -38,8 +38,12 @@ safe_mode_launch_and_detect() {
     echo "" >&3
     
     # Launch and measure time — also detects UUID
-    local new_uuid
-    new_uuid=$(safe_mode_measure_launch_time "$app_id")
+    local launch_result=""
+    local new_uuid=""
+    local splash_detected=""
+    launch_result=$(safe_mode_measure_launch_time "$app_id")
+
+    IFS='|' read -r new_uuid splash_detected <<< "$launch_result"
     
     # Check if measurement succeeded
     if [[ -z "$new_uuid" ]]; then
@@ -58,8 +62,7 @@ safe_mode_launch_and_detect() {
                 return $?
                 ;;
             s)
-                debug_log "$function_name" "Skipping - marking as completed"
-                db_set_safe_mode_completed "$app_id"
+                debug_log "$function_name" "Skipping - safe mode remains incomplete (will re-prompt)"
                 debug_function_exit "$function_name" "Skipped"
                 return 0
                 ;;
@@ -110,7 +113,7 @@ safe_mode_launch_and_detect() {
     local confirm_result
     confirm_result=$(safe_mode_display_summary_and_confirm "$display_name" "$detected_class" \
         "$launch_time_ms" "$pid_supported" "$pid_process_name" \
-        "$title_pattern" "$launch_mode")
+        "$title_pattern" "$launch_mode" "$splash_detected")
     
     # Handle confirmation result
     case "$confirm_result" in
@@ -125,7 +128,7 @@ safe_mode_launch_and_detect() {
             # Store all safe-mode metadata in a single database call
             db_set_safe_mode_results "$app_id" "$detected_class" \
                 "$pid_supported" "$pid_process_name" "$pid_exe_path" \
-                "$title_pattern" "$launch_mode"
+                "$title_pattern" "$launch_mode" "$splash_detected"
             
             # Close window
             close_window "$new_uuid"
@@ -139,9 +142,8 @@ safe_mode_launch_and_detect() {
             return 0
             ;;
         skip)
-            # Skip — mark as completed without storing metadata
+            # Skip — do not mark completed; will re-prompt on next workspace open
             close_window "$new_uuid"
-            db_set_safe_mode_completed "$app_id"
             
             echo "" >&3
             print_info "Skipped safe mode for $display_name"
@@ -164,6 +166,7 @@ safe_mode_launch_and_detect() {
 detect_safe_mode_apps() {
     local workspace_name="$1"
     local function_name="detect_safe_mode_apps"
+    local strictness="${SAFE_MODE_STRICTNESS:-relaxed}"
 
     debug_function_enter "$function_name" "$@"
 
@@ -171,16 +174,16 @@ detect_safe_mode_apps() {
 
     # Single query: find apps needing safe mode for this workspace
     local safe_mode_app_ids=""
-    safe_mode_app_ids=$(db_get_apps_needing_safe_mode "$workspace_name")
+    safe_mode_app_ids=$(db_get_apps_needing_safe_mode "$workspace_name" "$strictness")
 
     if [[ -z "$safe_mode_app_ids" ]]; then
-        debug_log "$function_name" "No apps need safe mode for workspace: $workspace_name"
+        debug_log "$function_name" "No apps need safe mode for workspace: $workspace_name (strictness: $strictness)"
         debug_function_exit "$function_name"
         return 0
     fi
 
     # Batch mark all qualifying apps in one query
-    db_mark_apps_requiring_safe_mode "$workspace_name"
+    db_mark_apps_requiring_safe_mode "$workspace_name" "$strictness"
 
     debug_function_exit "$function_name"
     echo "$safe_mode_app_ids"
@@ -472,26 +475,51 @@ safe_mode_measure_launch_time() {
         debug_function_exit "$function_name"
         return 1
     fi
+
+    # Stability verification — detect splash windows
+    print_info "Verifying window stability..."
+
+    local stability_result=""
+    local final_uuid=""
+    local splash_detected=""
+    stability_result=$(wait_for_stable_window "$uuid" 15000 500 3) || true
+
+    if [[ -z "$stability_result" ]]; then
+        # Stability check failed entirely — fall back to the initial UUID
+        debug_log "$function_name" "Stability check failed — using initial UUID '$uuid'"
+        final_uuid="$uuid"
+        splash_detected="false"
+    else
+        IFS='|' read -r final_uuid splash_detected <<< "$stability_result"
+    fi
+
+    if [[ "$splash_detected" == "true" ]]; then
+        debug_log "$function_name" "Splash window detected — final stable UUID: '$final_uuid' (initial: '$uuid')"
+    fi
     
-    # Record end time
+    # Record end time (after stability verification — reflects true app readiness)
     end_time=$(date +%s%3N)
     
     # Calculate elapsed time in milliseconds
     elapsed_ms=$((end_time - start_time))
 
     # Minimize window (keep it alive for further metadata gathering)
-    minimize_window "$uuid"
+    minimize_window "$final_uuid"
     
     echo "" >&3
-    print_success "Window detected after ${elapsed_ms}ms"
+    if [[ "$splash_detected" == "true" ]]; then
+        print_success "Stable window detected after ${elapsed_ms}ms (splash window replaced)"
+    else
+        print_success "Window detected after ${elapsed_ms}ms"
+    fi
     echo "" >&3
     # Store measurement in database
     db_set_launch_time "$app_id" "$elapsed_ms"
     
-    debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms"
+    debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms (splash_detected: $splash_detected)"
     debug_function_exit "$function_name"
 
-    echo "$uuid"
+    echo "${final_uuid}|${splash_detected}"
     return 0
 }
 
@@ -823,6 +851,7 @@ safe_mode_display_summary_and_confirm() {
     local pid_process_name="$5"
     local title_pattern="$6"
     local launch_mode="$7"
+    local has_splash_window="${8:-false}"
     local function_name="safe_mode_display_summary_and_confirm"
     
     debug_function_enter "$function_name" "$@"
@@ -844,6 +873,11 @@ safe_mode_display_summary_and_confirm() {
     if [[ "$launch_mode" != "$LAUNCH_MODE_MULTI" ]]; then
         mode_display="not multi"
     fi
+
+    # Format splash window display
+    local splash_display="Unknown"
+    [[ "$has_splash_window" == "false" ]] && splash_display="No"
+    [[ "$has_splash_window" == "true" ]] && splash_display="Yes"
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
@@ -856,6 +890,7 @@ safe_mode_display_summary_and_confirm() {
     echo "  PID Supported: $pid_display" >&3
     echo "  Title Pattern: $pattern_display" >&3
     echo "  Launch Mode:   $mode_display" >&3
+    echo "  Splash Window: $splash_display" >&3
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
     echo "" >&3

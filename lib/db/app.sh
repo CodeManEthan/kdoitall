@@ -487,7 +487,7 @@ db_get_application() {
                 last_validated, safe_mode_completed, safe_mode_timestamp,
                 launch_mode, supports_pid_validation, executable_path,
                 process_name, window_title_pattern, 
-                launch_time_ms
+                launch_time_ms, has_splash_window
          FROM applications
          WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
@@ -519,7 +519,8 @@ db_get_app_launch_properties() {
         "SELECT COALESCE(app_class, ''),
                 COALESCE(window_title_pattern, ''),
                 COALESCE(launch_mode, ''),
-                COALESCE(launch_time_ms, 5000)
+                COALESCE(launch_time_ms, 5000),
+                COALESCE(has_splash_window, '')
          FROM applications WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
@@ -670,6 +671,34 @@ db_set_app_class() {
     fi
     
     debug_log "$function_name" "Set app_class for $app_id: $class"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_set_has_splash_window() {
+    local app_id="$1"
+    local has_splash_window="$2"
+    local function_name="db_set_has_splash_window"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$has_splash_window" "has_splash_window" || return 1
+
+    db_query \
+        "UPDATE applications
+         SET has_splash_window = :has_splash_window
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id" \
+        ":has_splash_window" "$has_splash_window"
+
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Set has_splash_window for $app_id: $has_splash_window"
     debug_function_exit "$function_name"
     return 0
 }
@@ -1091,6 +1120,7 @@ db_set_safe_mode_results() {
     local executable_path="$5"
     local title_pattern="$6"
     local launch_mode="$7"
+    local has_splash_window="${8:-false}"
     local function_name="db_set_safe_mode_results"
     
     debug_function_enter "$function_name" "$@"
@@ -1103,6 +1133,11 @@ db_set_safe_mode_results() {
     local supports_pid_bool=""
     supports_pid_bool=0
     [[ "$supports_pid" == "true" ]] && supports_pid_bool=1
+
+    # Convert has_splash_window to SQLite boolean
+    local splash_bool=""
+    splash_bool=0
+    [[ "$has_splash_window" == "true" ]] && splash_bool=1
     
     # Single UPDATE with all safe-mode metadata
     # title_pattern is optional — keep existing value if empty
@@ -1114,6 +1149,7 @@ db_set_safe_mode_results() {
             executable_path = :exe_path,
             window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
             launch_mode = :launch_mode,
+            has_splash_window = :has_splash_window,
             safe_mode_completed = TRUE,
             safe_mode_timestamp = datetime('now')
          WHERE app_id = :app_id;" \
@@ -1123,7 +1159,8 @@ db_set_safe_mode_results() {
         ":process_name" "$process_name" \
         ":exe_path" "$executable_path" \
         ":title_pattern" "$title_pattern" \
-        ":launch_mode" "$launch_mode"
+        ":launch_mode" "$launch_mode" \
+        ":has_splash_window" "$splash_bool"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
@@ -1202,25 +1239,38 @@ db_count_pending_safe_mode_apps() {
 
 db_get_apps_needing_safe_mode() {
     local workspace_name="$1"
+    local strictness="${2:-relaxed}"
     local function_name="db_get_apps_needing_safe_mode"
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
-    # Single query: find apps in this workspace that lack a class
-    # and haven't completed safe mode
+    # Build metadata condition based on strictness level
+    local metadata_condition=""
+    if [[ "$strictness" == "strict" ]]; then
+        # Prompt if app class, launch mode, or splash window is missing
+        metadata_condition="AND (
+               (a.app_class IS NULL OR a.app_class = '')
+               OR (a.launch_mode IS NULL OR a.launch_mode = '')
+               OR a.has_splash_window IS NULL
+           )"
+    else
+        # Relaxed: only prompt if app class is missing
+        metadata_condition="AND (a.app_class IS NULL OR a.app_class = '')"
+    fi
+
     db_query \
         "SELECT DISTINCT wd.app_id
          FROM window_definitions wd
          JOIN applications a ON wd.app_id = a.app_id
          WHERE wd.workspace_name = :workspace
-           AND (a.app_class IS NULL OR a.app_class = '')
+           ${metadata_condition}
            AND COALESCE(a.safe_mode_completed, 0) != 1
          ORDER BY wd.app_id;" \
         ":workspace" "$workspace_name"
     
-    debug_log "$function_name" "Found ${#DB_RESULT[@]} apps needing safe mode for workspace: $workspace_name"
+    debug_log "$function_name" "Found ${#DB_RESULT[@]} apps needing safe mode for workspace: $workspace_name (strictness: $strictness)"
     debug_function_exit "$function_name"
     [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
     return 0
@@ -1228,12 +1278,25 @@ db_get_apps_needing_safe_mode() {
 
 db_mark_apps_requiring_safe_mode() {
     local workspace_name="$1"
+    local strictness="${2:-relaxed}"
     local function_name="db_mark_apps_requiring_safe_mode"
     
     debug_function_enter "$function_name" "$@"
     
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     
+    # Build metadata condition based on strictness level
+    local metadata_condition=""
+    if [[ "$strictness" == "strict" ]]; then
+        metadata_condition="AND (
+                   (a.app_class IS NULL OR a.app_class = '')
+                   OR (a.launch_mode IS NULL OR a.launch_mode = '')
+                   OR a.has_splash_window IS NULL
+               )"
+    else
+        metadata_condition="AND (a.app_class IS NULL OR a.app_class = '')"
+    fi
+
     # Batch UPDATE: mark all qualifying apps in one query
     db_query \
         "UPDATE applications SET requires_safe_mode = TRUE
@@ -1242,7 +1305,7 @@ db_mark_apps_requiring_safe_mode() {
              FROM window_definitions wd
              JOIN applications a ON wd.app_id = a.app_id
              WHERE wd.workspace_name = :workspace
-               AND (a.app_class IS NULL OR a.app_class = '')
+               ${metadata_condition}
                AND COALESCE(a.safe_mode_completed, 0) != 1
          );" \
         ":workspace" "$workspace_name"
@@ -1253,7 +1316,7 @@ db_mark_apps_requiring_safe_mode() {
         return 1
     fi
     
-    debug_log "$function_name" "Marked ${DB_RESULT[0]:-0} apps requiring safe mode for workspace: $workspace_name"
+    debug_log "$function_name" "Marked ${DB_RESULT[0]:-0} apps requiring safe mode for workspace: $workspace_name (strictness: $strictness)"
     debug_function_exit "$function_name"
     return 0
 }

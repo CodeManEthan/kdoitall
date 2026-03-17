@@ -51,7 +51,7 @@ app_registry_get_metadata() {
 
     db_registry_query \
         "SELECT app_id, app_name, app_class, window_title_pattern, launch_mode,
-                supports_pid_validation, process_name
+                supports_pid_validation, process_name, has_splash_window
          FROM app_registry
          WHERE app_id = :app_id;" \
         ":app_id" "$app_id"

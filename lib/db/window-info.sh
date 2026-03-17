@@ -166,6 +166,7 @@ db_get_untracked_windows() {
          FROM app_windows aw
          WHERE aw.workspace_name = '~workspace'
          AND aw.class NOT IN (
+            -- Keep in sync with SYSTEM_WINDOW_CLASSES in lib/core/common.sh
             'plasmashell', 'kwin_wayland', 'kwin_x11', 'kwin',
             'xdg-desktop-portal-kde', 'org.kde.kscreen.osd',
             'kded5', 'kded6',

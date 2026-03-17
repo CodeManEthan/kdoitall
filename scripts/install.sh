@@ -80,6 +80,9 @@ fi
 # --- Generate user config file ---
 USER_CONFIG="$CONFIG_DIR/config"
 
+# shellcheck source=config-utils.sh
+source "${SCRIPT_DIR}/config-utils.sh"
+
 if [[ ! -f "$USER_CONFIG" ]]; then
     cat > "$USER_CONFIG" << 'CONFIGEOF'
 #!/bin/bash
@@ -99,6 +102,11 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 
 # Safe-mode prompting during workspace open
 # SAFE_MODE_PROMPTING="enabled"
+
+# Safe-mode strictness level
+# "relaxed" — only prompt if app class is missing
+# "strict"  — prompt if app class, launch mode, or splash window is missing
+# SAFE_MODE_STRICTNESS="relaxed"
 
 # File logging (writes full verbose output to log file regardless of CLI flag)
 # LOG_TO_FILE="disabled"
@@ -131,7 +139,7 @@ if [[ ! -f "$USER_CONFIG" ]]; then
 CONFIGEOF
     echo "✓ Created user config:      $USER_CONFIG"
 else
-    echo "✓ User config already exists: $USER_CONFIG"
+    update_user_config "$USER_CONFIG"
 fi
 
 # --- Create exec wrapper ---

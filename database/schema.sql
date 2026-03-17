@@ -57,6 +57,7 @@ CREATE TABLE applications (
     requires_safe_mode BOOLEAN DEFAULT FALSE,
     safe_mode_completed BOOLEAN DEFAULT FALSE,
     safe_mode_timestamp TIMESTAMP,
+    has_splash_window BOOLEAN DEFAULT NULL,
     app_directory_path TEXT,
     terminal_command TEXT, 
     last_validated TIMESTAMP

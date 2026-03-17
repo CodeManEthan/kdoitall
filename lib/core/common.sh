@@ -40,6 +40,27 @@ export LAUNCH_TYPE_DESKTOP="desktop"
 
 readonly LAUNCH_TYPE_TERMINAL LAUNCH_TYPE_DESKTOP
 
+# System/transient window classes to exclude from detection
+# Note: db_get_untracked_windows() in lib/db/window-info.sh maintains a matching
+# blocklist in its SQL query. Keep both lists in sync when adding new entries.
+declare -ga SYSTEM_WINDOW_CLASSES=(
+    "plasmashell"
+    "kwin_wayland"
+    "kwin_x11"
+    "kwin"
+    "xdg-desktop-portal-kde"
+    "org.kde.kscreen.osd"
+    "kded5"
+    "kded6"
+    "polkit-kde-authentication-agent-1"
+    "ksplashqml"
+    "ksmserver"
+    "org.kde.plasmashell"
+    "xwaylandvideobridge"
+)
+
+readonly SYSTEM_WINDOW_CLASSES
+
 # Window position modes
 export FULLSCREEN="Fullscreen"
 export RIGHTHALF="Right Half"

@@ -14,6 +14,115 @@ CURRENT_CLASSES=()
 CURRENT_TITLES=()
 declare -gA EXCLUDED_UUIDS=()
 
+is_transient_window() {
+    local uuid="$1"
+    local class=""
+    local title=""
+    local system_class=""
+    local function_name="is_transient_window"
+
+    debug_function_enter "$function_name" "$@"
+
+    # Get live window properties (not from DB)
+    class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+    title=$(kdotool getwindowname "$uuid" 2>/dev/null) || title=""
+
+    # Check against system window class blocklist
+    for system_class in "${SYSTEM_WINDOW_CLASSES[@]}"; do
+        if [[ "$class" == "$system_class" ]]; then
+            debug_log "$function_name" "UUID '$uuid' matches blocklisted class '$class'"
+            debug_function_exit "$function_name"
+            return 0
+        fi
+    done
+
+    # Reject windows with no class AND no title (uninitialized/destruction artifacts)
+    if [[ -z "$class" && -z "$title" ]]; then
+        debug_log "$function_name" "UUID '$uuid' has empty class and empty title"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    debug_log "$function_name" "UUID '$uuid' is not transient (class='$class', title='$title')"
+    debug_function_exit "$function_name"
+    return 1
+}
+
+wait_for_stable_window() {
+    local candidate_uuid="$1"
+    local max_wait_ms="${2:-15000}"
+    local check_interval_ms="${3:-500}"
+    local stability_threshold="${4:-3}"
+    local function_name="wait_for_stable_window"
+    local stable_count=0
+    local elapsed_ms=0
+    local splash_detected="false"
+    local check_result=""
+
+    debug_function_enter "$function_name" "$@"
+
+    debug_log "$function_name" "Monitoring UUID '$candidate_uuid' for stability (threshold: $stability_threshold checks, max: ${max_wait_ms}ms)"
+
+    while (( elapsed_ms < max_wait_ms )); do
+        # Check if the candidate UUID still exists
+        check_result=$(kdotool getwindowclassname "$candidate_uuid" 2>/dev/null) || check_result=""
+
+        if [[ -n "$check_result" ]]; then
+            # Window still exists — increment stability counter
+            ((stable_count++)) || true
+            debug_log "$function_name" "UUID '$candidate_uuid' alive (stable_count: $stable_count/$stability_threshold, elapsed: ${elapsed_ms}ms)"
+
+            if (( stable_count >= stability_threshold )); then
+                debug_log "$function_name" "UUID '$candidate_uuid' is stable after ${elapsed_ms}ms (splash_detected: $splash_detected)"
+                debug_function_exit "$function_name"
+                echo "${candidate_uuid}|${splash_detected}"
+                return 0
+            fi
+        else
+            # Window disappeared — splash detected
+            splash_detected="true"
+            stable_count=0
+            debug_log "$function_name" "UUID '$candidate_uuid' disappeared after ${elapsed_ms}ms — scanning for replacement"
+
+            # Re-sync DB snapshot so process-of-elimination has fresh baseline
+            auto_detect_windows
+
+            # Calculate remaining time budget
+            local remaining_ms=0
+            remaining_ms=$((max_wait_ms - elapsed_ms))
+
+            if (( remaining_ms <= 0 )); then
+                debug_log "$function_name" "No time remaining to find replacement"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            # Attempt to find the replacement window
+            local new_uuid=""
+            new_uuid=$(get_uuid_by_process_of_elimination_with_retry "" "$remaining_ms" 100) || true
+
+            if [[ -z "$new_uuid" ]]; then
+                debug_log "$function_name" "No replacement window found within remaining ${remaining_ms}ms"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            debug_log "$function_name" "Replacement UUID found: '$new_uuid' — restarting stability check"
+            candidate_uuid="$new_uuid"
+            # Don't reset elapsed_ms — total time budget continues
+        fi
+
+        sleep "$(printf '0.%03d' "$check_interval_ms")"
+        ((elapsed_ms += check_interval_ms)) || true
+    done
+
+    # Timeout reached — accept current candidate if it survived this far
+    debug_log "$function_name" "Timeout after ${max_wait_ms}ms — accepting '$candidate_uuid' (stable_count: $stable_count, splash_detected: $splash_detected)"
+    debug_function_exit "$function_name"
+    echo "${candidate_uuid}|${splash_detected}"
+    return 0
+}
+
 refresh_current_windows() {
     local function_name="refresh_current_windows"
 
@@ -88,6 +197,12 @@ get_uuid_by_process_of_elimination() {
             # Skip UUIDs that were previously rejected during retry attempts
             if [[ ${#EXCLUDED_UUIDS[@]} -gt 0 && -v EXCLUDED_UUIDS[$uuid] ]]; then
                 debug_log "$function_name" "Skipping excluded UUID: $uuid"
+                continue
+            fi
+            # Reject transient/system windows (notifications, tooltips, etc.)
+            if is_transient_window "$uuid"; then
+                EXCLUDED_UUIDS["$uuid"]=1
+                debug_log "$function_name" "Excluding transient window UUID: $uuid"
                 continue
             fi
             new_uuid="$uuid"

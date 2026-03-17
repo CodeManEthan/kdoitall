@@ -39,6 +39,7 @@ execute_launch_window() {
     local window_title_pattern="${11}"
     local launch_time="${12}"
     local launch_fn_arg="${13:-}"
+    local has_splash_window="${14:-}"
     local function_name="execute_launch_window"
     local uuid=""
     local window_title=""
@@ -495,6 +496,7 @@ launch_by_app_id() {
     local class=""
     local window_title_pattern=""
     local launch_time=""
+    local has_splash_window=""
     local function_name="launch_by_app_id"
 
     debug_function_enter "$function_name"
@@ -521,7 +523,7 @@ launch_by_app_id() {
         return 1
     fi
 
-    IFS='|' read -r class window_title_pattern launch_mode launch_time <<< "$launch_properties"
+    IFS='|' read -r class window_title_pattern launch_mode launch_time has_splash_window <<< "$launch_properties"
 
     if [[ -z "$launch_mode" ]]; then
         launch_mode="$LAUNCH_MODE_UNKNOWN"
@@ -529,7 +531,7 @@ launch_by_app_id() {
 
      execute_launch_window \
      "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "$position" \
-     "$launch_mode" "$launch_type" "_launch_via_gtk" "$class" "$window_title_pattern" "$launch_time" "$app_id"
+     "$launch_mode" "$launch_type" "_launch_via_gtk" "$class" "$window_title_pattern" "$launch_time" "$app_id" "$has_splash_window"
 
      debug_function_exit "$function_name"
 }

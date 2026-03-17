@@ -19,6 +19,11 @@ export DESKTOP_FILE_LOCATIONS
 # Safe-mode prompting during workspace open
 SAFE_MODE_PROMPTING="enabled"
 
+# Safe-mode strictness level
+# "relaxed" — only prompt if app class is missing
+# "strict"  — prompt if app class, launch mode, or splash window is missing
+SAFE_MODE_STRICTNESS="relaxed"
+
 # File logging (writes full verbose output to log file regardless of CLI flag)
 LOG_TO_FILE="disabled"
 
@@ -28,4 +33,4 @@ LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kdoitall/logs"
 # Timeout (seconds) per window during assisted close before auto-skipping
 CLOSE_WAIT_TIMEOUT=60
 
-export SAFE_MODE_PROMPTING LOG_TO_FILE LOG_DIR CLOSE_WAIT_TIMEOUT
+export SAFE_MODE_PROMPTING SAFE_MODE_STRICTNESS LOG_TO_FILE LOG_DIR CLOSE_WAIT_TIMEOUT

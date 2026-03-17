@@ -20,6 +20,9 @@ REGISTRY_SQL="$PROJECT_ROOT/database/app-registry.sql"
 REGISTRY_DB="$PROJECT_ROOT/database/app-registry.db"
 SCRIPTS_DIR="$DB_DIR/workspaces"
 
+# shellcheck source=config-utils.sh
+source "${SCRIPT_DIR}/config-utils.sh"
+
 # Parse options
 remove_scripts=false
 while [[ $# -gt 0 ]]; do
@@ -84,3 +87,10 @@ sqlite3 "$REGISTRY_DB" < "$REGISTRY_SQL"
 echo "✓ Registry database reset complete"
 echo "  Schema: $REGISTRY_SQL"
 echo "  Database: $REGISTRY_DB"
+
+# --- Update user config with any new options ---
+USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall/config"
+
+if [[ -f "$USER_CONFIG" ]]; then
+    update_user_config "$USER_CONFIG"
+fi
