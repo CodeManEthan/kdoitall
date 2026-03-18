@@ -520,7 +520,8 @@ db_get_app_launch_properties() {
                 COALESCE(window_title_pattern, ''),
                 COALESCE(launch_mode, ''),
                 COALESCE(launch_time_ms, 5000),
-                COALESCE(has_splash_window, '')
+                COALESCE(has_splash_window, 'unknown'),
+                splash_duration_ms
          FROM applications WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
     
@@ -1134,13 +1135,9 @@ db_set_safe_mode_results() {
     supports_pid_bool=0
     [[ "$supports_pid" == "true" ]] && supports_pid_bool=1
 
-    # Convert has_splash_window to SQLite boolean
-    local splash_bool=""
-    splash_bool=0
-    [[ "$has_splash_window" == "true" ]] && splash_bool=1
-    
     # Single UPDATE with all safe-mode metadata
     # title_pattern is optional — keep existing value if empty
+    # has_splash_window is passed as string directly ("true"/"false")
     db_query \
         "UPDATE applications SET
             app_class = :class,
@@ -1160,7 +1157,7 @@ db_set_safe_mode_results() {
         ":exe_path" "$executable_path" \
         ":title_pattern" "$title_pattern" \
         ":launch_mode" "$launch_mode" \
-        ":has_splash_window" "$splash_bool"
+        ":has_splash_window" "$has_splash_window"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
@@ -1253,7 +1250,7 @@ db_get_apps_needing_safe_mode() {
         metadata_condition="AND (
                (a.app_class IS NULL OR a.app_class = '')
                OR (a.launch_mode IS NULL OR a.launch_mode = '')
-               OR a.has_splash_window IS NULL
+               OR a.has_splash_window = 'unknown'
            )"
     else
         # Relaxed: only prompt if app class is missing
@@ -1291,7 +1288,7 @@ db_mark_apps_requiring_safe_mode() {
         metadata_condition="AND (
                    (a.app_class IS NULL OR a.app_class = '')
                    OR (a.launch_mode IS NULL OR a.launch_mode = '')
-                   OR a.has_splash_window IS NULL
+                   OR a.has_splash_window = 'unknown'
                )"
     else
         metadata_condition="AND (a.app_class IS NULL OR a.app_class = '')"

@@ -46,6 +46,10 @@ launch_firefox_window() {
     local launch_mode=""
     IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
 
+    if [[ -z "$launch_mode" ]]; then
+        launch_mode="$LAUNCH_MODE_UNKNOWN"
+    fi
+
     window_title_pattern=" — Mozilla Firefox"
 
     execute_launch_window \

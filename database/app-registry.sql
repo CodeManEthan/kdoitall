@@ -14,7 +14,7 @@ CREATE TABLE app_registry (
     launch_mode TEXT,
     supports_pid_validation BOOLEAN,
     process_name TEXT,
-    has_splash_window BOOLEAN DEFAULT NULL
+    has_splash_window TEXT DEFAULT 'unknown'
 );
 
 -- Browsers

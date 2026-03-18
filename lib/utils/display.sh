@@ -308,8 +308,8 @@ display_application_info() {
     fi
 
     local splash_status="Unknown"
-    [[ "$has_splash_window" == "0" || "$has_splash_window" == "FALSE" ]] && splash_status="No"
-    [[ "$has_splash_window" == "1" || "$has_splash_window" == "TRUE" ]] && splash_status="Yes"
+    [[ "$has_splash_window" == "false" ]] && splash_status="No"
+    [[ "$has_splash_window" == "true" ]] && splash_status="Yes"
     echo "Splash Window:       $splash_status" >&3
 
     debug_function_exit "$function_name"

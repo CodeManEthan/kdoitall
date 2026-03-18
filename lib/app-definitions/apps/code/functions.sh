@@ -49,6 +49,10 @@ launch_code_window() {
     local launch_mode=""
     IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
 
+    if [[ -z "$launch_mode" ]]; then
+        launch_mode="$LAUNCH_MODE_UNKNOWN"
+    fi
+
     local directory=""
     directory=$(basename "$directory_path")
     window_title_pattern="$directory - Visual Studio Code"
@@ -87,6 +91,10 @@ launch_code_workspace_window() {
     local class=""
     local launch_mode=""
     IFS='|' read -r class _ launch_mode _ <<< "$launch_properties"
+
+    if [[ -z "$launch_mode" ]]; then
+        launch_mode="$LAUNCH_MODE_UNKNOWN"
+    fi
 
     local workspace=""
     workspace=$(basename "$workspace_path" .code-workspace)

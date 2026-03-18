@@ -100,7 +100,7 @@ _quick_action_focus() {
 
     debug_function_enter "$function_name" "$@"
 
-    kdotool activate_window "$uuid"
+    kdotool windowactivate "$uuid"
     print_success "Focused: ${display_name}"
 
     debug_function_exit "$function_name"
@@ -113,7 +113,7 @@ _quick_action_minimize() {
 
     debug_function_enter "$function_name" "$@"
 
-    kdotool minimize_window "$uuid"
+    kdotool windowminimize "$uuid"
     print_success "Minimized: ${display_name}"
 
     debug_function_exit "$function_name"
@@ -130,7 +130,7 @@ _quick_action_close() {
     # Look up window_name from uuid for DB cleanup
     window_name=$(db_get_window_name "$uuid") || true
 
-    kdotool close_window "$uuid"
+    kdotool windowclose "$uuid"
 
     # Remove from tracking if we found the window_name
     if [[ -n "$window_name" ]]; then
