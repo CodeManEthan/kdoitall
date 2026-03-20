@@ -42,9 +42,36 @@ workspace_command() {
     # Dispatch to appropriate handler
     case "$subcommand" in
         create|new)
-            # shellcheck source=create.sh
-            source "${LIB_DIR}/commands/workspace/create.sh"
-            workspace_create "${args[@]}"
+            # Check for --from-file flag
+            local from_file=""
+            local replace_flag="false"
+            local create_args=()
+            local i=0
+            while [[ $i -lt ${#args[@]} ]]; do
+                case "${args[$i]}" in
+                    --from-file)
+                        ((i++)) || true
+                        from_file="${args[$i]:-}"
+                        ;;
+                    --replace)
+                        replace_flag="true"
+                        ;;
+                    *)
+                        create_args+=("${args[$i]}")
+                        ;;
+                esac
+                ((i++)) || true
+            done
+
+            if [[ -n "$from_file" ]]; then
+                # shellcheck source=import.sh
+                source "${LIB_DIR}/commands/workspace/import.sh"
+                workspace_create_from_file "${create_args[0]:-}" "$from_file" "$replace_flag"
+            else
+                # shellcheck source=create.sh
+                source "${LIB_DIR}/commands/workspace/create.sh"
+                workspace_create "${create_args[@]}"
+            fi
             ;;
         list|ls)
             # shellcheck source=list.sh
@@ -86,6 +113,11 @@ workspace_command() {
             source "${LIB_DIR}/commands/workspace/delete.sh"
             workspace_delete "${args[@]}"
             ;;
+        export|exp)
+            # shellcheck source=export.sh
+            source "${LIB_DIR}/commands/workspace/export.sh"
+            workspace_export "${args[@]}"
+            ;;
         *)
             echo "Error: Unknown workspace subcommand: $subcommand" >&2
             workspace_show_help
@@ -100,6 +132,9 @@ Usage: kdoitall workspace (ws) <subcommand> [options]
 
 Workspace Subcommands:
   create (new) <n>     Create a new workspace interactively
+    --from-file <path>   Create workspace from JSON config file
+    --replace            Replace existing workspace (with --from-file)
+  export (exp) <n>     Export workspace definition to JSON (stdout)
   edit (e) <n>         Edit an existing workspace
   list (ls) [--details]   List all defined workspaces
   info (i) <n>         Show detailed info for a workspace
@@ -112,6 +147,9 @@ Workspace Subcommands:
 Examples:
   kdoitall workspace create dev-environment
   kdoitall ws new dev-environment
+  kdoitall workspace create my-env --from-file my-env.json
+  kdoitall workspace create my-env --from-file my-env.json --replace
+  kdoitall workspace export my-env > my-env.json
   kdoitall workspace list
   kdoitall ws ls --details
   kdoitall workspace open dev-environment

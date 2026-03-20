@@ -117,9 +117,13 @@ export ERR_INVALID_POSITION=103
 export ERR_MULTIPLE_WINDOWS_FOUND=104
 export ERR_WINDOW_NOT_FOUND=105
 
+export ERR_INVALID_CONFIG_FILE=106
+export ERR_IMPORT_VALIDATION_FAILED=107
+
 readonly ERR_WINDOW_NOT_TRACKED ERR_WINDOW_DEFINITION_NOT_FOUND
 readonly ERR_WINDOW_ALREADY_OPEN ERR_INVALID_POSITION ERR_MULTIPLE_WINDOWS_FOUND
 readonly ERR_WINDOW_NOT_FOUND
+readonly ERR_INVALID_CONFIG_FILE ERR_IMPORT_VALIDATION_FAILED
 
 # Safe mode errors
 export ERR_SAFE_MODE_CANCELLED=120
@@ -221,6 +225,10 @@ declare -A ERROR_MESSAGES=(
     [$ERR_INVALID_POSITION]="Invalid position"
     [$ERR_MULTIPLE_WINDOWS_FOUND]="Multiple windows found when one expected"
     [$ERR_WINDOW_NOT_FOUND]="Window not found after launch"
+
+    # Config File Import
+    [$ERR_INVALID_CONFIG_FILE]="Invalid workspace config file"
+    [$ERR_IMPORT_VALIDATION_FAILED]="Workspace import validation failed"
 )
 
 export ERROR_MESSAGES
