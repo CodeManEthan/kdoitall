@@ -18,16 +18,34 @@ source "${LIB_DIR}/db/window-info.sh"
 source "${LIB_DIR}/window-management/window.sh"
 
 workspace_open() {
-    local workspace_name="$1"
-    local workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
     local function_name="workspace_open"
-    
-    debug_function_enter "$function_name" "$@"
-    
+    local skip_safe_mode=false
+    local workspace_name=""
+
+    # Parse flags and positional args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --skip)
+                skip_safe_mode=true
+                shift
+                ;;
+            *)
+                if [[ -z "$workspace_name" ]]; then
+                    workspace_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    local workspace_script="${WORKSPACE_SCRIPTS_DIR}/${workspace_name}.sh"
+
+    debug_function_enter "$function_name" "$workspace_name"
+
     # Validate workspace name parameter
     if [[ -z "$workspace_name" ]]; then
         debug_error "$function_name" "$ERR_MISSING_PARAMETER" "workspace_name"
-        echo "Usage: kdoitall workspace open <workspace-name>" >&3
+        echo "Usage: kdoitall workspace open [--skip] <workspace-name>" >&3
         debug_function_exit "$function_name"
         return 1
     fi
@@ -53,8 +71,8 @@ workspace_open() {
     local original_window_uuid=""
     original_window_uuid=$(get_active_window_uuid)
 
-    # Check for safe mode apps (skip if prompting disabled)
-    if [[ "${SAFE_MODE_PROMPTING:-enabled}" == "enabled" ]]; then
+    # Check for safe mode apps (skip if prompting disabled or --skip flag)
+    if [[ "$skip_safe_mode" == "false" && "${SAFE_MODE_PROMPTING:-enabled}" == "enabled" ]]; then
         local -a safe_mode_apps=()
         mapfile -t safe_mode_apps < <(detect_safe_mode_apps "$workspace_name")
 

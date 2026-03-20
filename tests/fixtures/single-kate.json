@@ -1,0 +1,13 @@
+{
+  "workspace": "test-single-kate",
+  "description": "Test workspace with a single Kate window",
+  "windows": [
+    {
+      "name": "test-kate-main",
+      "app": "org.kde.kate",
+      "desktop": 9,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

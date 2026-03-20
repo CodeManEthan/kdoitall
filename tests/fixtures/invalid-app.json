@@ -1,0 +1,13 @@
+{
+  "workspace": "test-invalid",
+  "description": "Test workspace with nonexistent app for error testing",
+  "windows": [
+    {
+      "name": "test-invalid-window",
+      "app": "nonexistent.app.that.does.not.exist",
+      "desktop": 9,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

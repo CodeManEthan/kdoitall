@@ -1,0 +1,21 @@
+{
+  "workspace": "test-multi-window",
+  "description": "Test workspace with Kate and Dolphin on different desktops/screens",
+  "focus_window": "test-mw-kate",
+  "windows": [
+    {
+      "name": "test-mw-kate",
+      "app": "org.kde.kate",
+      "desktop": 9,
+      "screen": "1",
+      "position": "Left Half"
+    },
+    {
+      "name": "test-mw-dolphin",
+      "app": "org.kde.dolphin",
+      "desktop": 8,
+      "screen": "2",
+      "position": "Right Half"
+    }
+  ]
+}

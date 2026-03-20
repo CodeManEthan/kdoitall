@@ -1,0 +1,13 @@
+{
+  "workspace": "test-single-kate",
+  "description": "Modified test workspace - different desktop/screen/position",
+  "windows": [
+    {
+      "name": "test-kate-main",
+      "app": "org.kde.kate",
+      "desktop": 8,
+      "screen": "2",
+      "position": "Right Half"
+    }
+  ]
+}

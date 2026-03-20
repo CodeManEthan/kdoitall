@@ -138,7 +138,7 @@ Workspace Subcommands:
   edit (e) <n>         Edit an existing workspace
   list (ls) [--details]   List all defined workspaces
   info (i) <n>         Show detailed info for a workspace
-  open (o) <n>         Open a workspace
+  open (o) [--skip] <n>  Open a workspace (--skip bypasses safe mode)
   close (c) <n>        Close a workspace
   focus (f) <n>        Focus an active workspace (raise + activate)
   minimize (min) <n>   Minimize all windows in an active workspace
