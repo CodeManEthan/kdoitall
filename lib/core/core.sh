@@ -263,6 +263,62 @@ execute_launch_window() {
         fi
     fi
 
+    # ──────────────────────────────────────────────
+    # PHASE 4b: SPLASH WINDOW STABILITY CHECK
+    # ──────────────────────────────────────────────
+
+    if [[ -n "$uuid" && "$detection_method" == "new_window" && -n "$has_splash_window" && "$has_splash_window" != "false" ]]; then
+        debug_log "$function_name" "Phase 4b: Splash stability check (has_splash_window=$has_splash_window)"
+
+        local splash_max_wait_ms=""
+        local splash_check_interval_ms=500
+        local splash_stability_threshold=3
+        local splash_min_monitor_ms=0
+
+        if [[ "$has_splash_window" == "true" ]]; then
+            # Known splash app — wait past measured splash duration before
+            # accepting stability. Grace period handles flickers; min_monitor
+            # prevents premature acceptance of the splash itself.
+            if [[ -n "$splash_duration_ms" && "$splash_duration_ms" -gt 0 ]]; then
+                splash_max_wait_ms=$(( splash_duration_ms * 2 + 3000 ))
+                splash_min_monitor_ms="$splash_duration_ms"
+            elif [[ -n "$launch_time" && "$launch_time" -gt 0 ]]; then
+                splash_max_wait_ms=$(( launch_time * 3 ))
+                splash_min_monitor_ms="$launch_time"
+            else
+                splash_max_wait_ms=15000
+                splash_min_monitor_ms=5000
+            fi
+        else
+            # Unknown — lightweight quick check
+            splash_max_wait_ms=3000
+            splash_stability_threshold=2
+        fi
+
+        debug_log "$function_name" "Phase 4b: wait_for_stable_window (max_wait=${splash_max_wait_ms}ms, interval=${splash_check_interval_ms}ms, threshold=$splash_stability_threshold, min_monitor=${splash_min_monitor_ms}ms)"
+
+        local splash_result=""
+        splash_result=$(wait_for_stable_window "$uuid" "$splash_max_wait_ms" "$splash_check_interval_ms" "$splash_stability_threshold" "$splash_min_monitor_ms") || true
+
+        if [[ -n "$splash_result" ]]; then
+            local stable_uuid=""
+            local splash_was_detected=""
+            IFS='|' read -r stable_uuid splash_was_detected _ <<< "$splash_result"
+
+            if [[ -n "$stable_uuid" && "$stable_uuid" != "$uuid" ]]; then
+                debug_log "$function_name" "Phase 4b: UUID changed from '$uuid' to '$stable_uuid' — re-syncing"
+                uuid="$stable_uuid"
+                auto_detect_windows
+            fi
+
+            # Auto-learn: if unknown and splash detected, mark as splash app
+            if [[ "$has_splash_window" == "unknown" && "$splash_was_detected" == "true" ]]; then
+                debug_log "$function_name" "Phase 4b: Auto-learning — setting has_splash_window=true for $app_id"
+                db_set_has_splash_window "$app_id" "true"
+            fi
+        fi
+    fi
+
     if [[ -z "$uuid" ]]; then
         debug_error "$function_name" "$ERR_WINDOW_NOT_FOUND" "Could not detect window for app_id: $app_id"
         info_log "$function_name" "Window detection failed for $app_id"

@@ -217,7 +217,7 @@ display_application_info() {
         safe_mode_completed safe_mode_timestamp \
         launch_mode supports_pid_validation executable_path \
         process_name window_title_pattern \
-        launch_time_ms has_splash_window <<< "$app_info"
+        launch_time_ms has_splash_window splash_duration_ms <<< "$app_info"
     
     # Convert boolean values for display
     local terminal_status="Not Available"
@@ -311,6 +311,9 @@ display_application_info() {
     [[ "$has_splash_window" == "false" ]] && splash_status="No"
     [[ "$has_splash_window" == "true" ]] && splash_status="Yes"
     echo "Splash Window:       $splash_status" >&3
+    if [[ "$has_splash_window" == "true" && -n "$splash_duration_ms" ]]; then
+        echo "Splash Duration:     ${splash_duration_ms} ms" >&3
+    fi
 
     debug_function_exit "$function_name"
     return 0

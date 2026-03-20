@@ -41,9 +41,10 @@ safe_mode_launch_and_detect() {
     local launch_result=""
     local new_uuid=""
     local splash_detected=""
+    local splash_duration_ms=""
     launch_result=$(safe_mode_measure_launch_time "$app_id")
 
-    IFS='|' read -r new_uuid splash_detected <<< "$launch_result"
+    IFS='|' read -r new_uuid splash_detected splash_duration_ms <<< "$launch_result"
     
     # Check if measurement succeeded
     if [[ -z "$new_uuid" ]]; then
@@ -97,7 +98,7 @@ safe_mode_launch_and_detect() {
     
     # 5. Auto-detect launch mode (may launch/close a second instance)
     local launch_mode_result
-    launch_mode_result=$(safe_mode_auto_detect_launch_mode "$app_id" "$new_uuid" "$detected_class" "$launch_time_ms")
+    launch_mode_result=$(safe_mode_auto_detect_launch_mode "$app_id" "$new_uuid" "$detected_class" "$launch_time_ms" "$splash_detected" "$splash_duration_ms")
     
     local launch_mode pid_override
     IFS='|' read -r launch_mode pid_override <<< "$launch_mode_result"
@@ -113,7 +114,7 @@ safe_mode_launch_and_detect() {
     local confirm_result
     confirm_result=$(safe_mode_display_summary_and_confirm "$display_name" "$detected_class" \
         "$launch_time_ms" "$pid_supported" "$pid_process_name" \
-        "$title_pattern" "$launch_mode" "$splash_detected")
+        "$title_pattern" "$launch_mode" "$splash_detected" "$splash_duration_ms")
     
     # Handle confirmation result
     case "$confirm_result" in
@@ -128,7 +129,7 @@ safe_mode_launch_and_detect() {
             # Store all safe-mode metadata in a single database call
             db_set_safe_mode_results "$app_id" "$detected_class" \
                 "$pid_supported" "$pid_process_name" "$pid_exe_path" \
-                "$title_pattern" "$launch_mode" "$splash_detected"
+                "$title_pattern" "$launch_mode" "$splash_detected" "$splash_duration_ms"
             
             # Close window
             close_window "$new_uuid"
@@ -482,15 +483,17 @@ safe_mode_measure_launch_time() {
     local stability_result=""
     local final_uuid=""
     local splash_detected=""
-    stability_result=$(wait_for_stable_window "$uuid" 15000 500 3) || true
+    local splash_duration_ms=""
+    stability_result=$(wait_for_stable_window "$uuid" 20000 1000 10 0) || true
 
     if [[ -z "$stability_result" ]]; then
         # Stability check failed entirely — fall back to the initial UUID
         debug_log "$function_name" "Stability check failed — using initial UUID '$uuid'"
         final_uuid="$uuid"
         splash_detected="false"
+        splash_duration_ms=""
     else
-        IFS='|' read -r final_uuid splash_detected <<< "$stability_result"
+        IFS='|' read -r final_uuid splash_detected splash_duration_ms <<< "$stability_result"
     fi
 
     if [[ "$splash_detected" == "true" ]]; then
@@ -516,10 +519,10 @@ safe_mode_measure_launch_time() {
     # Store measurement in database
     db_set_launch_time "$app_id" "$elapsed_ms"
     
-    debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms (splash_detected: $splash_detected)"
+    debug_log "$function_name" "Launch time measured: ${elapsed_ms}ms (splash_detected: $splash_detected, splash_duration_ms: ${splash_duration_ms:-none})"
     debug_function_exit "$function_name"
 
-    echo "${final_uuid}|${splash_detected}"
+    echo "${final_uuid}|${splash_detected}|${splash_duration_ms}"
     return 0
 }
 
@@ -773,6 +776,8 @@ safe_mode_auto_detect_launch_mode() {
     local existing_uuid="$2"
     local class="$3"
     local launch_time_ms="$4"
+    local splash_detected="${5:-false}"
+    local splash_duration_ms="${6:-}"
     local function_name="safe_mode_auto_detect_launch_mode"
     
     debug_function_enter "$function_name" "$@"
@@ -805,10 +810,49 @@ safe_mode_auto_detect_launch_mode() {
     
     local new_uuid=""
     new_uuid=$(get_uuid_by_process_of_elimination_with_retry "$class" "$timeout_ms" 100)
-    
+
+    # If app has a splash window, verify the detected window is stable
+    # (the second launch also produces a splash that must be waited out)
+    if [[ -n "$new_uuid" && "$splash_detected" == "true" ]]; then
+        debug_log "$function_name" "App has splash window — verifying second window stability"
+
+        local splash_max_wait=""
+        local splash_check_interval=500
+        local splash_stability_threshold=3
+        local splash_min_monitor=""
+        if [[ -n "$splash_duration_ms" && "$splash_duration_ms" -gt 0 ]]; then
+            splash_max_wait=$(( splash_duration_ms * 2 + 5000 ))
+            splash_min_monitor="$splash_duration_ms"
+        elif [[ -n "$launch_time_ms" && "$launch_time_ms" -gt 0 ]]; then
+            splash_max_wait=$(( launch_time_ms * 3 ))
+            splash_min_monitor="$launch_time_ms"
+        else
+            splash_max_wait=15000
+            splash_min_monitor=5000
+        fi
+
+        local stability_result=""
+        stability_result=$(wait_for_stable_window "$new_uuid" "$splash_max_wait" "$splash_check_interval" "$splash_stability_threshold" "$splash_min_monitor") || true
+
+        if [[ -n "$stability_result" ]]; then
+            local stable_uuid=""
+            IFS='|' read -r stable_uuid _ _ <<< "$stability_result"
+            if [[ -n "$stable_uuid" ]]; then
+                debug_log "$function_name" "Stable second window: '$stable_uuid'"
+                new_uuid="$stable_uuid"
+            else
+                debug_log "$function_name" "No stable second window found after splash check"
+                new_uuid=""
+            fi
+        else
+            debug_log "$function_name" "Splash stability check failed — no stable second window"
+            new_uuid=""
+        fi
+    fi
+
     local detected_mode=""
     local pid_override=""
-    
+
     if [[ -n "$new_uuid" ]]; then
         detected_mode="$LAUNCH_MODE_MULTI"
         debug_log "$function_name" "Second window detected: $new_uuid → multi mode"
@@ -852,6 +896,7 @@ safe_mode_display_summary_and_confirm() {
     local title_pattern="$6"
     local launch_mode="$7"
     local has_splash_window="${8:-false}"
+    local splash_duration_ms="${9:-}"
     local function_name="safe_mode_display_summary_and_confirm"
     
     debug_function_enter "$function_name" "$@"
@@ -877,7 +922,7 @@ safe_mode_display_summary_and_confirm() {
     # Format splash window display
     local splash_display="Unknown"
     [[ "$has_splash_window" == "false" ]] && splash_display="No"
-    [[ "$has_splash_window" == "true" ]] && splash_display="Yes"
+    [[ "$has_splash_window" == "true" ]] && splash_display="Yes (${splash_duration_ms}ms)"
     
     echo "" >&3
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3

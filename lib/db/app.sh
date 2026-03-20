@@ -487,7 +487,7 @@ db_get_application() {
                 last_validated, safe_mode_completed, safe_mode_timestamp,
                 launch_mode, supports_pid_validation, executable_path,
                 process_name, window_title_pattern, 
-                launch_time_ms, has_splash_window
+                launch_time_ms, has_splash_window, splash_duration_ms
          FROM applications
          WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
@@ -1122,14 +1122,15 @@ db_set_safe_mode_results() {
     local title_pattern="$6"
     local launch_mode="$7"
     local has_splash_window="${8:-false}"
+    local splash_duration_ms="${9:-}"
     local function_name="db_set_safe_mode_results"
-    
+
     debug_function_enter "$function_name" "$@"
-    
+
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$class" "class" || return 1
     validate_parameter_pass "$launch_mode" "launch_mode" || return 1
-    
+
     # Convert supports_pid to SQLite boolean
     local supports_pid_bool=""
     supports_pid_bool=0
@@ -1138,6 +1139,7 @@ db_set_safe_mode_results() {
     # Single UPDATE with all safe-mode metadata
     # title_pattern is optional — keep existing value if empty
     # has_splash_window is passed as string directly ("true"/"false")
+    # splash_duration_ms is optional — keep existing value if empty
     db_query \
         "UPDATE applications SET
             app_class = :class,
@@ -1147,6 +1149,7 @@ db_set_safe_mode_results() {
             window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
             launch_mode = :launch_mode,
             has_splash_window = :has_splash_window,
+            splash_duration_ms = CASE WHEN :splash_duration_ms != '' THEN CAST(:splash_duration_ms AS INTEGER) ELSE splash_duration_ms END,
             safe_mode_completed = TRUE,
             safe_mode_timestamp = datetime('now')
          WHERE app_id = :app_id;" \
@@ -1157,7 +1160,8 @@ db_set_safe_mode_results() {
         ":exe_path" "$executable_path" \
         ":title_pattern" "$title_pattern" \
         ":launch_mode" "$launch_mode" \
-        ":has_splash_window" "$has_splash_window"
+        ":has_splash_window" "$has_splash_window" \
+        ":splash_duration_ms" "$splash_duration_ms"
     
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
