@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 7: Error handling and edge cases
+# Test Phase 8: Error handling and edge cases
 
-_run_test_07() {
+_run_test_08() {
 
-print_section_header "Phase 7: Error Cases"
+print_section_header "Phase 8: Error Cases"
 
 # ============================================================================
 # Invalid workspace operations
@@ -172,4 +172,4 @@ run_kdoitall "app invalid-subcommand-xyz"
 assert_failure && test_pass || true
 
 }
-_run_test_07
+_run_test_08

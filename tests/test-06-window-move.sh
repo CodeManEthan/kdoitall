@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 5: Window move variations
+# Test Phase 6: Window move variations
 
-_run_test_05() {
+_run_test_06() {
 
-print_section_header "Phase 5: Window Move"
+print_section_header "Phase 6: Window Move"
 
 # We need an open workspace. Re-open test-single-kate.
 run_kdoitall "workspace open --skip test-single-kate"
@@ -119,4 +119,4 @@ run_kdoitall "workspace close test-single-kate" >/dev/null 2>&1
 TEST_WINDOW_UUIDS=()
 
 }
-_run_test_05
+_run_test_06

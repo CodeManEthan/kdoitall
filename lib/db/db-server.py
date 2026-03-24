@@ -70,6 +70,7 @@ def main():
         try:
             if db_path not in connections:
                 connections[db_path] = sqlite3.connect(db_path)
+                connections[db_path].execute("PRAGMA foreign_keys = ON;")
 
             conn = connections[db_path]
             cursor = conn.execute(query, params)

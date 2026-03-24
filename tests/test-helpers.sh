@@ -255,7 +255,8 @@ assert_window_exists() {
     local uuid="$1"
     local label="${2:-$CURRENT_TEST}"
 
-    if kdotool getwindowname "$uuid" &>/dev/null; then
+    # Check output, not exit code — kdotool returns exit 0 for closed windows
+    if [[ -n "$(kdotool getwindowclassname "$uuid" 2>/dev/null)" ]]; then
         return 0
     else
         test_fail "Window UUID $uuid does not exist"
@@ -267,7 +268,7 @@ assert_window_not_exists() {
     local uuid="$1"
     local label="${2:-$CURRENT_TEST}"
 
-    if ! kdotool getwindowname "$uuid" &>/dev/null; then
+    if [[ -z "$(kdotool getwindowclassname "$uuid" 2>/dev/null)" ]]; then
         return 0
     else
         test_fail "Window UUID $uuid unexpectedly exists"

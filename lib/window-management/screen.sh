@@ -175,6 +175,14 @@ move_window_to_position() {
     validate_parameter_pass "$uuid" "uuid" || return 1
     validate_parameter_pass "$screen_ref" "screen_ref" || return 1
     validate_parameter_pass "$position_mode" "position_mode" || return 1
+
+    # If position_mode is a variable name (e.g. RIGHTHALF), expand to display value (e.g. "Right Half")
+    if [[ "$position_mode" =~ ^[A-Z0-9_]+$ ]]; then
+        local expanded="${!position_mode:-}"
+        if [[ -n "$expanded" ]]; then
+            position_mode="$expanded"
+        fi
+    fi
     
     # Resolve screen reference (supports output numbers, names, aliases)
     output_num=$(resolve_screen_reference "$screen_ref")
@@ -380,7 +388,7 @@ move_window_to_position() {
             height=$((screen_height * 60 / 100))
             ;;
         *)
-            debug_error "$function_name" "$INVALID_POSITION_MODE" "Unknown mode: $position_mode"
+            debug_error "$function_name" "$ERR_INVALID_POSITION" "Unknown mode: $position_mode"
             debug_function_exit "$function_name"
             return 1
             ;;

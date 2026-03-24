@@ -45,7 +45,7 @@ fi
 test_start "kdoitall --help"
 run_kdoitall_raw "--help"
 if assert_exit_code 0; then
-    assert_output_contains "Usage" && test_pass || true
+    assert_output_contains "USAGE" && test_pass || true
 fi
 
 # ---- kdoitall --version works ----

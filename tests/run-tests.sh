@@ -19,6 +19,9 @@ echo "  Database:   $DB_PATH"
 echo "  Fixtures:   $FIXTURES_DIR"
 echo ""
 
+# Capture the terminal window so we can refocus it when tests finish
+TERMINAL_UUID=$(kdotool getactivewindow 2>/dev/null) || TERMINAL_UUID=""
+
 # ============================================================================
 # Pre-clean: remove stale test data from previous runs
 # ============================================================================
@@ -81,6 +84,11 @@ echo "Post-clean complete."
 # ============================================================================
 # Summary
 # ============================================================================
+
+# Refocus the terminal window so the user sees results immediately
+if [[ -n "$TERMINAL_UUID" ]]; then
+    kdotool windowactivate "$TERMINAL_UUID" 2>/dev/null || true
+fi
 
 if print_test_summary; then
     exit 0

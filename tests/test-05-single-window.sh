@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 4: Single window lifecycle
+# Test Phase 5: Single window lifecycle
 
-_run_test_04() {
+_run_test_05() {
 
-print_section_header "Phase 4: Single Window Lifecycle"
+print_section_header "Phase 5: Single Window Lifecycle"
 
 # Ensure workspace exists from Phase 3 (re-create if needed)
 if ! db_test_query "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name='test-single-kate';" | grep -q "^1$"; then
@@ -159,8 +159,17 @@ if assert_success; then
         if [[ "$remaining" -ne 0 ]]; then
             test_fail "app_windows row still exists after close"
         else
-            sleep 1
-            if ! kdotool getwindowname "$uuid" &>/dev/null; then
+            local window_gone=false
+            local attempt
+            for attempt in $(seq 1 5); do
+                # Check output, not exit code — kdotool returns exit 0 for closed windows
+                if [[ -z "$(kdotool getwindowclassname "$uuid" 2>/dev/null)" ]]; then
+                    window_gone=true
+                    break
+                fi
+                sleep 1
+            done
+            if [[ "$window_gone" == "true" ]]; then
                 test_pass
             else
                 test_fail "Window UUID $uuid still alive after close"
@@ -172,4 +181,4 @@ fi
 TEST_WINDOW_UUIDS=()
 
 }
-_run_test_04
+_run_test_05

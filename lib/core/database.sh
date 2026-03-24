@@ -11,9 +11,9 @@ normalize_boolean () {
     boolean="$1"
 
     if [[ "$boolean" == "TRUE" || "$boolean" == "true" || "$boolean" == "1" ]]; then
-        boolean="TRUE"
+        boolean="1"
     elif [[ "$boolean" == "FALSE" || "$boolean" == "false" || "$boolean" == "0" ]]; then
-        boolean="FALSE"
+        boolean="0"
     fi
 
     echo "$boolean"

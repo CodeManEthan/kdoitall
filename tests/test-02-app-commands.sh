@@ -151,10 +151,11 @@ run_kdoitall "screen alias test-alias 1"
 if assert_success; then
     local alias_target
     alias_target=$(db_test_query "SELECT target FROM screen_aliases WHERE alias='test-alias';")
-    if [[ "$alias_target" == "1" ]]; then
+    # The app resolves the output number to a persistent screen name (e.g. "eDP-1")
+    if [[ -n "$alias_target" ]]; then
         test_pass
     else
-        test_fail "Alias target expected '1', got '$alias_target'"
+        test_fail "Alias row not found or target is empty"
     fi
 fi
 

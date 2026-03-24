@@ -70,7 +70,12 @@ db_delete_workspace() {
     
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     db_workspace_exists "$workspace_name" || return 1
-    
+
+    # Delete associated window definitions first (FK cascade not enforced at runtime)
+    db_query \
+        "DELETE FROM window_definitions WHERE workspace_name = :workspace_name;" \
+        ":workspace_name" "$workspace_name"
+
     # Delete workspace
     db_query \
         "DELETE FROM workspace_definitions WHERE workspace_name = :workspace_name;" \

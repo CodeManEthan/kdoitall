@@ -25,7 +25,7 @@ CREATE TABLE app_windows (
     app_id TEXT,
     app_name TEXT,
     is_tab BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (workspace_name) REFERENCES workspaces(workspace_name) ON DELETE CASCADE,
+    FOREIGN KEY (workspace_name) REFERENCES workspace_definitions(workspace_name) ON DELETE CASCADE,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
 );
 
@@ -34,7 +34,7 @@ CREATE TABLE tabs (
     window_name TEXT NOT NULL,
     tab_name TEXT NOT NULL,
     tab_number INTEGER,
-    FOREIGN KEY (window_name) REFERENCES windows(window_name) ON DELETE CASCADE,
+    FOREIGN KEY (window_name) REFERENCES app_windows(window_name) ON DELETE CASCADE,
     UNIQUE(window_name, tab_number)
 );
 
@@ -101,6 +101,10 @@ BEGIN
     )
     WHERE id = NEW.id;
 END;
+
+-- Sentinel workspace for auto-detected (unmanaged) windows
+INSERT INTO workspace_definitions (workspace_name, description, is_active)
+    VALUES ('~workspace', 'Auto-tracked windows', FALSE);
 
 CREATE TABLE screen_aliases (
     alias TEXT PRIMARY KEY,
