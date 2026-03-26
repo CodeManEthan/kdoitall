@@ -1,0 +1,15 @@
+{
+  "workspace": "test-terminal-firefox",
+  "description": "Test terminal launch with Firefox",
+  "windows": [
+    {
+      "name": "test-firefox-main",
+      "app": "org.mozilla.firefox",
+      "desktop": 8,
+      "screen": "1",
+      "position": "Fullscreen",
+      "function": "launch_firefox_window",
+      "params": "about:blank"
+    }
+  ]
+}

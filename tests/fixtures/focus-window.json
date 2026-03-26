@@ -1,0 +1,21 @@
+{
+  "workspace": "test-focus-window",
+  "description": "Test focus_window configuration",
+  "focus_window": "test-focus-dolphin",
+  "windows": [
+    {
+      "name": "test-focus-kate",
+      "app": "org.kde.kate",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Left Half"
+    },
+    {
+      "name": "test-focus-dolphin",
+      "app": "org.kde.dolphin",
+      "desktop": 8,
+      "screen": "1",
+      "position": "Right Half"
+    }
+  ]
+}

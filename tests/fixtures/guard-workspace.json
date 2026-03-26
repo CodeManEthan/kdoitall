@@ -1,0 +1,13 @@
+{
+  "workspace": "test-guard-ws",
+  "description": "Workspace for testing active workspace guards",
+  "windows": [
+    {
+      "name": "test-guard-kate",
+      "app": "org.kde.kate",
+      "desktop": 8,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

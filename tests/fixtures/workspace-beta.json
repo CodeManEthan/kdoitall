@@ -1,0 +1,15 @@
+{
+  "workspace": "test-ws-beta",
+  "description": "Second independent workspace for simultaneous test",
+  "windows": [
+    {
+      "name": "test-beta-firefox",
+      "app": "org.mozilla.firefox",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Fullscreen",
+      "function": "launch_firefox_window",
+      "params": "about:blank"
+    }
+  ]
+}

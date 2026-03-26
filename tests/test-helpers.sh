@@ -390,6 +390,81 @@ get_screen_geometry() {
 }
 
 # ============================================================================
+# Test App Setup Helpers
+# ============================================================================
+
+# Set launch_mode for an application in the database
+db_set_test_launch_mode() {
+    local app_id="$1"
+    local launch_mode="$2"
+    db_test_query "UPDATE applications SET launch_mode='$launch_mode' WHERE app_id='$app_id';"
+}
+
+# Set app_class for an application in the database
+db_set_test_app_class() {
+    local app_id="$1"
+    local app_class="$2"
+    db_test_query "UPDATE applications SET app_class='$app_class' WHERE app_id='$app_id';"
+}
+
+# Skip safe mode for an application (mark safe_mode_completed)
+db_skip_test_safe_mode() {
+    local app_id="$1"
+    db_test_query "UPDATE applications SET safe_mode_completed=1 WHERE app_id='$app_id';"
+}
+
+# Set splash window metadata for an application
+db_set_test_splash() {
+    local app_id="$1"
+    local has_splash="$2"
+    local splash_duration_ms="${3:-0}"
+    db_test_query "UPDATE applications SET has_splash_window='$has_splash', splash_duration_ms=$splash_duration_ms WHERE app_id='$app_id';"
+}
+
+# Get a column value for an application
+db_get_test_app_field() {
+    local app_id="$1"
+    local field="$2"
+    db_test_query "SELECT $field FROM applications WHERE app_id='$app_id';"
+}
+
+# Get the count of app_windows rows for a workspace
+db_count_test_windows() {
+    local workspace_name="$1"
+    db_test_query "SELECT COUNT(*) FROM app_windows WHERE workspace_name='$workspace_name';"
+}
+
+# Ensure an application is registered, safe mode skipped, and optionally
+# launch_mode and class configured. Call before creating workspaces.
+# Usage: setup_test_app "org.mozilla.firefox" "multi" "org.mozilla.firefox"
+#        setup_test_app "code" "unique" ""
+setup_test_app() {
+    local app_id="$1"
+    local launch_mode="${2:-}"
+    local app_class="${3:-}"
+
+    # Ensure app is registered
+    local app_exists=""
+    app_exists=$(db_test_query "SELECT COUNT(*) FROM applications WHERE app_id='$app_id';")
+    if [[ "$app_exists" -eq 0 ]]; then
+        run_kdoitall "app scan" >/dev/null 2>&1
+    fi
+
+    # Skip safe mode
+    db_skip_test_safe_mode "$app_id"
+
+    # Set launch_mode if provided
+    if [[ -n "$launch_mode" ]]; then
+        db_set_test_launch_mode "$app_id" "$launch_mode"
+    fi
+
+    # Set class if provided
+    if [[ -n "$app_class" ]]; then
+        db_set_test_app_class "$app_id" "$app_class"
+    fi
+}
+
+# ============================================================================
 # Cleanup Utilities
 # ============================================================================
 

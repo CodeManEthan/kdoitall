@@ -1,0 +1,39 @@
+{
+  "workspace": "test-complex",
+  "description": "Complex workspace with 4 windows across 4 desktops",
+  "focus_window": "test-cx-firefox",
+  "windows": [
+    {
+      "name": "test-cx-kate",
+      "app": "org.kde.kate",
+      "desktop": 5,
+      "screen": "1",
+      "position": "Left Half"
+    },
+    {
+      "name": "test-cx-dolphin",
+      "app": "org.kde.dolphin",
+      "desktop": 6,
+      "screen": "1",
+      "position": "Right Half"
+    },
+    {
+      "name": "test-cx-firefox",
+      "app": "org.mozilla.firefox",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Fullscreen",
+      "function": "launch_firefox_window",
+      "params": "about:blank"
+    },
+    {
+      "name": "test-cx-vscode",
+      "app": "code",
+      "desktop": 8,
+      "screen": "2",
+      "position": "Fullscreen",
+      "function": "launch_code_window",
+      "params": "/tmp"
+    }
+  ]
+}

@@ -31,7 +31,17 @@ workspace_delete() {
         debug_function_exit "$function_name"
         return 1
     fi
-    
+
+    # Prevent deleting an active workspace
+    local is_active=""
+    is_active=$(db_get_workspace_is_active "$workspace_name")
+    if [[ "$is_active" == "1" ]]; then
+        echo "Error: Cannot delete workspace '$workspace_name' while it is active." >&2
+        echo "Close the workspace first with: kdoitall workspace close $workspace_name" >&3
+        debug_function_exit "$function_name"
+        return "$ERR_WORKSPACE_IS_ACTIVE"
+    fi
+
     # Confirm deletion with user
     echo "Are you sure you want to delete workspace '$workspace_name'? (y/n)" >&3
     read -r confirm

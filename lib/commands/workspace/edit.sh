@@ -49,6 +49,16 @@ workspace_edit() {
         return 1
     fi
 
+    # Prevent editing an active workspace
+    local is_active=""
+    is_active=$(db_get_workspace_is_active "$workspace_name")
+    if [[ "$is_active" == "1" ]]; then
+        echo "Error: Cannot edit workspace '$workspace_name' while it is active." >&2
+        echo "Close the workspace first with: kdoitall workspace close $workspace_name" >&3
+        debug_function_exit "$function_name"
+        return "$ERR_WORKSPACE_IS_ACTIVE"
+    fi
+
     # Load current workspace metadata
     local workspace_data=""
     workspace_data=$(db_get_workspace "$workspace_name")

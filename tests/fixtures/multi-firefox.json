@@ -1,0 +1,24 @@
+{
+  "workspace": "test-multi-firefox",
+  "description": "Test MULTI launch mode with two Firefox windows",
+  "windows": [
+    {
+      "name": "test-ff-window1",
+      "app": "org.mozilla.firefox",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Left Half",
+      "function": "launch_firefox_window",
+      "params": "about:blank"
+    },
+    {
+      "name": "test-ff-window2",
+      "app": "org.mozilla.firefox",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Right Half",
+      "function": "launch_firefox_window",
+      "params": "about:robots"
+    }
+  ]
+}

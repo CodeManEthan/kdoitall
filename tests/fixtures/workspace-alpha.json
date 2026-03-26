@@ -1,0 +1,20 @@
+{
+  "workspace": "test-ws-alpha",
+  "description": "First independent workspace for simultaneous test",
+  "windows": [
+    {
+      "name": "test-alpha-kate",
+      "app": "org.kde.kate",
+      "desktop": 5,
+      "screen": "1",
+      "position": "Fullscreen"
+    },
+    {
+      "name": "test-alpha-dolphin",
+      "app": "org.kde.dolphin",
+      "desktop": 6,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

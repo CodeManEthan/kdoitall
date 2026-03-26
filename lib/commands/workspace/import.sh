@@ -70,6 +70,15 @@ workspace_create_from_file() {
     # Handle workspace existence
     if db_workspace_exists "$workspace_name"; then
         if [[ "$replace_flag" == "true" ]]; then
+            # Prevent replacing an active workspace
+            local is_active=""
+            is_active=$(db_get_workspace_is_active "$workspace_name")
+            if [[ "$is_active" == "1" ]]; then
+                echo "Error: Cannot replace workspace '$workspace_name' while it is active." >&2
+                echo "Close the workspace first with: kdoitall workspace close $workspace_name" >&3
+                debug_function_exit "$function_name"
+                return "$ERR_WORKSPACE_IS_ACTIVE"
+            fi
             echo "Replacing existing workspace: $workspace_name" >&3
             if ! db_delete_workspace "$workspace_name"; then
                 echo "Error: Failed to delete existing workspace: $workspace_name" >&2

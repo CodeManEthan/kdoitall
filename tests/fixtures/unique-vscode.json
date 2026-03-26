@@ -1,0 +1,15 @@
+{
+  "workspace": "test-unique-vscode",
+  "description": "Test UNIQUE launch mode with VS Code",
+  "windows": [
+    {
+      "name": "test-vscode-unique",
+      "app": "code",
+      "desktop": 6,
+      "screen": "1",
+      "position": "Left Half",
+      "function": "launch_code_window",
+      "params": "/tmp"
+    }
+  ]
+}

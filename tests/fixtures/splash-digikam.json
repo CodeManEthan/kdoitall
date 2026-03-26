@@ -1,0 +1,13 @@
+{
+  "workspace": "test-splash-digikam",
+  "description": "Test splash window detection with digiKam",
+  "windows": [
+    {
+      "name": "test-digikam-main",
+      "app": "org.kde.digikam",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

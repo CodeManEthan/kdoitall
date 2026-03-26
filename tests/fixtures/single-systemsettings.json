@@ -1,0 +1,13 @@
+{
+  "workspace": "test-single-sysset",
+  "description": "Test SINGLE launch mode with System Settings",
+  "windows": [
+    {
+      "name": "test-sysset-main",
+      "app": "systemsettings",
+      "desktop": 8,
+      "screen": "1",
+      "position": "Fullscreen"
+    }
+  ]
+}

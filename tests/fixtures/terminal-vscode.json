@@ -1,0 +1,15 @@
+{
+  "workspace": "test-terminal-vscode",
+  "description": "Test terminal launch with VS Code",
+  "windows": [
+    {
+      "name": "test-vscode-main",
+      "app": "code",
+      "desktop": 7,
+      "screen": "1",
+      "position": "Fullscreen",
+      "function": "launch_code_window",
+      "params": "/tmp"
+    }
+  ]
+}
