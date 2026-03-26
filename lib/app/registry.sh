@@ -18,76 +18,93 @@ source "${LIB_DIR}/app-definitions/json-parser.sh"
 source "${LIB_DIR}/app-definitions/validator.sh"
 # shellcheck source=../db/app-registry.sh
 source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=app-name.sh
+source "${LIB_DIR}/app/app-name.sh"
 
 registry_scan_applications() {
     local function_name="registry_scan_applications"
     local app_count=0
-    local app_id=""
-    local display_name=""
-    local desktop_file_path=""
-    local app_directory_path=""
-    local terminal_command=""
-    local app_class=""
-    local launch_mode=""
-    local window_title_pattern=""
-    local has_terminal_launch=false
-    local has_desktop_launch=false
-    local supports_pid_validation=""
-    local process_name=""
-    local app_name=""
-    
+
     debug_function_enter "$function_name"
-    
-    # Track processed app_ids to handle duplicates (prefer user local > system)
-    local -A processed_apps
-    
-    # Iterate through desktop file locations in reverse priority order
-    # (process system locations first, so user local overrides them)
+
+    # Ensure app_name_manual column exists (migration for existing databases)
+    db_ensure_app_name_manual_column
+
+    # Load existing manually-set app names (locked during scan)
+    local -A manual_names=()
+    local _manual_line _manual_id _manual_name
+    while IFS= read -r _manual_line; do
+        [[ -z "$_manual_line" ]] && continue
+        IFS='|' read -r _manual_id _manual_name <<< "$_manual_line"
+        [[ -n "$_manual_id" && -n "$_manual_name" ]] && manual_names[$_manual_id]="$_manual_name"
+    done < <(db_get_manual_app_names)
+    debug_log "$function_name" "Loaded ${#manual_names[@]} manually-set app names"
+
+    # ========================================================================
+    # Pass 1: Collect all app metadata into parallel arrays
+    # ========================================================================
+    local -A processed_apps=()
+
+    # Parallel arrays indexed by scan order
+    local -a scan_app_ids=()
+    local -a scan_display_names=()
+    local -a scan_desktop_files=()
+    local -a scan_app_dirs=()
+    local -a scan_terminal_cmds=()
+    local -a scan_app_classes=()
+    local -a scan_launch_modes=()
+    local -a scan_title_patterns=()
+    local -a scan_has_terminal=()
+    local -a scan_has_desktop=()
+    local -a scan_supports_pid=()
+    local -a scan_process_names=()
+    local -a scan_app_names=()
+    local -a scan_name_locked=()
+
+    local app_id="" display_name="" desktop_file_path=""
+    local app_directory_path="" terminal_command=""
+    local app_class="" launch_mode="" window_title_pattern=""
+    local has_terminal_launch="" has_desktop_launch=""
+    local supports_pid_validation="" process_name="" app_name=""
+
     for location in "${DESKTOP_FILE_LOCATIONS[@]}"; do
         if [[ ! -d "$location" ]]; then
             debug_log "$function_name" "Skipping non-existent location: $location"
             continue
         fi
-        
+
         debug_log "$function_name" "Scanning location: $location"
-        
-        # Find all .desktop files in this location
+
         while IFS= read -r -d '' desktop_file; do
-            # Extract app_id from filename (basename without .desktop)
             app_id=$(basename "$desktop_file" .desktop)
-            
-            # Validate app_id format (reject malicious .desktop filenames)
+
             if ! validate_app_id_format "$app_id"; then
                 debug_log "$function_name" "Skipping invalid app_id format: $app_id"
                 continue
             fi
 
-            # Skip if NoDisplay=true
             if grep -q "^NoDisplay=true" "$desktop_file" 2>/dev/null; then
                 debug_log "$function_name" "Skipping (NoDisplay=true): $app_id"
                 continue
             fi
-            
-            # Check if we've already processed this app_id
+
             if [[ -v processed_apps[$app_id] ]]; then
                 debug_log "$function_name" "Skipping duplicate (already processed): $app_id from $desktop_file"
                 continue
             fi
-            
-            # Mark as processed
+
             processed_apps[$app_id]=1
-            
-            # Extract display name from .desktop file
+
             display_name=$(grep "^Name=" "$desktop_file" | head -1 | cut -d'=' -f2-)
             if [[ -z "$display_name" ]]; then
                 debug_log "$function_name" "Warning: No Name field in $desktop_file, using app_id"
                 display_name="$app_id"
             fi
-            
+
             desktop_file_path="$desktop_file"
             has_desktop_launch=true
-            
-            # Reset app file variables
+
+            # Reset per-app variables
             app_directory_path=""
             terminal_command=""
             app_class=""
@@ -97,25 +114,21 @@ registry_scan_applications() {
             supports_pid_validation=""
             process_name=""
             app_name=""
-            
+
             debug_log "$function_name" "Processing: $app_id ($display_name)"
-            
+
             # Check for app directory with metadata
             if registry_check_app_files "$app_id" > /dev/null 2>&1; then
                 debug_log "$function_name" "Found app definition for: $app_id"
-                
+
                 app_directory_path=$(registry_get_app_directory_path "$app_id")
                 local json_file="${app_directory_path}/metadata.json"
-                
-                # Extract terminal_command from metadata
+
                 terminal_command=$(json_get_all_metadata "$json_file")
-                
+
                 if [[ -n "$terminal_command" ]]; then
                     has_terminal_launch=true
                     debug_log "$function_name" "Extracted terminal_command: $terminal_command"
-                    
-                    # Store launch options in database
-                    registry_store_launch_options "$app_id" "$app_directory_path"
                 else
                     debug_log "$function_name" "No terminal command found in metadata"
                     has_terminal_launch=false
@@ -123,19 +136,16 @@ registry_scan_applications() {
             else
                 debug_log "$function_name" "No app definition found for: $app_id"
             fi
-            
+
             # Seed from reference registry for any fields still empty
+            local name_locked=false
             if app_registry_exists "$app_id"; then
                 local reg_metadata=""
                 reg_metadata=$(app_registry_get_metadata "$app_id")
 
                 if [[ -n "$reg_metadata" ]]; then
-                    local reg_app_name=""
-                    local reg_app_class=""
-                    local reg_window_title=""
-                    local reg_launch_mode=""
-                    local reg_supports_pid=""
-                    local reg_process_name=""
+                    local reg_app_name="" reg_app_class="" reg_window_title=""
+                    local reg_launch_mode="" reg_supports_pid="" reg_process_name=""
 
                     reg_app_name=$(echo "$reg_metadata" | cut -d'|' -f2)
                     reg_app_class=$(echo "$reg_metadata" | cut -d'|' -f3)
@@ -144,7 +154,10 @@ registry_scan_applications() {
                     reg_supports_pid=$(echo "$reg_metadata" | cut -d'|' -f6)
                     reg_process_name=$(echo "$reg_metadata" | cut -d'|' -f7)
 
-                    [[ -z "$app_name" && -n "$reg_app_name" ]] && app_name="$reg_app_name"
+                    if [[ -z "$app_name" && -n "$reg_app_name" ]]; then
+                        app_name="$reg_app_name"
+                        name_locked=true
+                    fi
                     [[ -z "$app_class" && -n "$reg_app_class" ]] && app_class="$reg_app_class"
                     [[ -z "$window_title_pattern" && -n "$reg_window_title" ]] && window_title_pattern="$reg_window_title"
                     [[ -z "$launch_mode" && -n "$reg_launch_mode" ]] && launch_mode="$reg_launch_mode"
@@ -154,23 +167,73 @@ registry_scan_applications() {
                     debug_log "$function_name" "Seeded from registry: $app_id (class=$app_class, mode=$launch_mode)"
                 fi
             fi
-            
-            # Add application to database with all metadata in a single call
-            if db_upsert_application_scan "$app_id" "$display_name" "$desktop_file_path" \
-                                  "$app_directory_path" "$terminal_command" "$app_class" \
-                                  "$has_terminal_launch" "$has_desktop_launch" \
-                                  "$launch_mode" "$window_title_pattern" \
-                                  "$supports_pid_validation" "$process_name" \
-                                  "$app_name"; then
-                debug_log "$function_name" "✓ Saved to database: $app_id (terminal: $has_terminal_launch, desktop: $has_desktop_launch)"
-                ((app_count++))
-            else
-                debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save application: $app_id"
+
+            # Check for manually-set app_name (takes highest priority)
+            if [[ -v manual_names[$app_id] ]]; then
+                app_name="${manual_names[$app_id]}"
+                name_locked=true
+                debug_log "$function_name" "Using manual app_name: '$app_name' for $app_id"
             fi
-            
+
+            # Auto-generate candidate name if not locked
+            if [[ "$name_locked" == "false" ]]; then
+                app_name=$(appname_generate "$app_id" "$display_name")
+                debug_log "$function_name" "Auto-generated candidate: '$app_name' for $app_id"
+            fi
+
+            # Store in parallel arrays
+            local idx=${#scan_app_ids[@]}
+            scan_app_ids+=("$app_id")
+            scan_display_names+=("$display_name")
+            scan_desktop_files+=("$desktop_file_path")
+            scan_app_dirs+=("$app_directory_path")
+            scan_terminal_cmds+=("$terminal_command")
+            scan_app_classes+=("$app_class")
+            scan_launch_modes+=("$launch_mode")
+            scan_title_patterns+=("$window_title_pattern")
+            scan_has_terminal+=("$has_terminal_launch")
+            scan_has_desktop+=("$has_desktop_launch")
+            scan_supports_pid+=("$supports_pid_validation")
+            scan_process_names+=("$process_name")
+            scan_app_names+=("$app_name")
+            scan_name_locked+=("$name_locked")
+
         done < <(find "$location" -maxdepth 1 -name "*.desktop" \( -type f -o -type l \) -print0 2>/dev/null)
     done
-    
+
+    debug_log "$function_name" "Pass 1 complete: ${#scan_app_ids[@]} apps collected"
+
+    # ========================================================================
+    # Pass 2: Deduplicate auto-generated names
+    # ========================================================================
+    appname_deduplicate scan_app_ids scan_app_names scan_name_locked scan_display_names
+
+    debug_log "$function_name" "Pass 2 complete: names deduplicated"
+
+    # ========================================================================
+    # Pass 3: Persist all applications to database
+    # ========================================================================
+    local i
+    for i in "${!scan_app_ids[@]}"; do
+        if db_upsert_application_scan \
+                "${scan_app_ids[$i]}" "${scan_display_names[$i]}" "${scan_desktop_files[$i]}" \
+                "${scan_app_dirs[$i]}" "${scan_terminal_cmds[$i]}" "${scan_app_classes[$i]}" \
+                "${scan_has_terminal[$i]}" "${scan_has_desktop[$i]}" \
+                "${scan_launch_modes[$i]}" "${scan_title_patterns[$i]}" \
+                "${scan_supports_pid[$i]}" "${scan_process_names[$i]}" \
+                "${scan_app_names[$i]}"; then
+            debug_log "$function_name" "✓ Saved: ${scan_app_ids[$i]} (name=${scan_app_names[$i]})"
+            ((app_count++))
+
+            # Store launch options now that the app row exists (FK satisfied)
+            if [[ -n "${scan_app_dirs[$i]}" ]]; then
+                registry_store_launch_options "${scan_app_ids[$i]}" "${scan_app_dirs[$i]}"
+            fi
+        else
+            debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save: ${scan_app_ids[$i]}"
+        fi
+    done
+
     # Remove applications no longer installed on the system
     local found_app_ids=""
     found_app_ids=$(printf '%s\n' "${!processed_apps[@]}")
@@ -181,7 +244,7 @@ registry_scan_applications() {
     print_info "Scan complete: $app_count applications found, $removed_count removed"
     debug_log "$function_name" "Scan complete: $app_count processed, $removed_count removed"
     debug_function_exit "$function_name"
-    
+
     return 0
 }
 

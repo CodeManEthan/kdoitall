@@ -178,6 +178,7 @@ db_upsert_application_scan() {
     if db_application_exists "$app_id"; then
         # UPDATE existing app: only overwrite scan-sourced fields
         # Registry-sourced fields only update when the new value is non-empty
+        # app_name is only overwritten if app_name_manual is not set
         db_query \
             "UPDATE applications SET
                 display_name = :display_name,
@@ -186,7 +187,10 @@ db_upsert_application_scan() {
                 terminal_command = :terminal_command,
                 has_terminal_launch = :has_terminal_launch,
                 has_desktop_launch = :has_desktop_launch,
-                app_name = CASE WHEN :app_name != '' THEN :app_name ELSE app_name END,
+                app_name = CASE
+                    WHEN app_name_manual = 1 THEN app_name
+                    WHEN :app_name != '' THEN :app_name
+                    ELSE app_name END,
                 app_class = CASE WHEN :app_class != '' THEN :app_class ELSE app_class END,
                 launch_mode = CASE WHEN :launch_mode != '' THEN :launch_mode ELSE launch_mode END,
                 window_title_pattern = CASE WHEN :title_pattern != '' THEN :title_pattern ELSE window_title_pattern END,
@@ -1346,4 +1350,129 @@ db_update_validation_timestamp() {
         debug_function_exit "$function_name"
         return 1
     fi
+}
+
+db_ensure_app_name_manual_column() {
+    local function_name="db_ensure_app_name_manual_column"
+
+    debug_function_enter "$function_name"
+
+    db_query \
+        "SELECT COUNT(*) FROM pragma_table_info('applications') WHERE name='app_name_manual';"
+
+    if [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
+        db_query "ALTER TABLE applications ADD COLUMN app_name_manual BOOLEAN DEFAULT 0;"
+        debug_log "$function_name" "Added app_name_manual column to applications table"
+    else
+        debug_log "$function_name" "app_name_manual column already exists"
+    fi
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_get_manual_app_names() {
+    local function_name="db_get_manual_app_names"
+
+    debug_function_enter "$function_name"
+
+    db_query \
+        "SELECT app_id, app_name FROM applications
+         WHERE app_name_manual = 1 AND app_name IS NOT NULL;"
+
+    debug_log "$function_name" "Retrieved ${#DB_RESULT[@]} manually-set app names"
+    debug_function_exit "$function_name"
+    [[ ${#DB_RESULT[@]} -gt 0 ]] && printf '%s\n' "${DB_RESULT[@]}"
+    return 0
+}
+
+db_set_app_name() {
+    local app_id="$1"
+    local new_name="$2"
+    local manual="${3:-0}"
+    local function_name="db_set_app_name"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$new_name" "new_name" || return 1
+
+    manual=$(normalize_boolean "$manual")
+
+    db_query \
+        "UPDATE applications SET
+            app_name = :new_name,
+            app_name_manual = :manual
+         WHERE app_id = :app_id;" \
+        ":app_id" "$app_id" \
+        ":new_name" "$new_name" \
+        ":manual" "$manual"
+
+    if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -ne 1 ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to set app_name for $app_id ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Set app_name='$new_name' (manual=$manual) for $app_id"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+db_check_app_name_exists() {
+    local name="$1"
+    local exclude_app_id="${2:-}"
+    local function_name="db_check_app_name_exists"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$name" "name" || return 1
+
+    if [[ -n "$exclude_app_id" ]]; then
+        db_query \
+            "SELECT COUNT(*) FROM applications
+             WHERE app_name = :name AND app_id != :exclude_id;" \
+            ":name" "$name" \
+            ":exclude_id" "$exclude_app_id"
+    else
+        db_query \
+            "SELECT COUNT(*) FROM applications WHERE app_name = :name;" \
+            ":name" "$name"
+    fi
+
+    if [[ "${DB_RESULT[0]:-0}" -ge 1 ]]; then
+        debug_log "$function_name" "app_name '$name' already exists"
+        debug_function_exit "$function_name"
+        return 0
+    else
+        debug_log "$function_name" "app_name '$name' is available"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+}
+
+db_update_app_windows_app_name() {
+    local app_id="$1"
+    local new_name="$2"
+    local function_name="db_update_app_windows_app_name"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+    validate_parameter_pass "$new_name" "new_name" || return 1
+
+    db_query \
+        "UPDATE app_windows SET app_name = :new_name WHERE app_id = :app_id;" \
+        ":app_id" "$app_id" \
+        ":new_name" "$new_name"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to update app_windows for $app_id ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    debug_log "$function_name" "Updated app_windows app_name to '$new_name' for app_id=$app_id (${DB_RESULT[0]:-0} rows)"
+    debug_function_exit "$function_name"
+    return 0
 }

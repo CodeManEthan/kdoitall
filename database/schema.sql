@@ -60,7 +60,8 @@ CREATE TABLE applications (
     has_splash_window TEXT DEFAULT 'unknown',
     splash_duration_ms INTEGER DEFAULT NULL,
     app_directory_path TEXT,
-    terminal_command TEXT, 
+    terminal_command TEXT,
+    app_name_manual BOOLEAN DEFAULT 0,
     last_validated TIMESTAMP
 );
 

@@ -63,6 +63,11 @@ app_command() {
             source "${LIB_DIR}/commands/app/safe-mode.sh"
             app_safe_mode "${args[@]}"
             ;;
+        name|n)
+            # shellcheck source=name.sh
+            source "${LIB_DIR}/commands/app/name.sh"
+            app_name_command "${args[@]}"
+            ;;
         *)
             echo "Error: Unknown app subcommand: $subcommand" >&2
             app_show_help
@@ -76,11 +81,13 @@ app_show_help() {
 Usage: kdoitall app <subcommand> [options]
 
 App Subcommands:
-  scan                    Scan system for available applications and populate registry
-  list (ls) [filter]      List applications (all, terminal, desktop, both)
-  info (i) <app_id|name>   Show detailed information about a specific application
-  validate                Validate all application definition files
-  options (opts) <app_id> Show launch options for an application
+  scan                         Scan system for available applications and populate registry
+  list (ls) [filter]           List applications (all, terminal, desktop, both)
+  info (i) <app_id|name>       Show detailed information about a specific application
+  validate                     Validate all application definition files
+  options (opts) <app_id>      Show launch options for an application
+  name (n) <app_id> <name>     Set a custom app name
+  name (n) reset <app_id>      Clear manual override (reverts to auto on next scan)
   safe-mode (sm)               Interactive safe-mode validation menu
   safe-mode (sm) skip <id>     Mark app as validated without running safe-mode
   safe-mode (sm) reset <id>    Clear safe-mode data (will prompt again)
@@ -95,6 +102,8 @@ Examples:
   kdoitall app validate
   kdoitall app options konsole
   kdoitall app opts konsole
+  kdoitall app name org.mozilla.firefox firefox
+  kdoitall app n reset org.mozilla.firefox
   kdoitall app safe-mode
   kdoitall app sm skip firefox
 
