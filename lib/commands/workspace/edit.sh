@@ -158,27 +158,9 @@ workspace_edit() {
 
 _edit_load_window_definitions() {
     local workspace_name="$1"
-    local function_name="_edit_load_window_definitions"
 
-    debug_function_enter "$function_name" "$@"
-
-    local window_defs=""
-    window_defs=$(db_list_window_definitions "$workspace_name")
-
-    if [[ -z "$window_defs" ]]; then
-        debug_log "$function_name" "No window definitions found for workspace: $workspace_name"
-        debug_function_exit "$function_name"
-        return 0
-    fi
-
-    while IFS='|' read -r window_name _ app_id launch_function desktop screen position parameters _; do
-        [[ -z "$window_name" ]] && continue
-        WORKSPACE_APPS+=("${app_id}|${window_name}|${launch_function}|${desktop}|${screen}|${position}|${parameters}")
-    done <<< "$window_defs"
-
-    debug_log "$function_name" "Loaded ${#WORKSPACE_APPS[@]} window definitions"
-    debug_function_exit "$function_name"
-    return 0
+    # Delegate to shared helper in generator.sh
+    load_workspace_apps_array "$workspace_name"
 }
 
 _edit_show_summary() {
@@ -509,6 +491,113 @@ _edit_save() {
 
     echo "" >&3
     print_banner "Workspace '$workspace_name' updated successfully!"
+    echo "" >&3
+
+    debug_function_exit "$function_name"
+    return 0
+}
+
+workspace_edit_noninteractive() {
+    local workspace_name="$1"
+    local new_description="${2:-}"
+    local has_description_flag="$3"
+    local has_focus_window_flag="$4"
+    local focus_window_value="${5:-}"
+    local function_name="workspace_edit_noninteractive"
+
+    debug_function_enter "$function_name" "$@"
+
+    # ──────────────────────────────────────────────
+    # Validate workspace
+    # ──────────────────────────────────────────────
+
+    if [[ -z "$workspace_name" ]]; then
+        echo "Error: Workspace name is required." >&2
+        echo "Usage: kdoitall workspace edit <workspace-name> [--description \"...\"] [--focus-window \"...\"]" >&3
+        debug_function_exit "$function_name"
+        return "$ERR_MISSING_PARAMETER"
+    fi
+
+    if ! db_workspace_exists "$workspace_name"; then
+        echo "Error: Workspace '$workspace_name' not found." >&2
+        debug_function_exit "$function_name"
+        return "$ERR_WORKSPACE_NOT_FOUND"
+    fi
+
+    local is_active=""
+    is_active=$(db_get_workspace_is_active "$workspace_name")
+    if [[ "$is_active" == "1" ]]; then
+        echo "Error: Cannot edit workspace '$workspace_name' while it is active." >&2
+        echo "Close the workspace first with: kdoitall workspace close $workspace_name" >&3
+        debug_function_exit "$function_name"
+        return "$ERR_WORKSPACE_IS_ACTIVE"
+    fi
+
+    # ──────────────────────────────────────────────
+    # Apply changes
+    # ──────────────────────────────────────────────
+
+    local changes_made=false
+
+    # Update description
+    if [[ "$has_description_flag" == true ]]; then
+        if ! db_update_workspace_description "$workspace_name" "$new_description"; then
+            echo "Error: Failed to update workspace description." >&2
+            debug_function_exit "$function_name"
+            return 1
+        fi
+        if [[ -n "$new_description" ]]; then
+            print_success "Description updated to: $new_description"
+        else
+            print_success "Description cleared."
+        fi
+        changes_made=true
+    fi
+
+    # Update focus window
+    if [[ "$has_focus_window_flag" == true ]]; then
+        if [[ -z "$focus_window_value" ]]; then
+            # Clear focus window
+            if ! db_set_workspace_focus_window "$workspace_name" ""; then
+                echo "Error: Failed to clear focus window." >&2
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            print_success "Focus window cleared."
+            changes_made=true
+        else
+            # Validate window exists in this workspace
+            if ! db_window_definition_exists "$focus_window_value"; then
+                echo "Error: Window '$focus_window_value' not found." >&2
+                debug_function_exit "$function_name"
+                return "$ERR_WINDOW_DEFINITION_NOT_FOUND"
+            fi
+
+            local focus_def=""
+            focus_def=$(db_get_window_definition "$focus_window_value")
+            local focus_workspace=""
+            focus_workspace=$(echo "$focus_def" | cut -d'|' -f2)
+
+            if [[ "$focus_workspace" != "$workspace_name" ]]; then
+                echo "Error: Window '$focus_window_value' belongs to workspace '$focus_workspace', not '$workspace_name'." >&2
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            if ! db_set_workspace_focus_window "$workspace_name" "$focus_window_value"; then
+                echo "Error: Failed to set focus window." >&2
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            print_success "Focus window set to '$focus_window_value'."
+            changes_made=true
+        fi
+    fi
+
+    if [[ "$changes_made" != true ]]; then
+        print_warning "No changes applied."
+    fi
+
     echo "" >&3
 
     debug_function_exit "$function_name"

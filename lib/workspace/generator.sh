@@ -164,6 +164,31 @@ EOF
     return 0
 }
 
+load_workspace_apps_array() {
+    local workspace_name="$1"
+    local function_name="load_workspace_apps_array"
+
+    debug_function_enter "$function_name" "$@"
+
+    local window_defs=""
+    window_defs=$(db_list_window_definitions "$workspace_name")
+
+    if [[ -z "$window_defs" ]]; then
+        debug_log "$function_name" "No window definitions found for workspace: $workspace_name"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    while IFS='|' read -r window_name _ app_id launch_function desktop screen position parameters _; do
+        [[ -z "$window_name" ]] && continue
+        WORKSPACE_APPS+=("${app_id}|${window_name}|${launch_function}|${desktop}|${screen}|${position}|${parameters}")
+    done <<< "$window_defs"
+
+    debug_log "$function_name" "Loaded ${#WORKSPACE_APPS[@]} window definitions"
+    debug_function_exit "$function_name"
+    return 0
+}
+
 store_window_definitions() {
     local workspace_name="$1"
     local function_name="store_window_definitions"

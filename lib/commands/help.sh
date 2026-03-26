@@ -27,15 +27,18 @@ QUICK ACTION (quick | q):
     quick                   Interactive window picker for ad-hoc actions
 
 WORKSPACE COMMANDS (workspace | ws):
-    workspace create (new) <name>   Create new workspace interactively
-    workspace edit (e) <n>       Edit an existing workspace
-    workspace list (ls)             List all defined workspaces
-    workspace info (i) <n>       Show detailed info for a workspace
-    workspace open (o) <name>       Open a workspace
-    workspace close (c) <name>      Close a workspace
-    workspace focus (f) <name>      Focus an active workspace
-    workspace minimize (min) <name> Minimize an active workspace
-    workspace delete (rm) <name>    Delete a workspace
+    workspace create (new) <name>       Create new workspace interactively
+    workspace edit (e) <n>              Edit an existing workspace
+    workspace add-window (aw) <n>       Add a window to a workspace
+    workspace edit-window (ew) <n> <w>  Edit a window definition
+    workspace remove-window (rw) <n> <w> Remove a window from a workspace
+    workspace list (ls)                 List all defined workspaces
+    workspace info (i) <n>              Show detailed info for a workspace
+    workspace open (o) <name>           Open a workspace
+    workspace close (c) <name>          Close a workspace
+    workspace focus (f) <name>          Focus an active workspace
+    workspace minimize (min) <name>     Minimize an active workspace
+    workspace delete (rm) <name>        Delete a workspace
 
 APPLICATION COMMANDS (app):
     app scan                  Scan system for available applications

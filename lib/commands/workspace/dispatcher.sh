@@ -84,9 +84,58 @@ workspace_command() {
             workspace_info "${args[@]}"
             ;;
         edit|e)
+            # Detect non-interactive flags
+            local has_edit_flags=false
+            local edit_description=""
+            local has_description_flag=false
+            local edit_focus_window=""
+            local has_focus_window_flag=false
+            local edit_positional=""
+            local j=0
+            while [[ $j -lt ${#args[@]} ]]; do
+                case "${args[$j]}" in
+                    --description)
+                        has_edit_flags=true
+                        has_description_flag=true
+                        ((j++)) || true
+                        edit_description="${args[$j]:-}"
+                        ;;
+                    --focus-window)
+                        has_edit_flags=true
+                        has_focus_window_flag=true
+                        ((j++)) || true
+                        edit_focus_window="${args[$j]:-}"
+                        ;;
+                    *)
+                        edit_positional="${args[$j]}"
+                        ;;
+                esac
+                ((j++)) || true
+            done
+
             # shellcheck source=edit.sh
             source "${LIB_DIR}/commands/workspace/edit.sh"
-            workspace_edit "${args[@]}"
+            if [[ "$has_edit_flags" == true ]]; then
+                workspace_edit_noninteractive "$edit_positional" "$edit_description" \
+                    "$has_description_flag" "$has_focus_window_flag" "$edit_focus_window"
+            else
+                workspace_edit "${args[@]}"
+            fi
+            ;;
+        add-window|aw)
+            # shellcheck source=add-window.sh
+            source "${LIB_DIR}/commands/workspace/add-window.sh"
+            workspace_add_window "${args[@]}"
+            ;;
+        edit-window|ew)
+            # shellcheck source=edit-window.sh
+            source "${LIB_DIR}/commands/workspace/edit-window.sh"
+            workspace_edit_window "${args[@]}"
+            ;;
+        remove-window|rw)
+            # shellcheck source=remove-window.sh
+            source "${LIB_DIR}/commands/workspace/remove-window.sh"
+            workspace_remove_window "${args[@]}"
             ;;
         open|o)
             # shellcheck source=open.sh
@@ -135,7 +184,15 @@ Workspace Subcommands:
     --from-file <path>   Create workspace from JSON config file
     --replace            Replace existing workspace (with --from-file)
   export (exp) <n>     Export workspace definition to JSON (stdout)
-  edit (e) <n>         Edit an existing workspace
+  edit (e) <n>         Edit an existing workspace (interactive)
+    --description "..."  Set description (non-interactive)
+    --focus-window "n"   Set focus window ("" to clear)
+  add-window (aw) <n>  Add a window to a workspace
+    --name, --app, --desktop, --screen, --position (required)
+    --function, --params (optional)
+  edit-window (ew) <n> <win>  Edit a window definition
+    --name, --desktop, --screen, --position, --function, --params, --display-order
+  remove-window (rw) <n> <win>  Remove a window from a workspace
   list (ls) [--details]   List all defined workspaces
   info (i) <n>         Show detailed info for a workspace
   open (o) [--skip] <n>  Open a workspace (--skip bypasses safe mode)
@@ -150,6 +207,13 @@ Examples:
   kdoitall workspace create my-env --from-file my-env.json
   kdoitall workspace create my-env --from-file my-env.json --replace
   kdoitall workspace export my-env > my-env.json
+  kdoitall workspace edit dev-env --description "My dev setup"
+  kdoitall workspace edit dev-env --focus-window dev-firefox
+  kdoitall workspace edit dev-env --focus-window ""
+  kdoitall ws aw dev-env --name dev-code -a code -d 1 -s 1 -p fs
+  kdoitall ws ew dev-env dev-code --desktop 2 --position lh
+  kdoitall ws ew dev-env dev-code --name dev-editor
+  kdoitall ws rw dev-env dev-code
   kdoitall workspace list
   kdoitall ws ls --details
   kdoitall workspace open dev-environment
