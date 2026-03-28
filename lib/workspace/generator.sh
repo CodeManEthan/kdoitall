@@ -102,11 +102,17 @@ EOF_HEADER
 
         # Check if it's a terminal launch by checking if launch_function is NOT launch_by_app_id
         if [[ "$launch_function" != "launch_by_app_id" ]]; then
-            local app_directory_path=""
-            app_directory_path=$(db_get_app_directory_path "$app_id")
-            if [[ -n "$app_directory_path" ]]; then
-                app_files_to_source["${app_directory_path}/functions.sh"]=1
+            if [[ "$launch_function" == terminal_* ]]; then
+                # Shared terminal emulator function
+                app_files_to_source["${LIB_DIR}/app-definitions/shared/terminal-emulator/functions.sh"]=1
                 has_app_files=true
+            else
+                local app_directory_path=""
+                app_directory_path=$(db_get_app_directory_path "$app_id")
+                if [[ -n "$app_directory_path" ]]; then
+                    app_files_to_source["${app_directory_path}/functions.sh"]=1
+                    has_app_files=true
+                fi
             fi
         fi
     done
@@ -137,19 +143,34 @@ EOF_HEADER
 
         echo "    # Launch: $window_name ($app_id)" >> "$script_path"
 
-        local params_str=""
-        if [[ -n "$parameters" ]]; then
-            params_str=" \"$parameters\""
-        else
-            params_str=" \"\""
-        fi
-
         if [[ "$launch_function" == "launch_by_app_id" ]]; then
             cat >> "$script_path" << EOF
     $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"
 
 EOF
+        elif [[ "$launch_function" == terminal_* ]]; then
+            # Shared terminal function: pass app_id + split tab-delimited params
+            local params_str=""
+            if [[ -n "$parameters" ]]; then
+                local -a param_array=()
+                IFS=$'\t' read -ra param_array <<< "$parameters"
+                local param_val=""
+                for param_val in "${param_array[@]}"; do
+                    params_str="${params_str} \"${param_val}\""
+                done
+            fi
+            cat >> "$script_path" << EOF
+    $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"${params_str}
+
+EOF
         else
+            # Per-app terminal function: single parameters string
+            local params_str=""
+            if [[ -n "$parameters" ]]; then
+                params_str=" \"$parameters\""
+            else
+                params_str=" \"\""
+            fi
             cat >> "$script_path" << EOF
     $launch_function "$workspace_name" "$window_name" "$desktop" "$screen" "\$$position"$params_str
 

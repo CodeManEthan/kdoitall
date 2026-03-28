@@ -18,6 +18,8 @@ source "${LIB_DIR}/app-definitions/json-parser.sh"
 source "${LIB_DIR}/app-definitions/validator.sh"
 # shellcheck source=../db/app-registry.sh
 source "${LIB_DIR}/db/app-registry.sh"
+# shellcheck source=../db/terminal-emulator.sh
+source "${LIB_DIR}/db/terminal-emulator.sh"
 # shellcheck source=app-name.sh
 source "${LIB_DIR}/app/app-name.sh"
 
@@ -60,12 +62,15 @@ registry_scan_applications() {
     local -a scan_process_names=()
     local -a scan_app_names=()
     local -a scan_name_locked=()
+    local -a scan_is_terminal_emulator=()
+    local -a scan_terminal_exec_flag=()
 
     local app_id="" display_name="" desktop_file_path=""
     local app_directory_path="" terminal_command=""
     local app_class="" launch_mode="" window_title_pattern=""
     local has_terminal_launch="" has_desktop_launch=""
     local supports_pid_validation="" process_name="" app_name=""
+    local is_terminal_emulator="" terminal_exec_flag=""
 
     for location in "${DESKTOP_FILE_LOCATIONS[@]}"; do
         if [[ ! -d "$location" ]]; then
@@ -114,8 +119,16 @@ registry_scan_applications() {
             supports_pid_validation=""
             process_name=""
             app_name=""
+            is_terminal_emulator=false
+            terminal_exec_flag="-e"
 
             debug_log "$function_name" "Processing: $app_id ($display_name)"
+
+            # Detect terminal emulator from .desktop Categories
+            if grep -q "Categories=.*TerminalEmulator" "$desktop_file" 2>/dev/null; then
+                is_terminal_emulator=true
+                debug_log "$function_name" "Detected terminal emulator from .desktop Categories: $app_id"
+            fi
 
             # Check for app directory with metadata
             if registry_check_app_files "$app_id" > /dev/null 2>&1; then
@@ -164,6 +177,20 @@ registry_scan_applications() {
                     [[ -z "$supports_pid_validation" && -n "$reg_supports_pid" ]] && supports_pid_validation="$reg_supports_pid"
                     [[ -z "$process_name" && -n "$reg_process_name" ]] && process_name="$reg_process_name"
 
+                    # Terminal emulator classification from reference registry
+                    local reg_is_terminal=""
+                    local reg_exec_flag=""
+                    reg_is_terminal=$(echo "$reg_metadata" | cut -d'|' -f9)
+                    reg_exec_flag=$(echo "$reg_metadata" | cut -d'|' -f10)
+
+                    if [[ "$reg_is_terminal" == "1" || "$reg_is_terminal" == "TRUE" ]]; then
+                        is_terminal_emulator=true
+                        if [[ -n "$reg_exec_flag" ]]; then
+                            terminal_exec_flag="$reg_exec_flag"
+                        fi
+                        debug_log "$function_name" "Registry terminal emulator: $app_id (exec_flag=$terminal_exec_flag)"
+                    fi
+
                     debug_log "$function_name" "Seeded from registry: $app_id (class=$app_class, mode=$launch_mode)"
                 fi
             fi
@@ -197,6 +224,8 @@ registry_scan_applications() {
             scan_process_names+=("$process_name")
             scan_app_names+=("$app_name")
             scan_name_locked+=("$name_locked")
+            scan_is_terminal_emulator+=("$is_terminal_emulator")
+            scan_terminal_exec_flag+=("$terminal_exec_flag")
 
         done < <(find "$location" -maxdepth 1 -name "*.desktop" \( -type f -o -type l \) -print0 2>/dev/null)
     done
@@ -228,6 +257,26 @@ registry_scan_applications() {
             # Store launch options now that the app row exists (FK satisfied)
             if [[ -n "${scan_app_dirs[$i]}" ]]; then
                 registry_store_launch_options "${scan_app_ids[$i]}" "${scan_app_dirs[$i]}"
+            fi
+
+            # Handle terminal emulator classification and shared launch options
+            if [[ "${scan_is_terminal_emulator[$i]}" == "true" ]]; then
+                local te_source="auto"
+                # Check if already manually classified (preserve manual override)
+                if db_is_terminal_emulator "${scan_app_ids[$i]}"; then
+                    local existing_source=""
+                    db_query \
+                        "SELECT detection_source FROM terminal_emulators WHERE app_id = :app_id;" \
+                        ":app_id" "${scan_app_ids[$i]}"
+                    existing_source="${DB_RESULT[0]:-auto}"
+                    if [[ "$existing_source" == "manual" ]]; then
+                        te_source="manual"
+                    fi
+                fi
+
+                db_upsert_terminal_emulator "${scan_app_ids[$i]}" "${scan_terminal_exec_flag[$i]}" "$te_source"
+                registry_store_shared_terminal_launch_options "${scan_app_ids[$i]}"
+                debug_log "$function_name" "Registered terminal emulator: ${scan_app_ids[$i]}"
             fi
         else
             debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to save: ${scan_app_ids[$i]}"
@@ -358,15 +407,47 @@ registry_validate_all_app_files() {
         echo "" >&3
     done
     
+    # Validate shared definitions
+    local shared_dir="${LIB_DIR}/app-definitions/shared/terminal-emulator"
+    if [[ -d "$shared_dir" ]]; then
+        ((total_apps++))
+        print_info "Checking shared: terminal-emulator"
+
+        local shared_json="${shared_dir}/metadata.json"
+        local shared_functions="${shared_dir}/functions.sh"
+        local shared_valid=true
+
+        if [[ ! -f "$shared_json" ]]; then
+            print_error "Missing metadata.json"
+            shared_valid=false
+        elif ! json_validate_shared_metadata "$shared_json"; then
+            shared_valid=false
+        fi
+
+        if [[ ! -f "$shared_functions" ]]; then
+            print_error "Missing functions.sh"
+            shared_valid=false
+        fi
+
+        if [[ "$shared_valid" == true ]]; then
+            print_success "Valid"
+            ((valid_apps++))
+        else
+            ((invalid_apps++))
+        fi
+
+        echo "" >&3
+    fi
+
     # Summary
     print_header "Validation Summary"
     echo "  Total apps:    $total_apps" >&3
     echo "  Valid:         $valid_apps" >&3
     echo "  Invalid:       $invalid_apps" >&3
-    
+
     debug_log "$function_name" "Validation complete: $valid_apps/$total_apps valid"
     debug_function_exit "$function_name"
-    
+
     # Return success only if all apps are valid
     if [[ $invalid_apps -eq 0 && $total_apps -gt 0 ]]; then
         return 0
@@ -498,6 +579,99 @@ registry_store_launch_options() {
     done <<< "$all_options"
     
     debug_log "$func_name" "Stored $options_stored launch options for $app_id"
+    debug_function_exit "$func_name"
+    return 0
+}
+
+registry_store_shared_terminal_launch_options() {
+    local app_id="$1"
+    local func_name="registry_store_shared_terminal_launch_options"
+    local shared_dir="${LIB_DIR}/app-definitions/shared/terminal-emulator"
+    local json_file="${shared_dir}/metadata.json"
+
+    debug_function_enter "$func_name" "$@"
+
+    validate_parameter_pass "$app_id" "app_id" || return 1
+
+    if [[ ! -f "$json_file" ]]; then
+        debug_log "$func_name" "No shared terminal emulator metadata found"
+        debug_function_exit "$func_name"
+        return 0
+    fi
+
+    # Parse shared launch options (same format as per-app)
+    local all_options=""
+    all_options=$(json_get_all_launch_options "$json_file")
+
+    if [[ -z "$all_options" ]]; then
+        debug_log "$func_name" "No shared launch options to store for $app_id"
+        debug_function_exit "$func_name"
+        return 0
+    fi
+
+    # Start display_order after any existing per-app options
+    local max_order=""
+    db_query \
+        "SELECT COALESCE(MAX(display_order), 0) FROM launch_options WHERE app_id = :app_id;" \
+        ":app_id" "$app_id"
+    max_order="${DB_RESULT[0]:-0}"
+
+    local order=$((max_order + 1))
+    local options_stored=0
+    local function_name=""
+    local description=""
+    local params_json=""
+
+    while IFS=$'\t' read -r function_name description params_json; do
+        [[ -z "$function_name" ]] && continue
+
+        if db_add_launch_option "$app_id" "$function_name" "$description" "$order"; then
+            debug_log "$func_name" "Stored shared launch option: $app_id.$function_name"
+            ((options_stored++))
+
+            local option_id=""
+
+            if ! option_id=$(db_get_launch_option_id "$app_id" "$function_name") || [[ -z "$option_id" ]]; then
+                debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to retrieve launch option ID for $app_id.$function_name"
+            else
+                # Parse parameters from JSON blob
+                if [[ "$params_json" != "[]" && -n "$params_json" ]]; then
+                    local param_lines=""
+                    param_lines=$(echo "$params_json" | jq -r '.[] | [.name, .description] | @tsv')
+
+                    local j=0
+                    local param_name=""
+                    local param_desc=""
+
+                    while IFS=$'\t' read -r param_name param_desc; do
+                        [[ -z "$param_name" ]] && continue
+
+                        if db_add_launch_parameter "$app_id" "$option_id" "$param_name" "$param_desc" "$j"; then
+                            debug_log "$func_name" "Stored shared parameter: $app_id.$function_name.$param_name"
+                        else
+                            debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store shared parameter: $app_id.$function_name.$param_name"
+                        fi
+
+                        ((j++))
+                    done <<< "$param_lines"
+                fi
+            fi
+
+            ((order++))
+        else
+            debug_error "$func_name" "$ERR_DATABASE_ERROR" "Failed to store shared launch option: $app_id.$function_name"
+        fi
+    done <<< "$all_options"
+
+    # Ensure has_terminal_launch is true for terminal emulators with shared options
+    if [[ "$options_stored" -gt 0 ]]; then
+        db_query \
+            "UPDATE applications SET has_terminal_launch = TRUE WHERE app_id = :app_id;" \
+            ":app_id" "$app_id"
+        debug_log "$func_name" "Set has_terminal_launch=true for $app_id"
+    fi
+
+    debug_log "$func_name" "Stored $options_stored shared launch options for $app_id"
     debug_function_exit "$func_name"
     return 0
 }

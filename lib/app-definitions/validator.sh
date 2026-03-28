@@ -108,6 +108,100 @@ json_validate_metadata() {
     return 0
 }
 
+json_validate_shared_metadata() {
+    local json_file="$1"
+    local function_name="json_validate_shared_metadata"
+
+    debug_function_enter "$function_name" "$@"
+
+    validate_parameter_pass "$json_file" "json_file" || return 1
+    validate_file_exists "$json_file" || return 1
+
+    # Validate shared metadata structure (shared_type instead of terminal_command)
+    local validation_output=""
+    if ! validation_output=$(jq -r '
+        if (.shared_type == null) then error("missing required field: shared_type")
+        elif (.launch_options == null) then error("missing required field: launch_options")
+        elif (.launch_options | length == 0) then error("launch_options array is empty")
+        else
+            (.launch_options | to_entries[] |
+                .value as $opt | .key as $idx |
+                if ($opt.function_name == null or $opt.function_name == "") then
+                    error("launch_options[\($idx)] missing function_name")
+                elif ($opt.description == null or $opt.description == "") then
+                    error("launch_options[\($idx)] missing description")
+                else
+                    ([$opt.function_name, $opt.description,
+                      (($opt.parameters // []) | length | tostring)]
+                     + (($opt.parameters // []) | map(.name // "", .description // "") | flatten)
+                    ) | @tsv
+                end
+            )
+        end
+    ' "$json_file" 2>&1); then
+        debug_error "$function_name" "$ERR_INVALID_JSON" "$validation_output"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    if [[ -z "$validation_output" ]]; then
+        debug_error "$function_name" "$ERR_INVALID_JSON" "Empty validation output for $json_file"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
+    # Validate function names use terminal_ prefix
+    local line=""
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+
+        local fields=()
+        IFS=$'\t' read -ra fields <<< "$line"
+
+        local func_name="${fields[0]}"
+
+        if ! [[ "$func_name" =~ ^terminal_[a-z0-9_]*$ ]]; then
+            debug_error "$function_name" "$ERR_INVALID_VALUE" "Shared terminal function must use terminal_ prefix: $func_name"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+
+        # Validate parameters
+        local param_count="${fields[2]}"
+        local p=0
+        while [[ $p -lt $param_count ]]; do
+            local name_idx=$(( 3 + p * 2 ))
+            local desc_idx=$(( 4 + p * 2 ))
+            local param_name="${fields[$name_idx]:-}"
+            local param_desc="${fields[$desc_idx]:-}"
+
+            if [[ -z "$param_name" ]]; then
+                debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$func_name parameter[$p] missing name"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            if ! [[ "$param_name" =~ ^[A-Z][a-zA-Z0-9_]*$ ]]; then
+                debug_error "$function_name" "$ERR_INVALID_VALUE" "Invalid parameter name format: $param_name (should be PascalCase)"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            if [[ -z "$param_desc" ]]; then
+                debug_error "$function_name" "$ERR_APP_METADATA_MISSING" "$func_name parameter[$p] missing description"
+                debug_function_exit "$function_name"
+                return 1
+            fi
+
+            ((p++))
+        done
+    done <<< "$validation_output"
+
+    debug_log "$function_name" "Shared metadata validation passed for $json_file"
+    debug_function_exit "$function_name"
+    return 0
+}
+
 json_validate_parameters() {
     local json_file="$1"
     local function_name="json_validate_parameters"

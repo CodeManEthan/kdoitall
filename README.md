@@ -68,54 +68,85 @@ kdoitall workspace close my-workspace
 ## Usage
 ```
 kdoitall [OPTIONS] <COMMAND> [ARGS...]
+```
 
-OPTIONS:
-    --help, -h       Show help message
-    --version, -v    Show version
-    --info           Show key milestones during execution
-    --verbose        Enable verbose output
+### Global Options
+```
+--help, -h       Show help message
+--version, -v    Show version
+--info           Show key milestones during execution
+--verbose        Enable verbose output
+```
 
-STATUS:
-    status (st)           Show current state of active workspaces and windows
-    update                Update kdoitall (git pull + rebuild app registry)
+### Status & Update
+```
+status (st)      Show current state of active workspaces and windows
+update           Update kdoitall (git pull + rebuild app registry)
+```
 
-QUICK ACTION (quick | q):
-    quick                   Interactive window picker for ad-hoc actions
+### Quick Action (quick | q)
+```
+quick            Interactive window picker for ad-hoc actions
+```
 
-WORKSPACE COMMANDS (workspace | ws):
-    workspace create (new) <n>   Create new workspace interactively
-    workspace edit (e) <n>       Edit an existing workspace
-    workspace list (ls)             List all defined workspaces
-    workspace info (i) <n>       Show detailed info for a workspace
-    workspace open (o) <n>       Open a workspace
-    workspace close (c) <n>      Close a workspace
-    workspace focus (f) <n>      Focus an active workspace
-    workspace minimize (min) <n> Minimize an active workspace
-    workspace delete (rm) <n>    Delete a workspace
+### Workspace Commands (workspace | ws)
+```
+create (new) <name>                   Create a new workspace interactively
+  --from-file <path>                    Create from JSON config file
+  --replace                             Replace existing workspace (with --from-file)
+export (exp) <name>                   Export workspace definition to JSON (stdout)
+edit (e) <name>                       Edit an existing workspace (interactive)
+  --description "..."                   Set description (non-interactive)
+  --focus-window "name"                 Set focus window ("" to clear, non-interactive)
+add-window (aw) <name>                Add a window to a workspace
+  --name, --app, --desktop, --screen, --position (required)
+  --function, --params (optional)
+edit-window (ew) <name> <window>      Edit a window definition
+  --name, --desktop, --screen, --position, --function, --params, --display-order
+remove-window (rw) <name> <window>    Remove a window from a workspace
+list (ls) [--details]                 List all defined workspaces
+info (i) <name>                       Show detailed info for a workspace
+open (o) [--skip] <name>             Open a workspace (--skip bypasses safe mode)
+close (c) <name>                      Close a workspace
+focus (f) <name>                      Focus an active workspace (raise + activate)
+minimize (min) <name>                 Minimize all windows in an active workspace
+delete (rm) <name>                    Delete a workspace
+```
 
-APPLICATION COMMANDS (app):
-    app scan                  Scan system for available applications
-    app list (ls) [filter]    List applications (all, terminal, desktop, both)
-    app info (i) <app_id>     Show detailed information about an application
-    app validate              Validate all application definition files
-    app options (opts) <id>   Show launch options for an application
-    app safe-mode (sm)             Interactive safe-mode validation menu
-    app safe-mode (sm) skip <id>   Mark app as validated (skip safe-mode)
-    app safe-mode (sm) reset <id>  Clear safe-mode data for an app
+### Application Commands (app)
+```
+scan                                  Scan system for available applications
+list (ls) [filter]                    List applications (all, terminal, desktop, both)
+info (i) <app_id|name>               Show detailed information about an application
+validate                              Validate all application definition files
+options (opts) <app_id>               Show launch options for an application
+name (n) <app_id> <name>             Set a custom app name
+name (n) reset <app_id>              Clear manual override (reverts to auto on next scan)
+set-terminal (st) <app_id> [flag]    Mark app as terminal emulator (default exec flag: -e)
+unset-terminal (ust) <app_id>        Remove terminal emulator classification
+safe-mode (sm)                        Interactive safe-mode validation menu
+safe-mode (sm) skip <app_id>         Mark app as validated (skip safe-mode)
+safe-mode (sm) reset <app_id>        Clear safe-mode data for an app
+```
 
-SCREEN COMMANDS (screen | scr):
-    screen list (ls)                       List detected screens with aliases
-    screen alias <alias> <target>          Set a screen alias
-    screen alias remove <alias>            Remove a screen alias
+### Screen Commands (screen | scr)
+```
+list (ls)                             List detected screens with aliases
+alias <alias> <target>                Set a screen alias (target: number or name)
+alias remove <alias>                  Remove a screen alias
+```
 
-WINDOW COMMANDS (window | win):
-    window list (ls) [workspace]                    List tracked windows
-    window status (st) <window-name>                Show window details
-    window close (c) <window-name>                  Close a specific window
-    window open (o) <window-name>                   Re-open a previously closed window
-    window move (mv) <window-name> <screen> <pos>   Move/reposition a window (Accepts --focus|-f)
-    window focus (f) <window-name>                  Bring window to front
-    window minimize (min) <window-name>             Minimize window
+### Window Commands (window | win)
+```
+list (ls) [workspace]                 List tracked windows
+status (st) <window-name>            Show window details
+close (c) <window-name>              Close a specific window
+open (o) <window-name>               Re-open a previously closed window
+move (mv) <window-name> [options]    Move/reposition a window
+  Positional: <desktop> [screen] [position]
+  Flags: --desktop|-d, --screen|-s, --position|-p, --focus|-f
+focus (f) <window-name>              Bring window to front
+minimize (min) <window-name>         Minimize window
 ```
 
 ## Project Status

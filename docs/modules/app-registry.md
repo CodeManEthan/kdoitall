@@ -12,20 +12,24 @@ The module spans three concerns: **scanning/registration** (discovering apps and
 
 | File | Purpose |
 |------|---------|
-| `lib/app/registry.sh` | Application scanning, validation, launch option storage (6 functions) |
+| `lib/app/registry.sh` | Application scanning, validation, launch option storage, terminal emulator detection |
 | `lib/app-definitions/loader.sh` | Loads app metadata into globals: APP_ID, TERMINAL_COMMAND, LAUNCH_TYPE (1 function) |
-| `lib/app-definitions/validator.sh` | JSON structure and function validation (3 functions) |
+| `lib/app-definitions/validator.sh` | JSON structure and function validation (4 functions, incl. shared metadata) |
 | `lib/app-definitions/json-parser.sh` | jq-based metadata extraction (10 functions) |
 | `lib/app-definitions/apps/<app_id>/metadata.json` | Per-app config: terminal_command, launch_options with PascalCase parameters |
 | `lib/app-definitions/apps/<app_id>/functions.sh` | Per-app guard, load_app_metadata call, launch function implementations |
+| `lib/app-definitions/shared/terminal-emulator/metadata.json` | Shared launch options for all terminal emulators |
+| `lib/app-definitions/shared/terminal-emulator/functions.sh` | Shared terminal launch functions (terminal_run_command_in_directory, terminal_run_script, terminal_launch_dev_server) |
 | `lib/app-definitions/apps/code/functions.sh` | VS Code: launch_code_window, launch_code_workspace_window |
 | `lib/app-definitions/apps/org.mozilla.firefox/functions.sh` | Firefox: launch_firefox_window |
+| `lib/db/terminal-emulator.sh` | CRUD operations for terminal_emulators table |
 | `lib/commands/app/dispatcher.sh` | Routes `kdoitall app` subcommands |
 | `lib/commands/app/scan.sh` | Entry point for `kdoitall app scan` |
-| `lib/commands/app/info.sh` | App info display |
+| `lib/commands/app/info.sh` | App info display (includes terminal emulator status) |
 | `lib/commands/app/list.sh` | App listing with filters |
 | `lib/commands/app/options.sh` | Launch options display |
 | `lib/commands/app/validate.sh` | Validate all app definition files |
+| `lib/commands/app/set-terminal.sh` | Mark/unmark apps as terminal emulators |
 | `lib/commands/app/safe-mode.sh` | Safe-mode command (skip/reset/interactive) |
 
 ---
@@ -40,8 +44,9 @@ These functions are load-bearing. Changes here cascade across the entire app eco
 
 Scans system `.desktop` file locations (`DESKTOP_FILE_LOCATIONS[]`), extracts app metadata, merges reference registry data, and stores everything to the database. This is the single entry point for populating the application table.
 
-- Database writes: `db_upsert_application_scan` (INSERT/UPDATE on `applications`), `db_remove_uninstalled_applications` (DELETE from `applications`)
-- Module calls: `validate_app_id_format`, `registry_check_app_files`, `registry_get_app_directory_path`, `json_get_all_metadata`, `registry_store_launch_options`, `app_registry_exists`, `app_registry_get_metadata`
+- Database writes: `db_upsert_application_scan` (INSERT/UPDATE on `applications`), `db_remove_uninstalled_applications` (DELETE from `applications`), `db_upsert_terminal_emulator` (INSERT/REPLACE on `terminal_emulators`)
+- Module calls: `validate_app_id_format`, `registry_check_app_files`, `registry_get_app_directory_path`, `json_get_all_metadata`, `registry_store_launch_options`, `registry_store_shared_terminal_launch_options`, `app_registry_exists`, `app_registry_get_metadata`, `db_is_terminal_emulator`, `db_upsert_terminal_emulator`
+- Terminal emulator detection: Checks `.desktop` Categories for `TerminalEmulator` and reference registry `is_terminal_emulator` column. Auto-registers shared terminal launch options for detected emulators.
 - Callers: `app_scan` in `lib/commands/app/scan.sh`
 - Impact: Entire application discovery depends on this. Changes affect what apps are available for workspaces. If scan breaks, no new apps can be registered.
 
@@ -59,6 +64,13 @@ Parses `metadata.json` for the given app and writes launch options and their par
 - Database writes: `db_delete_launch_options_for_app` (DELETE from `launch_options`), `db_add_launch_option` (INSERT into `launch_options`), `db_get_launch_option_id` (READ from `launch_options`), `db_add_launch_parameter` (INSERT into `launch_parameters`)
 - Callers: `registry_scan_applications` (during scan)
 - Impact: Launch options are required for workspace script generation. If options are not stored correctly, workspace open/close scripts cannot be compiled.
+
+**`registry_store_shared_terminal_launch_options(app_id)`** -- `lib/app/registry.sh`
+
+Reads `lib/app-definitions/shared/terminal-emulator/metadata.json` and registers shared launch options under the given terminal emulator's app_id. Called during scan for each detected terminal emulator. Options are appended after any per-app launch options (display_order continues from the max existing order). Also sets `has_terminal_launch=TRUE` on the applications table.
+
+- Database writes: `db_add_launch_option` (INSERT into `launch_options`), `db_add_launch_parameter` (INSERT into `launch_parameters`), UPDATE `applications.has_terminal_launch`
+- Callers: `registry_scan_applications` (during scan), `app_set_terminal` (manual classification)
 
 ---
 
@@ -143,9 +155,10 @@ Internal helpers and thin command wrappers. Changes here are generally isolated.
 | Table | Operations | Access Points |
 |-------|-----------|---------------|
 | `applications` | READ/WRITE during scan, READ during info/list/safe-mode | `lib/db/app.sh` |
-| `launch_options` | WRITE during scan (delete+insert), READ during options display and workspace script generation | `lib/db/launch-options.sh` |
+| `launch_options` | WRITE during scan (delete+insert, incl. shared terminal options), READ during options display and workspace script generation | `lib/db/launch-options.sh` |
 | `launch_parameters` | WRITE during scan, READ during options display and workspace script generation | `lib/db/launch-options.sh` |
-| `app_registry` (separate DB) | READ during scan for reference metadata | `lib/db/app-registry.sh` |
+| `terminal_emulators` | WRITE during scan and `set-terminal` command, READ during terminal launch and info display | `lib/db/terminal-emulator.sh` |
+| `app_registry` (separate DB) | READ during scan for reference metadata (incl. `is_terminal_emulator`, `terminal_exec_flag`) | `lib/db/app-registry.sh` |
 
 Key write patterns:
 - **Scan** performs upsert on `applications`, delete-then-insert on `launch_options` and `launch_parameters`

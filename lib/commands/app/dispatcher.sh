@@ -68,6 +68,16 @@ app_command() {
             source "${LIB_DIR}/commands/app/name.sh"
             app_name_command "${args[@]}"
             ;;
+        set-terminal|st)
+            # shellcheck source=set-terminal.sh
+            source "${LIB_DIR}/commands/app/set-terminal.sh"
+            app_set_terminal "${args[@]}"
+            ;;
+        unset-terminal|ust)
+            # shellcheck source=set-terminal.sh
+            source "${LIB_DIR}/commands/app/set-terminal.sh"
+            app_unset_terminal "${args[@]}"
+            ;;
         *)
             echo "Error: Unknown app subcommand: $subcommand" >&2
             app_show_help
@@ -88,6 +98,8 @@ App Subcommands:
   options (opts) <app_id>      Show launch options for an application
   name (n) <app_id> <name>     Set a custom app name
   name (n) reset <app_id>      Clear manual override (reverts to auto on next scan)
+  set-terminal (st) <id> [flag]  Mark app as terminal emulator (default exec flag: -e)
+  unset-terminal (ust) <id>    Remove terminal emulator classification
   safe-mode (sm)               Interactive safe-mode validation menu
   safe-mode (sm) skip <id>     Mark app as validated without running safe-mode
   safe-mode (sm) reset <id>    Clear safe-mode data (will prompt again)

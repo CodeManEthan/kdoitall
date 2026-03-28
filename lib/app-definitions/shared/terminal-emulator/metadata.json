@@ -1,0 +1,47 @@
+{
+  "shared_type": "terminal_emulator",
+  "launch_options": [
+    {
+      "function_name": "terminal_run_command_in_directory",
+      "description": "Run command in directory",
+      "parameters": [
+        {
+          "name": "Directory",
+          "description": "Working directory path"
+        },
+        {
+          "name": "Command",
+          "description": "Command to execute"
+        }
+      ]
+    },
+    {
+      "function_name": "terminal_run_script",
+      "description": "Run script file",
+      "parameters": [
+        {
+          "name": "ScriptPath",
+          "description": "Path to shell script"
+        }
+      ]
+    },
+    {
+      "function_name": "terminal_launch_dev_server",
+      "description": "Launch development server",
+      "parameters": [
+        {
+          "name": "Directory",
+          "description": "Project directory path"
+        },
+        {
+          "name": "VenvPath",
+          "description": "Virtualenv activate path (empty to skip)"
+        },
+        {
+          "name": "ServerCommand",
+          "description": "Server start command (e.g., flask run)"
+        }
+      ]
+    }
+  ]
+}

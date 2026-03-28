@@ -76,7 +76,8 @@ Only runs if the app definition directory exists (Step 3 found files).
    - `supports_pid_validation` -- Whether PID-based detection works for this app
    - `process_name` -- Expected process name
    - `has_splash_window` -- Whether the app shows a splash screen
-   - `splash_duration_ms` -- How long the splash lasts
+   - `is_terminal_emulator` -- Whether this app is a terminal emulator
+   - `terminal_exec_flag` -- CLI flag for executing commands in the terminal (e.g., `-e`, `--`, `start --`)
 3. Reference registry data is treated as authoritative and **skips safe-mode validation** for the app.
 
 ### Step 6: Store Application
@@ -104,6 +105,20 @@ Only runs if `has_terminal_launch = true` (Step 3).
    - `db_get_launch_option_id(app_id, function_name)` retrieves the generated ID.
    - For each parameter in `params_json`: `db_add_launch_parameter(option_id, param_name, param_description, param_type, is_required)` inserts the parameter definition.
 
+### Step 7b: Terminal Emulator Detection & Shared Launch Options
+
+**File:** `lib/app/registry.sh`, `lib/db/terminal-emulator.sh`
+
+After storing per-app launch options, the scan checks if the application is a terminal emulator using a layered approach:
+
+1. **Desktop file Categories** (primary): `grep "Categories=.*TerminalEmulator"` on the `.desktop` file. This is the standard freedesktop.org category for terminal emulators.
+2. **Reference registry** (secondary): The `is_terminal_emulator` column in the `app_registry` table provides curated classifications for known terminals.
+3. If either detection method identifies a terminal emulator:
+   - `db_upsert_terminal_emulator(app_id, exec_flag, detection_source)` records the classification and execution flag.
+   - `registry_store_shared_terminal_launch_options(app_id)` reads `lib/app-definitions/shared/terminal-emulator/metadata.json` and registers shared launch options (e.g., "Run command in directory", "Run script", "Launch dev server") under the terminal's app_id in `launch_options`/`launch_parameters`.
+   - `has_terminal_launch` is set to TRUE on the applications table.
+4. Manual overrides (`detection_source='manual'` from `kdoitall app set-terminal`) are preserved during re-scan.
+
 ### Step 8: Cleanup
 
 **File:** `lib/app/registry.sh`, `lib/db/app.sh`
@@ -121,9 +136,10 @@ Only runs if `has_terminal_launch = true` (Step 3).
 | 2: Extract app_id | `.desktop` filename | -- | registry.sh, validators |
 | 3: Check app definitions | metadata.json, functions.sh (existence check) | -- | registry.sh |
 | 4: Extract metadata | metadata.json (content parse) | -- | json-parser.sh, registry.sh |
-| 5: Reference registry | -- | app_registry (SELECT) | db/app-registry.sh |
+| 5: Reference registry | -- | app_registry (SELECT, incl. is_terminal_emulator) | db/app-registry.sh |
 | 6: Store application | -- | applications (INSERT/UPDATE) | db/app.sh |
 | 7: Store launch options | metadata.json (launch options parse) | launch_options (DELETE + INSERT), launch_parameters (INSERT) | db/launch-options.sh, json-parser.sh |
+| 7b: Terminal detection | .desktop Categories, shared/terminal-emulator/metadata.json | terminal_emulators (INSERT/REPLACE), launch_options (INSERT), launch_parameters (INSERT) | registry.sh, db/terminal-emulator.sh |
 | 8: Cleanup | -- | applications (DELETE) | db/app.sh |
 
 ---

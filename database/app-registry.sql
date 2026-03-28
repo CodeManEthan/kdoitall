@@ -14,11 +14,13 @@ CREATE TABLE app_registry (
     launch_mode TEXT,
     supports_pid_validation BOOLEAN,
     process_name TEXT,
-    has_splash_window TEXT DEFAULT 'unknown'
+    has_splash_window TEXT DEFAULT 'unknown',
+    is_terminal_emulator BOOLEAN DEFAULT FALSE,
+    terminal_exec_flag TEXT DEFAULT NULL
 );
 
 -- Browsers
-INSERT INTO app_registry VALUES ('org.mozilla.firefox', 'firefox', 'org.mozilla.firefox', ' — Mozilla Firefox', 'multi', 1, 'firefox', 'unknown');
+INSERT INTO app_registry VALUES ('org.mozilla.firefox', 'firefox', 'org.mozilla.firefox', ' — Mozilla Firefox', 'multi', 1, 'firefox', 'unknown', FALSE, NULL);
 --INSERT INTO app_registry VALUES ('com.google.Chrome', 'chrome', 'com.google.Chrome', 'Google Chrome', 'multi', 0, 'chrome', 'unknown');
 --INSERT INTO app_registry VALUES ('org.chromium.Chromium', 'chromium', 'org.chromium.Chromium', 'Chromium', 'multi', 0, 'chromium', 'unknown');
 --INSERT INTO app_registry VALUES ('com.brave.Browser', 'brave', 'com.brave.Browser', 'Brave', 'multi', 0, 'brave', 'unknown');
@@ -32,11 +34,11 @@ INSERT INTO app_registry VALUES ('org.mozilla.firefox', 'firefox', 'org.mozilla.
 --INSERT INTO app_registry VALUES ('sublime_text', 'sublime-text', 'sublime_text', 'Sublime Text', 'unique', 1, 'subl', 'unknown');
 
 -- Terminals
---INSERT INTO app_registry VALUES ('org.kde.konsole', 'konsole', 'org.kde.konsole', 'Konsole', 'multi', 1, 'konsole', 'unknown');
---INSERT INTO app_registry VALUES ('Alacritty', 'alacritty', 'Alacritty', 'Alacritty', 'multi', 1, 'alacritty', 'unknown');
---INSERT INTO app_registry VALUES ('kitty', 'kitty', 'kitty', 'kitty', 'multi', 1, 'kitty', 'unknown');
---INSERT INTO app_registry VALUES ('org.wezfurlong.wezterm', 'wezterm', 'org.wezfurlong.wezterm', 'WezTerm', 'multi', 1, 'wezterm', 'unknown');
---INSERT INTO app_registry VALUES ('org.gnome.Terminal', 'gnome-terminal', 'org.gnome.Terminal.', 'Terminal', 'multi', 0, 'gnome-terminal', 'unknown');
+INSERT INTO app_registry VALUES ('org.kde.konsole', 'konsole', 'org.kde.konsole', 'Konsole', 'multi', 1, 'konsole', 'unknown', TRUE, '-e');
+INSERT INTO app_registry VALUES ('Alacritty', 'alacritty', 'Alacritty', 'Alacritty', 'multi', 1, 'alacritty', 'unknown', TRUE, '-e');
+INSERT INTO app_registry VALUES ('kitty', 'kitty', 'kitty', 'kitty', 'multi', 1, 'kitty', 'unknown', TRUE, NULL);
+INSERT INTO app_registry VALUES ('org.wezfurlong.wezterm', 'wezterm', 'org.wezfurlong.wezterm', 'WezTerm', 'multi', 1, 'wezterm', 'unknown', TRUE, 'start --');
+INSERT INTO app_registry VALUES ('org.gnome.Terminal', 'gnome-terminal', 'org.gnome.Terminal.', 'Terminal', 'multi', 0, 'gnome-terminal', 'unknown', TRUE, '--');
 
 -- File Managers
 --INSERT INTO app_registry VALUES ('org.kde.dolphin', 'dolphin', 'org.kde.dolphin', 'Dolphin', 'multi', 1, 'dolphin', 'unknown');

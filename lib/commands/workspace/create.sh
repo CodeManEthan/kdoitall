@@ -499,11 +499,39 @@ add_application_to_workspace() {
             "$STATE_PARAMETERS")
                 echo "" >&3
                 print_step "Step $((6 + step_offset)): Function Parameters"
-                echo "Enter parameters for this function (space-separated):" >&3
-                echo "  Example: /path/to/project" >&3
-                echo "  (press Enter to skip if no parameters needed)" >&3
-                read -r parameters
-                
+
+                # Look up parameter definitions for the selected function
+                local option_id=""
+                option_id=$(db_get_launch_option_id "$app_id" "$launch_function") || true
+
+                local param_defs=""
+                if [[ -n "$option_id" ]]; then
+                    param_defs=$(db_get_launch_parameters "$app_id" "$option_id") || true
+                fi
+
+                if [[ -n "$param_defs" ]]; then
+                    # Prompt for each parameter individually
+                    local -a param_values=()
+                    while IFS='|' read -r param_name param_description; do
+                        [[ -z "$param_name" ]] && continue
+                        echo "  ${param_name}: ${param_description}" >&3
+                        print_prompt "  Enter value (Enter to skip):"
+                        local value=""
+                        read -r value
+                        param_values+=("$value")
+                    done <<< "$param_defs"
+
+                    # Join with tab delimiter for multi-parameter storage
+                    parameters=$(printf '%s\t' "${param_values[@]}")
+                    parameters="${parameters%$'\t'}"
+                else
+                    # No defined parameters — freeform input (legacy behavior)
+                    echo "Enter parameters for this function (space-separated):" >&3
+                    echo "  Example: /path/to/project" >&3
+                    echo "  (press Enter to skip if no parameters needed)" >&3
+                    read -r parameters
+                fi
+
                 current_state="$STATE_COMPLETE"
                 ;;
         esac

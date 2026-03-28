@@ -66,8 +66,22 @@ window_open() {
         # Desktop launch — use the existing launch_by_app_id function
         launch_by_app_id "$def_workspace" "$def_window_name" "$def_app_id" \
             "$def_desktop" "$def_screen" "$def_position"
+    elif [[ "$def_launch_function" == terminal_* ]]; then
+        # Shared terminal function — source shared functions file
+        # shellcheck source=/dev/null
+        source "${LIB_DIR}/app-definitions/shared/terminal-emulator/functions.sh"
+
+        # Split tab-delimited parameters into an array
+        local -a param_args=()
+        if [[ -n "$def_parameters" ]]; then
+            IFS=$'\t' read -ra param_args <<< "$def_parameters"
+        fi
+
+        # Call with app_id + individual parameters
+        "$def_launch_function" "$def_workspace" "$def_window_name" "$def_app_id" \
+            "$def_desktop" "$def_screen" "$def_position" "${param_args[@]}"
     else
-        # Terminal launch — source the app's functions file and call directly
+        # Per-app terminal launch — source the app's functions file and call directly
         local app_directory_path=""
         app_directory_path=$(db_get_app_directory_path "$def_app_id")
 

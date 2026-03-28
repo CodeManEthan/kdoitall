@@ -107,6 +107,13 @@ END;
 INSERT INTO workspace_definitions (workspace_name, description, is_active)
     VALUES ('~workspace', 'Auto-tracked windows', FALSE);
 
+CREATE TABLE terminal_emulators (
+    app_id TEXT PRIMARY KEY,
+    exec_flag TEXT NOT NULL DEFAULT '-e',
+    detection_source TEXT NOT NULL DEFAULT 'auto',
+    FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE CASCADE
+);
+
 CREATE TABLE screen_aliases (
     alias TEXT PRIMARY KEY,
     target TEXT NOT NULL

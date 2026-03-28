@@ -17,6 +17,7 @@ The module spans 11 files: one schema definition, one registry seed file, and ni
 | `lib/db/app-registry.sh` | Query functions for the read-only app registry database |
 | `lib/db/app.sh` | Full CRUD for the applications table (~61 functions) |
 | `lib/db/launch-options.sh` | CRUD for launch_options and launch_parameters tables |
+| `lib/db/terminal-emulator.sh` | CRUD for terminal_emulators table |
 | `lib/db/screen.sh` | Screen alias management (screen_aliases table) |
 | `lib/db/window-definitions.sh` | CRUD for window_definitions table (workspace window templates) |
 | `lib/db/window-info.sh` | Query functions for window information and state |
@@ -157,6 +158,14 @@ These functions are module-internal or called from a single location. Changes ar
 | `parameter_name` | TEXT | | Parameter name |
 | `description` | TEXT | | Human-readable description |
 | `display_order` | INTEGER | | Sort order for display |
+
+#### `terminal_emulators`
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `app_id` | TEXT | **PK**, **FK** -> `applications.app_id` | Terminal emulator application |
+| `exec_flag` | TEXT | NOT NULL, DEFAULT '-e' | CLI flag for command execution (e.g., `-e`, `--`, `start --`) |
+| `detection_source` | TEXT | NOT NULL, DEFAULT 'auto' | How classified: `auto` (.desktop Categories), `registry` (reference DB), `manual` (user-set) |
 
 #### `screen_aliases`
 

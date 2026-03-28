@@ -13,6 +13,8 @@ source "${LIB_DIR}/db/window-info.sh"
 source "${LIB_DIR}/db/launch-options.sh"
 # shellcheck source=../db/app.sh
 source "${LIB_DIR}/db/app.sh"
+# shellcheck source=../db/terminal-emulator.sh
+source "${LIB_DIR}/db/terminal-emulator.sh"
 # shellcheck source=../db/workspace.sh
 source "${LIB_DIR}/db/workspace.sh"
 # shellcheck source=colors.sh
@@ -269,8 +271,23 @@ display_application_info() {
     echo "Launch Methods:" >&3
     echo "  Terminal:          $terminal_status" >&3
     echo "  Desktop:           $desktop_status" >&3
+
+    # Show terminal emulator classification if applicable
+    if db_is_terminal_emulator "$app_id"; then
+        local te_exec_flag=""
+        te_exec_flag=$(db_get_terminal_exec_flag "$app_id") || te_exec_flag="unknown"
+
+        local te_source=""
+        db_query \
+            "SELECT detection_source FROM terminal_emulators WHERE app_id = :app_id;" \
+            ":app_id" "$app_id"
+        te_source="${DB_RESULT[0]:-unknown}"
+
+        echo "  Terminal Emulator: Yes (exec flag: '${te_exec_flag}', source: ${te_source})" >&3
+    fi
+
     echo "" >&3
-    
+
     if [[ -n "$last_validated" ]]; then
         echo "Last Validated:      $last_validated" >&3
     else
