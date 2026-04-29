@@ -2,8 +2,7 @@
 
 **KDE Desktop Automation Tool**
 
-![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
-![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-green.svg)
+![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)![Version: v0.2.1](https://img.shields.io/badge/Version-v0.2.1-green.svg)
 
 ## About
 
@@ -85,32 +84,43 @@ update           Update kdoitall (git pull + rebuild app registry)
 ```
 
 ### Quick Action (quick | q)
+
 ```
 quick            Interactive window picker for ad-hoc actions
 ```
 
 ### Workspace Commands (workspace | ws)
+
+#### Main commands
+
 ```
 create (new) <name>                   Create a new workspace interactively
-  --from-file <path>                    Create from JSON config file
-  --replace                             Replace existing workspace (with --from-file)
-export (exp) <name>                   Export workspace definition to JSON (stdout)
-edit (e) <name>                       Edit an existing workspace (interactive)
-  --description "..."                   Set description (non-interactive)
-  --focus-window "name"                 Set focus window ("" to clear, non-interactive)
-add-window (aw) <name>                Add a window to a workspace
-  --name, --app, --desktop, --screen, --position (required)
-  --function, --params (optional)
-edit-window (ew) <name> <window>      Edit a window definition
-  --name, --desktop, --screen, --position, --function, --params, --display-order
-remove-window (rw) <name> <window>    Remove a window from a workspace
 list (ls) [--details]                 List all defined workspaces
 info (i) <name>                       Show detailed info for a workspace
-open (o) [--skip] <name>             Open a workspace (--skip bypasses safe mode)
+edit (e) <name>                       Edit an existing workspace (interactive)
+open (o) [--skip] <name>              Open a workspace (--skip bypasses safe mode)
 close (c) <name>                      Close a workspace
 focus (f) <name>                      Focus an active workspace (raise + activate)
 minimize (min) <name>                 Minimize all windows in an active workspace
 delete (rm) <name>                    Delete a workspace
+```
+
+#### Non-interactive / scripted commands
+
+```
+create (new) <name>                    Create a workspace from a JSON config file
+  --from-file <path>                     Path to JSON config (required)
+  --replace                              Replace existing workspace
+export (exp) <name>                    Export workspace definition to JSON (stdout)
+edit (e) <name>                        Edit an existing workspace non-interactively
+  --description "..."                    Set description
+  --focus-window "name"                  Set focus window ("" to clear)
+add-window (aw) <name>                 Add a window to a workspace
+  --name, --app, --desktop, --screen, --position (required)
+  --function, --params (optional)
+edit-window (ew) <name> <window>       Edit a window definition
+  --name, --desktop, --screen, --position, --function, --params, --display-order
+remove-window (rw) <name> <window>     Remove a window from a workspace
 ```
 
 ### Application Commands (app)
@@ -135,18 +145,34 @@ list (ls)                             List detected screens with aliases
 alias <alias> <target>                Set a screen alias (target: number or name)
 alias remove <alias>                  Remove a screen alias
 ```
-
 ### Window Commands (window | win)
+
 ```
 list (ls) [workspace]                 List tracked windows
-status (st) <window-name>            Show window details
-close (c) <window-name>              Close a specific window
-open (o) <window-name>               Re-open a previously closed window
-move (mv) <window-name> [options]    Move/reposition a window
-  Positional: <desktop> [screen] [position]
-  Flags: --desktop|-d, --screen|-s, --position|-p, --focus|-f
-focus (f) <window-name>              Bring window to front
-minimize (min) <window-name>         Minimize window
+status (st) <window-name>             Show window details
+close (c) <window-name>               Close a specific window
+open (o) <window-name>                Re-open a previously closed window
+focus (f) <window-name>               Bring window to front
+minimize (min) <window-name>          Minimize window
+```
+
+#### move (mv) — reposition a window
+
+```
+move (mv) <window-name> [options]
+
+Positional mode (order: desktop, screen, position):
+  move <name> <desktop>
+  move <name> <desktop> <screen>
+  move <name> <desktop> <screen> <position>
+
+Flag mode (any combination, any order):
+  --desktop, -d <n>      Target virtual desktop
+  --screen, -s <ref>     Target screen (number or alias)
+  --position, -p <pos>   Window position preset
+  --focus, -f            Focus the window after moving
+
+Unspecified properties are preserved.
 ```
 
 ## Project Status
@@ -157,6 +183,15 @@ Current gaps:
 
 - Limited metadata coverage in the app-registry database — most applications still require safe-mode to gather launch properties
 - Application definitions only exist for VS Code and Firefox — other apps use generic launch behavior
+
+## Documentation
+In-depth architecture details, function maps, and change checklists live in the [`docs/`](docs/README.md) directory:
+
+- [`docs/modules/`](docs/modules) — per-module references (database, window management, app registry, workspace, core engine, screen/desktop, safe mode)
+- [`docs/flows/`](docs/flows) — end-to-end workflow guides (window launch pipeline, workspace open/close, app discovery, window detection)
+- [`docs/checklists/`](docs/checklists) — step-by-step procedures for structural changes (adding an application, adding a command, modifying the database schema)
+
+Database schema changes are applied automatically on each startup via forward-only migrations in [`database/migrations/`](database/migrations). See [`docs/modules/database.md`](docs/modules/database.md) for details.
 
 ## Contributing
 

@@ -532,8 +532,21 @@ auto_detect_windows() {
     debug_array DB_CLASSES
     debug_array DB_TITLES
 
-    debug_log "$function_name" "===== DELETE STALE WINDOWS ====="
-    db_delete_stale_windows
+    # Per-UUID verification: protect live windows that may have been
+    # truncated out of CURRENT_UUIDS by the kdotool DBus race before
+    # letting db_delete_stale_windows operate on the snapshot.
+    debug_log "$function_name" "===== VERIFY STALE CANDIDATES ====="
+    _verify_stale_candidates
+
+    # Final safety net: if the snapshot is empty even after per-UUID
+    # verification while the DB has tracked windows, every kdotool query
+    # has failed — skip cleanup to preserve DB state.
+    if [[ ${#CURRENT_UUIDS[@]} -eq 0 && ${#DB_UUIDS[@]} -gt 0 ]]; then
+        debug_log "$function_name" "Empty snapshot post-verification with ${#DB_UUIDS[@]} tracked windows — skipping stale cleanup"
+    else
+        debug_log "$function_name" "===== DELETE STALE WINDOWS ====="
+        db_delete_stale_windows
+    fi
     
     debug_log "$function_name" "===== ADD NEW WINDOWS ====="
     db_add_existing_windows

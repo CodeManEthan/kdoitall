@@ -13,10 +13,15 @@ This checklist covers adding new tables, adding columns to existing tables, or m
 
 ## 2. Migration Strategy
 
-- [ ] SQLite has limited ALTER TABLE support -- only ADD COLUMN is straightforward
-- [ ] For column additions: prepare ALTER TABLE statement
-- [ ] For table restructuring: plan CREATE new -> copy data -> DROP old -> RENAME new approach
-- [ ] Add migration to initialization flow (or document manual migration for existing users)
+Schema changes are applied to existing databases via forward-only versioned migrations that run automatically at every kdoitall startup.
+
+- [ ] Create `database/migrations/NNN_<short_name>.sql` where `NNN` is the next unused zero-padded version number (look at the highest existing file)
+- [ ] Make the SQL idempotent — use `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, etc., so the migration is safe to re-run if recording fails
+- [ ] SQLite has limited ALTER TABLE support — only ADD COLUMN is straightforward
+- [ ] For column additions: use `ALTER TABLE ... ADD COLUMN ...`
+- [ ] For table restructuring: CREATE new -> INSERT ... SELECT from old -> DROP old -> ALTER TABLE ... RENAME
+- [ ] Update `database/schema.sql` with the post-migration result so fresh installs build the correct schema in a single step (the migration is then stamped as already-applied by `install.sh` and `dev-reset.sh`)
+- [ ] On the next kdoitall invocation, `db_run_migrations()` (in `lib/db/migrations.sh`) will pick up the new file, apply it, and record it in `schema_migrations`
 
 ## 3. Database Query Functions
 

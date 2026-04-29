@@ -132,3 +132,9 @@ CREATE TABLE window_definitions (
     FOREIGN KEY (workspace_name) REFERENCES workspace_definitions(workspace_name) ON DELETE CASCADE,
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
 );
+
+CREATE TABLE schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -50,6 +50,12 @@ db_is_terminal_emulator() {
         "SELECT COUNT(*) FROM terminal_emulators WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
 
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to query terminal_emulators for $app_id ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
+
     if [[ "${DB_RESULT[0]:-0}" -ge 1 ]]; then
         debug_log "$function_name" "App is terminal emulator: $app_id"
         debug_function_exit "$function_name"
@@ -72,6 +78,12 @@ db_get_terminal_exec_flag() {
     db_query \
         "SELECT exec_flag FROM terminal_emulators WHERE app_id = :app_id;" \
         ":app_id" "$app_id"
+
+    if [[ "$DB_STATUS" != "OK" ]]; then
+        debug_error "$function_name" "$ERR_DATABASE_ERROR" "Failed to query exec_flag for $app_id ($DB_ERROR)"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 
     if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
         debug_log "$function_name" "No terminal emulator entry for: $app_id"

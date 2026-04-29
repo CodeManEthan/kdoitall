@@ -30,6 +30,11 @@ echo "Pre-cleaning stale test data..."
 cleanup_test_workspaces
 echo "Pre-clean complete."
 
+# Snapshot live windows AFTER pre-clean so the baseline reflects the user's
+# steady-state desktop without any test residue. Post-test orphan cleanup
+# uses this baseline to avoid closing pre-existing user windows.
+snapshot_baseline_windows
+
 # ============================================================================
 # Execute test files in order
 # ============================================================================
@@ -79,6 +84,10 @@ done
 echo ""
 echo "Post-cleaning test resources..."
 cleanup_all
+# Safety net: close any windows of test-app classes that appeared during the
+# run but weren't explicitly tracked. Protected by the pre-test baseline so
+# the user's pre-existing windows are never touched.
+cleanup_post_test_orphans
 echo "Post-clean complete."
 
 # ============================================================================

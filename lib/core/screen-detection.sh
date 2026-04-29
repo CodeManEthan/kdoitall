@@ -23,11 +23,23 @@ detect_desktops() {
     
     debug_function_enter "$function_name"
     
-    # Get desktop count from kdotool
+    # Get desktop count from kdotool. Up to two 50ms retries on empty defend
+    # against the kdotool DBus delivery race (see edge case #9 in
+    # docs/flows/window-detection.md): kdotool's KWin script emits the
+    # result via an asynchronous DBus signal, and the read-back can race
+    # with delivery. An empty result here would abort kdoitall startup.
     desktop_count=$(kdotool get_num_desktops 2>/dev/null)
-    
     if [[ -z "$desktop_count" ]]; then
-        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "No output from kdotool get_num_desktops"
+        sleep 0.05
+        desktop_count=$(kdotool get_num_desktops 2>/dev/null)
+        if [[ -z "$desktop_count" ]]; then
+            sleep 0.05
+            desktop_count=$(kdotool get_num_desktops 2>/dev/null)
+        fi
+    fi
+
+    if [[ -z "$desktop_count" ]]; then
+        debug_error "$function_name" "$ERR_KDOTOOL_DESKTOP_DETECTION_FAILED" "No output from kdotool get_num_desktops (after 2 retries)"
         debug_function_exit "$function_name"
         return 1
     fi

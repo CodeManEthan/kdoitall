@@ -64,13 +64,14 @@ registry_scan_applications() {
     local -a scan_name_locked=()
     local -a scan_is_terminal_emulator=()
     local -a scan_terminal_exec_flag=()
+    local -a scan_terminal_source=()
 
     local app_id="" display_name="" desktop_file_path=""
     local app_directory_path="" terminal_command=""
     local app_class="" launch_mode="" window_title_pattern=""
     local has_terminal_launch="" has_desktop_launch=""
     local supports_pid_validation="" process_name="" app_name=""
-    local is_terminal_emulator="" terminal_exec_flag=""
+    local is_terminal_emulator="" terminal_exec_flag="" terminal_detection_source=""
 
     for location in "${DESKTOP_FILE_LOCATIONS[@]}"; do
         if [[ ! -d "$location" ]]; then
@@ -121,12 +122,14 @@ registry_scan_applications() {
             app_name=""
             is_terminal_emulator=false
             terminal_exec_flag="-e"
+            terminal_detection_source=""
 
             debug_log "$function_name" "Processing: $app_id ($display_name)"
 
             # Detect terminal emulator from .desktop Categories
             if grep -q "Categories=.*TerminalEmulator" "$desktop_file" 2>/dev/null; then
                 is_terminal_emulator=true
+                terminal_detection_source="auto"
                 debug_log "$function_name" "Detected terminal emulator from .desktop Categories: $app_id"
             fi
 
@@ -185,6 +188,9 @@ registry_scan_applications() {
 
                     if [[ "$reg_is_terminal" == "1" || "$reg_is_terminal" == "TRUE" ]]; then
                         is_terminal_emulator=true
+                        # Categories detection wins over registry when both fire,
+                        # since the .desktop file is live metadata from the installed app.
+                        [[ -z "$terminal_detection_source" ]] && terminal_detection_source="registry"
                         if [[ -n "$reg_exec_flag" ]]; then
                             terminal_exec_flag="$reg_exec_flag"
                         fi
@@ -226,6 +232,7 @@ registry_scan_applications() {
             scan_name_locked+=("$name_locked")
             scan_is_terminal_emulator+=("$is_terminal_emulator")
             scan_terminal_exec_flag+=("$terminal_exec_flag")
+            scan_terminal_source+=("$terminal_detection_source")
 
         done < <(find "$location" -maxdepth 1 -name "*.desktop" \( -type f -o -type l \) -print0 2>/dev/null)
     done
@@ -261,7 +268,7 @@ registry_scan_applications() {
 
             # Handle terminal emulator classification and shared launch options
             if [[ "${scan_is_terminal_emulator[$i]}" == "true" ]]; then
-                local te_source="auto"
+                local te_source="${scan_terminal_source[$i]:-auto}"
                 # Check if already manually classified (preserve manual override)
                 if db_is_terminal_emulator "${scan_app_ids[$i]}"; then
                     local existing_source=""

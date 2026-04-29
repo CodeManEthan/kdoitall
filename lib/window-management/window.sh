@@ -14,6 +14,61 @@ CURRENT_CLASSES=()
 CURRENT_TITLES=()
 declare -gA EXCLUDED_UUIDS=()
 
+# kdotool's KWin script emits each window UUID as a separate asynchronous DBus
+# signal, then returns. kdotool's main thread reads accumulated messages
+# immediately, but messages emitted near the end of iteration may still be in
+# flight — so a `kdotool search` response can be empty (all messages still in
+# flight) or a prefix-subset of truth (tail still in flight). See
+# docs/flows/window-detection.md edge case #9.
+#
+# This wrapper addresses the *empty* case only: up to two 50ms re-polls catch
+# the all-in-flight transient. The first retry alone catches the common case
+# (~3% transient rate becomes ~0%); the second retry catches the rarer case
+# where the kdotool DBus stall lasts longer than one retry interval (~0.37%
+# becomes ~0.01%). Cost only fires when the previous attempt was empty, so
+# the common case is unchanged.
+#
+# Partial responses (non-empty but truncated) are NOT compensated here
+# because masking them at this layer either adds latency to the launch hot
+# path (convergence loops) or risks emitting phantom UUIDs of just-closed
+# windows (union fallback). Partial responses are handled by caller-side
+# validation at destructive call sites (e.g., db_delete_stale_windows via
+# _verify_stale_candidates) and by the existing POE retry loop's natural
+# resilience to transient incomplete snapshots. The empty-snapshot guard in
+# wait_for_stable_window provides an additional defense for the splash-
+# recovery DB cleanup path.
+_kdotool_search_safe() {
+    local out=""
+    out=$(kdotool search "$@" 2>/dev/null) || return $?
+    if [[ -z "$out" ]]; then
+        sleep 0.05
+        out=$(kdotool search "$@" 2>/dev/null) || return $?
+        if [[ -z "$out" ]]; then
+            sleep 0.05
+            out=$(kdotool search "$@" 2>/dev/null) || return $?
+        fi
+    fi
+    # Suppress trailing newline when output is genuinely empty so mapfile -t
+    # produces 0 elements rather than a single empty-string element.
+    [[ -n "$out" ]] && printf '%s\n' "$out"
+    return 0
+}
+
+_kdotool_getactivewindow_safe() {
+    local out=""
+    out=$(kdotool getactivewindow 2>/dev/null) || return $?
+    if [[ -z "$out" ]]; then
+        sleep 0.05
+        out=$(kdotool getactivewindow 2>/dev/null) || return $?
+        if [[ -z "$out" ]]; then
+            sleep 0.05
+            out=$(kdotool getactivewindow 2>/dev/null) || return $?
+        fi
+    fi
+    [[ -n "$out" ]] && printf '%s\n' "$out"
+    return 0
+}
+
 is_transient_window() {
     local uuid="$1"
     local class=""
@@ -136,7 +191,21 @@ wait_for_stable_window() {
                 # detect it as "new".
                 refresh_current_windows
                 db_get_all_windows
-                db_delete_stale_windows
+
+                # Per-UUID verification: protect live windows that may have
+                # been truncated out of CURRENT_UUIDS by the kdotool DBus race
+                # before letting db_delete_stale_windows operate on the snapshot.
+                _verify_stale_candidates
+
+                # Final safety net for catastrophic kdotool failure: if the
+                # snapshot is STILL empty after verification despite the DB
+                # having tracked windows, every kdotool call has failed and
+                # we cannot trust the result — skip cleanup entirely.
+                if [[ ${#CURRENT_UUIDS[@]} -eq 0 && ${#DB_UUIDS[@]} -gt 0 ]]; then
+                    debug_log "$function_name" "Empty snapshot post-verification with ${#DB_UUIDS[@]} tracked windows — skipping stale cleanup to preserve DB state"
+                else
+                    db_delete_stale_windows
+                fi
 
                 local remaining_ms=$((max_wait_ms - elapsed_ms))
                 if (( remaining_ms <= 0 )); then
@@ -191,7 +260,7 @@ refresh_current_windows() {
 
     # Get all window UUIDs
     local -a uuids=()
-    mapfile -t uuids < <(kdotool search)
+    mapfile -t uuids < <(_kdotool_search_safe)
 
     if [[ ${#uuids[@]} -eq 0 ]]; then
         debug_log "$function_name" "No windows found"
@@ -203,14 +272,36 @@ refresh_current_windows() {
     # This ensures the three arrays stay aligned even if a window
     # disappears mid-scan — the failed property gets "N/A" and the
     # arrays never drift out of sync.
+    #
+    # Each per-UUID query gets up to two 50ms re-polls on empty stdout to
+    # defend against the kdotool DBus delivery race (see edge case #9 in
+    # docs/flows/window-detection.md). Without these retries, transient
+    # empty results would corrupt CURRENT_CLASSES/TITLES with "N/A" entries
+    # that later break class-based matching in POE detection.
     local uuid=""
     local class=""
     local title=""
     for uuid in "${uuids[@]}"; do
         class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        if [[ -z "$class" ]]; then
+            sleep 0.05
+            class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+            if [[ -z "$class" ]]; then
+                sleep 0.05
+                class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+            fi
+        fi
         class="${class:-N/A}"
 
         title=$(kdotool getwindowname "$uuid" 2>/dev/null) || title=""
+        if [[ -z "$title" ]]; then
+            sleep 0.05
+            title=$(kdotool getwindowname "$uuid" 2>/dev/null) || title=""
+            if [[ -z "$title" ]]; then
+                sleep 0.05
+                title=$(kdotool getwindowname "$uuid" 2>/dev/null) || title=""
+            fi
+        fi
         title="${title:-N/A}"
 
         CURRENT_UUIDS+=("$uuid")
@@ -219,6 +310,74 @@ refresh_current_windows() {
     done
 
     debug_log "$function_name" "Retrieved ${#CURRENT_UUIDS[@]} windows (UUIDs, classes, titles)"
+    debug_function_exit "$function_name"
+    return 0
+}
+
+# Protect live windows from false stale-cleanup deletes when CURRENT_UUIDS is
+# missing entries due to the kdotool DBus delivery race (see edge case #9 in
+# docs/flows/window-detection.md). For each UUID in DB_UUIDS not present in
+# CURRENT_UUIDS, query kdotool directly with a single retry on empty. If a
+# class is returned, the window is alive and was simply truncated out of the
+# search response — add it back to CURRENT_UUIDS so db_delete_stale_windows
+# does not remove it. If both queries return empty, the window is genuinely
+# gone and stale cleanup correctly proceeds.
+#
+# Cost scales with the number of stale candidates (DB UUIDs not in current
+# snapshot). In normal operation that is 0-1; bounded even during a mass
+# close because genuinely-dead windows return empty quickly and we don't
+# add them to CURRENT_UUIDS.
+#
+# REQUIRES: CURRENT_UUIDS (from refresh_current_windows) and DB_UUIDS (from
+# db_get_all_windows or db_get_existing_window_uuids) to be populated.
+# MUTATES: CURRENT_UUIDS by appending verified-alive UUIDs.
+_verify_stale_candidates() {
+    local function_name="_verify_stale_candidates"
+
+    debug_function_enter "$function_name"
+
+    if [[ ${#DB_UUIDS[@]} -eq 0 ]]; then
+        debug_log "$function_name" "No DB UUIDs — nothing to verify"
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    local -A current_set=()
+    local cur=""
+    for cur in "${CURRENT_UUIDS[@]}"; do
+        current_set["$cur"]=1
+    done
+
+    local protected=0
+    local db_uuid=""
+    local class=""
+    for db_uuid in "${DB_UUIDS[@]}"; do
+        # Already in current — not a deletion candidate
+        [[ -v current_set["$db_uuid"] ]] && continue
+
+        # Candidate for deletion: verify the window is actually gone before
+        # letting db_delete_stale_windows remove it from the DB. Two retries
+        # to match the policy used elsewhere for kdotool empty-stdout races.
+        class=$(kdotool getwindowclassname "$db_uuid" 2>/dev/null) || class=""
+        if [[ -z "$class" ]]; then
+            sleep 0.05
+            class=$(kdotool getwindowclassname "$db_uuid" 2>/dev/null) || class=""
+            if [[ -z "$class" ]]; then
+                sleep 0.05
+                class=$(kdotool getwindowclassname "$db_uuid" 2>/dev/null) || class=""
+            fi
+        fi
+
+        if [[ -n "$class" ]]; then
+            CURRENT_UUIDS+=("$db_uuid")
+            ((protected++)) || true
+            debug_log "$function_name" "Protected '$db_uuid' (class='$class') from stale cleanup"
+        fi
+    done
+
+    if (( protected > 0 )); then
+        debug_log "$function_name" "Protected $protected window(s) from false stale cleanup"
+    fi
     debug_function_exit "$function_name"
     return 0
 }
@@ -373,7 +532,7 @@ get_existing_windows_uuid() {
 
     CURRENT_UUIDS=()
 
-    mapfile -t CURRENT_UUIDS < <(kdotool search)
+    mapfile -t CURRENT_UUIDS < <(_kdotool_search_safe)
 
     if [[ ${#CURRENT_UUIDS[@]} -eq 0 ]]; then
         debug_log "$function_name" "No windows found"
@@ -408,7 +567,7 @@ get_uuid() {
         safe_class=$(safe_kdotool_pattern "$class")
 
         debug_log "$function_name" "Searching for windows with class: '$class' (escaped: '$safe_class')"
-        mapfile -t matching_uuids < <(kdotool search --class "$safe_class")
+        mapfile -t matching_uuids < <(_kdotool_search_safe --class "$safe_class")
 
         if [[ ${#matching_uuids[@]} -eq 0 ]]; then
             debug_log "$function_name" "No windows found with class '$class'"
@@ -420,7 +579,7 @@ get_uuid() {
     else
         # No class filter - get all windows
         debug_log "$function_name" "No class filter, searching all windows"
-        mapfile -t matching_uuids < <(kdotool search)
+        mapfile -t matching_uuids < <(_kdotool_search_safe)
     fi
 
     # Step 2: Filter by window title if needed to disambiguate
@@ -641,7 +800,7 @@ get_active_window_uuid() {
     debug_function_enter "$function_name"
 
     # Get the currently focused window UUID
-    uuid=$(kdotool getactivewindow 2>/dev/null)
+    uuid=$(_kdotool_getactivewindow_safe)
 
     if [[ -z "$uuid" ]]; then
         debug_log "$function_name" "No active window (desktop may be focused)"

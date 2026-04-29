@@ -31,6 +31,29 @@ CRITICAL_GATE_FAILED=false
 # Track test-opened windows for cleanup
 declare -a TEST_WINDOW_UUIDS=()
 
+# UUIDs of windows that existed BEFORE tests started — never closed by cleanup.
+# Populated by snapshot_baseline_windows() during run-tests.sh startup.
+declare -gA TEST_BASELINE_UUIDS=()
+
+# Window classes used by test workspaces. Post-test orphan cleanup closes any
+# window that:
+#   1. Has a class in this set, AND
+#   2. Was NOT present in TEST_BASELINE_UUIDS (i.e., appeared during testing)
+# This protects the user's pre-existing windows of the same class (e.g. their
+# real Firefox/Kate/terminal sessions) while sweeping up zombies from tests
+# that opened windows but failed to track or close them.
+declare -gA TEST_APP_CLASSES=(
+    ["code"]=1
+    ["Code"]=1
+    ["org.kde.digikam"]=1
+    ["org.kde.dolphin"]=1
+    ["org.kde.kate"]=1
+    ["org.mozilla.firefox"]=1
+    ["systemsettings"]=1
+    ["org.kde.systemsettings"]=1
+    ["org.gnome.Terminal"]=1
+)
+
 # ============================================================================
 # Lifecycle
 # ============================================================================
@@ -523,6 +546,56 @@ track_test_window() {
 cleanup_all() {
     cleanup_test_windows
     cleanup_test_workspaces
+}
+
+# Snapshot the current live windows so cleanup can distinguish post-test
+# orphans from the user's pre-existing windows. Call once at the start of
+# the test run, after pre-clean has removed any stale test-DB state.
+snapshot_baseline_windows() {
+    TEST_BASELINE_UUIDS=()
+    local uuid=""
+    while IFS= read -r uuid; do
+        [[ -n "$uuid" ]] && TEST_BASELINE_UUIDS["$uuid"]=1
+    done < <(kdotool search 2>/dev/null)
+    echo "Baseline snapshot: ${#TEST_BASELINE_UUIDS[@]} pre-existing window(s) protected from cleanup"
+}
+
+# Close any windows that:
+#   - were NOT in the pre-test baseline (so we never touch user windows), AND
+#   - have a class matching TEST_APP_CLASSES (so we only sweep known test apps)
+# Run as a safety net during post-clean for windows that individual tests
+# opened but failed to track or close. Best-effort: errors are logged, not raised.
+cleanup_post_test_orphans() {
+    if [[ ${#TEST_BASELINE_UUIDS[@]} -eq 0 ]]; then
+        # No baseline taken — refuse to close anything to avoid touching user windows
+        echo "No baseline snapshot taken — skipping orphan cleanup"
+        return 0
+    fi
+
+    local closed=0
+    local uuid=""
+    local class=""
+    while IFS= read -r uuid; do
+        [[ -z "$uuid" ]] && continue
+        # Skip pre-existing user windows
+        [[ -v TEST_BASELINE_UUIDS["$uuid"] ]] && continue
+
+        class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        # Single retry on empty (matches production wrapper policy)
+        if [[ -z "$class" ]]; then
+            sleep 0.05
+            class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        fi
+
+        if [[ -n "$class" && -v TEST_APP_CLASSES["$class"] ]]; then
+            kdotool windowclose "$uuid" 2>/dev/null || true
+            ((closed++)) || true
+        fi
+    done < <(kdotool search 2>/dev/null)
+
+    if (( closed > 0 )); then
+        echo "Closed $closed post-test orphan window(s)"
+    fi
 }
 
 # ============================================================================

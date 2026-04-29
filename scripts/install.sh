@@ -54,6 +54,21 @@ if [[ ! -f "$DB_FILE" ]]; then
     if command -v sqlite3 &> /dev/null; then
         sqlite3 "$DB_FILE" < "$SCHEMA_FILE"
         echo "✓ Initialized database: $DB_FILE"
+
+        # Stamp every existing migration as already applied. schema.sql
+        # already reflects the result of running each migration, so we
+        # record them without re-applying.
+        MIGRATIONS_DIR="$PROJECT_ROOT/database/migrations"
+        if [[ -d "$MIGRATIONS_DIR" ]]; then
+            for migration_file in "$MIGRATIONS_DIR"/[0-9]*.sql; do
+                [[ -f "$migration_file" ]] || continue
+                migration_basename=$(basename "$migration_file")
+                migration_version=$((10#${migration_basename%%_*}))
+                migration_name="${migration_basename%.sql}"
+                sqlite3 "$DB_FILE" \
+                    "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES ($migration_version, '$migration_name');"
+            done
+        fi
     else
         echo "⚠ sqlite3 not found — skipping database initialization" >&2
     fi

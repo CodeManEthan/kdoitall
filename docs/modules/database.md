@@ -4,16 +4,18 @@
 
 The database module provides all persistent storage and query capabilities for kdoitall. It manages two separate SQLite databases: the **main database** (workspace definitions, window tracking, application metadata, screen aliases) and a **read-only app registry database** (seed data for application scanning). All SQL execution flows through a Python coproc server (`db-server.py`) that Bash communicates with via file descriptors, exposing results through global state arrays (`DB_STATUS`, `DB_RESULT[]`, `DB_ERROR`).
 
-The module spans 11 files: one schema definition, one registry seed file, and nine Bash library files organized across `lib/core/`, `lib/db/`, and `database/`.
+The module spans 14 entries: one schema definition, one registry seed file, one migrations directory, and eleven Bash library files organized across `lib/core/`, `lib/db/`, and `database/`.
 
 ## 2. Key Files
 
 | File | Description |
 |------|-------------|
-| `database/schema.sql` | Schema definition for the main database (8 tables, triggers, indexes) |
+| `database/schema.sql` | Schema definition for the main database (10 tables, triggers, indexes) |
+| `database/migrations/` | Forward-only versioned schema migrations applied at startup |
 | `database/app-registry.sql` | Seed data for the read-only app registry database |
 | `lib/core/database.sh` | Database helper utilities (normalize_boolean) |
 | `lib/db/helpers.sh` | Core DB client infrastructure: Python coproc lifecycle, db_query, db_registry_query |
+| `lib/db/migrations.sh` | Migration runner: applies pending `database/migrations/*.sql` files at startup |
 | `lib/db/app-registry.sh` | Query functions for the read-only app registry database |
 | `lib/db/app.sh` | Full CRUD for the applications table (~61 functions) |
 | `lib/db/launch-options.sh` | CRUD for launch_options and launch_parameters tables |
@@ -174,6 +176,16 @@ These functions are module-internal or called from a single location. Changes ar
 | `alias` | TEXT | **PK** | Alias name (e.g., `left`, `right`) |
 | `target` | TEXT | | Actual screen identifier |
 
+#### `schema_migrations`
+
+Tracks which migration files in `database/migrations/` have been applied to the main database. Populated by `db_run_migrations()` (called at every startup) and stamped by `install.sh` / `dev-reset.sh` when a fresh DB is built directly from `schema.sql`.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `version` | INTEGER | **PK** | Numeric prefix of migration filename (e.g., `001` -> 1) |
+| `name` | TEXT | NOT NULL | Migration filename without `.sql` extension |
+| `applied_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | When the migration was applied |
+
 #### `window_definitions`
 
 | Column | Type | Constraints | Description |
@@ -254,9 +266,11 @@ Use this checklist when modifying the database module. Check every item that app
 
 - [ ] Update `database/schema.sql` with new/modified table definitions
 - [ ] Update `database/app-registry.sql` if registry table changes
+- [ ] Add a numbered migration file under `database/migrations/` so existing DBs are upgraded at next startup (see `docs/checklists/modifying-database-schema.md`)
 - [ ] Verify all triggers and indexes are consistent with new schema
 - [ ] Check foreign key constraints still hold
-- [ ] Test with a fresh database (delete and recreate)
+- [ ] Test fresh-install path (`./scripts/install.sh`) — builds from `schema.sql` and stamps migrations as already applied
+- [ ] Test upgrade path — confirm `db_run_migrations()` applies the new migration cleanly to an existing DB on next startup
 
 ### Query Function Changes
 

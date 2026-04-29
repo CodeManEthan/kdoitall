@@ -4,3 +4,8 @@
 *~
 __pycache__/
 *.code-workspace
+
+# Local development environment (not for the public repo)
+.claude/
+CLAUDE.md
+scripts/record-analyze.sh

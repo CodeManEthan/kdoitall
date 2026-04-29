@@ -43,7 +43,11 @@ fi
 # ============================================================================
 
 test_start "delete active workspace blocked"
-CMD_OUTPUT=$(echo "y" | $KDOITALL --info workspace delete test-guard-ws 2>&1) || true
+# NOTE: do NOT use `|| true` here — `var=$(cmd) || true` always sets $? to 0,
+# which would make this test always report "Delete succeeded" regardless of
+# the actual command exit code. Without `|| true`, $? captures the command's
+# real exit code, which is what we want to assert against.
+CMD_OUTPUT=$(echo "y" | $KDOITALL --info workspace delete test-guard-ws 2>&1)
 CMD_EXIT_CODE=$?
 if [[ "$CMD_EXIT_CODE" -ne 0 ]]; then
     if echo "$CMD_OUTPUT" | grep -qi "active"; then
@@ -112,7 +116,8 @@ TEST_WINDOW_UUIDS=()
 # ============================================================================
 
 test_start "delete inactive workspace succeeds"
-CMD_OUTPUT=$(echo "y" | $KDOITALL --info workspace delete test-guard-ws 2>&1) || true
+# Same fix as above: avoid `|| true` so $? reflects the actual command exit.
+CMD_OUTPUT=$(echo "y" | $KDOITALL --info workspace delete test-guard-ws 2>&1)
 CMD_EXIT_CODE=$?
 if [[ "$CMD_EXIT_CODE" -eq 0 ]]; then
     local ws_count

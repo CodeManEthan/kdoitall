@@ -67,6 +67,20 @@ mkdir -p "$DB_DIR"
 # Recreate database
 sqlite3 "$DB_FILE" < "$SCHEMA_FILE"
 
+# Stamp every existing migration as applied. schema.sql already reflects
+# the result of running each migration, so we record them without re-applying.
+MIGRATIONS_DIR="$PROJECT_ROOT/database/migrations"
+if [[ -d "$MIGRATIONS_DIR" ]]; then
+    for migration_file in "$MIGRATIONS_DIR"/[0-9]*.sql; do
+        [[ -f "$migration_file" ]] || continue
+        migration_basename=$(basename "$migration_file")
+        migration_version=$((10#${migration_basename%%_*}))
+        migration_name="${migration_basename%.sql}"
+        sqlite3 "$DB_FILE" \
+            "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES ($migration_version, '$migration_name');"
+    done
+fi
+
 echo "✓ Database reset complete"
 echo "  Schema: $SCHEMA_FILE"
 echo "  Database: $DB_FILE"

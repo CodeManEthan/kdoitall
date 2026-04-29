@@ -100,10 +100,16 @@ source "${LIB_DIR}/utils/validators.sh"
 # ============================================================================
 # shellcheck source=../lib/db/helpers.sh
 source "${LIB_DIR}/db/helpers.sh"
+# shellcheck source=../lib/db/migrations.sh
+source "${LIB_DIR}/db/migrations.sh"
 # shellcheck source=../lib/core/database.sh
 source "${LIB_DIR}/core/database.sh"
 # shellcheck source=../lib/core/ydotool.sh
 source "${LIB_DIR}/core/ydotool.sh"
+
+# Apply any pending schema migrations before opening the persistent DB
+# server, so the coproc never sees a stale schema.
+db_run_migrations || exit 1
 
 # Start persistent database server
 db_server_start
