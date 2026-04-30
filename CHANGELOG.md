@@ -4,10 +4,6 @@ All notable changes to kdoitall will be documented in this file.
 
 ## \[Unreleased\]
 
-### Added
-
-- **Forward-only schema migration system** — schema changes apply automatically at every startup via numbered SQL files in `database/migrations/`, tracked in a new `schema_migrations` table. Fresh installs and dev-resets continue to build from `database/schema.sql` and stamp existing migrations as pre-applied, so the same migration never runs twice.
-
 ## \[0.2.1\] - 2026-04-28
 
 ### Added
@@ -20,14 +16,12 @@ All notable changes to kdoitall will be documented in this file.
 - **Non-interactive workspace edit** — `workspace edit` now accepts `--description` and `--focus-window` flags for scripted updates.
 - **Auto-generated app names during scan** — `app scan` populates a human-friendly `app_name` column; `app name` command provides manual override and reset.
 - **JSON-config workspace creation** — `workspace create --from-file <path>` (with optional `--replace`) and `workspace export` for round-tripping definitions.
-- **Splash window detection pipeline** — tri-state `has_splash_window` tracking, `splash_duration_ms`, stability polling, transient window filtering, and grace periods for reliable detection of apps with splash screens.
+- **Splash window handling** — initial support for apps that briefly show a splash screen during startup. Detected behavior is auto-learned per-app and used to improve subsequent launches. (Coverage of edge cases is ongoing.)
 - `SAFE_MODE_STRICTNESS` **config option** — `relaxed` (default) prompts only when app class is missing; `strict` also prompts when launch mode or splash window is unknown.
 - **Display-name resolution for** `app info` — accepts display names in addition to app IDs, with an interactive disambiguation menu when names collide.
 - **Active workspace guards** — destructive operations refuse to run against active workspaces with clear error messages.
-- **Expanded automated test suite** — new tests for auto-detect sync, simultaneous workspaces, complex workspaces, launch modes, splash windows, and active-workspace guards (tests 11–16) plus a kdotool search test, with a `--skip` flag to bypass safe mode during `workspace open`.
-- **App registry reference database** — infrastructure in place for a pre-populated reference database of common applications to reduce safe-mode dependency. Entries will be added individually in future releases.
-- `build-app-registry.sh` **script** — utility for populating the reference database.
-- **Project documentation tree** (`docs/`) — module references, end-to-end flow guides, and structural-change checklists.
+- **Automatic database upgrades** — schema changes apply transparently when you run kdoitall after pulling new versions; no manual reset required.
+- `--skip` flag for `workspace open` — bypasses safe-mode prompts when launching workspaces with apps that haven't been profiled yet.
 - `kdoitall update` **command** — pulls latest changes and rebuilds the app registry.
 - `kdoitall status` **command** — shows active workspace state with live window geometry.
 - **Tiered logging** (`--info` flag) and optional file logging via `LOG_TO_FILE` config.
@@ -47,7 +41,7 @@ All notable changes to kdoitall will be documented in this file.
 
 ### Fixed
 
-- **Database hardening** — fixes uncovered by the expanded test suite, including silent `SELECT changes()` failures, parallel-array misalignment in window detection, and NULL handling in safe-mode predicates (`COALESCE` for tri-state columns).
+- **Window-detection reliability** — improved resilience to occasional kdotool/KWin compositor flakiness, especially on systems with many open windows. Reduces cases where windows could be incorrectly removed from kdoitall's tracking after a transient compositor stutter.
 
 ## \[0.1.0\] - 2026-02-13
 
