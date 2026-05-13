@@ -69,6 +69,50 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ============================================================================
+# Early short-circuit: ops commands that don't need DB/screen setup
+# ============================================================================
+# These run before Layer 2+ sourcing to keep them fast and avoid spinning up
+# the database coproc and screen detection when they aren't needed.
+
+if [[ "$COMMAND" == "--restart-snapshot-daemon" ]]; then
+    SNAPSHOT_TOOL="${LIB_DIR}/kwin-scripts/snapshot.sh"
+
+    if [[ ! -x "$SNAPSHOT_TOOL" ]]; then
+        echo "Error: snapshot tool not found or not executable: $SNAPSHOT_TOOL" >&2
+        exit 1
+    fi
+
+    PIDS=$(pgrep -f "lib/kwin-scripts/daemon.py" 2>/dev/null || true)
+    if [[ -n "$PIDS" ]]; then
+        echo "Stopping daemon(s): $(echo "$PIDS" | tr '\n' ' ')"
+        echo "$PIDS" | xargs -r kill 2>/dev/null || true
+        # Give the daemon a moment to exit cleanly
+        sleep 1
+        SURVIVORS=$(pgrep -f "lib/kwin-scripts/daemon.py" 2>/dev/null || true)
+        if [[ -n "$SURVIVORS" ]]; then
+            echo "Force-killing survivor(s): $(echo "$SURVIVORS" | tr '\n' ' ')"
+            echo "$SURVIVORS" | xargs -r kill -9 2>/dev/null || true
+            sleep 1
+        fi
+    else
+        echo "No daemon currently running"
+    fi
+
+    echo "Spawning new daemon..."
+    if "$SNAPSHOT_TOOL" >/dev/null 2>&1; then
+        NEW_PID=$(pgrep -f "lib/kwin-scripts/daemon.py" 2>/dev/null | head -1)
+        if [[ -n "$NEW_PID" ]]; then
+            echo "Daemon restarted (pid $NEW_PID)"
+            exit 0
+        fi
+        echo "Warning: snapshot succeeded but daemon PID not found" >&2
+        exit 0
+    fi
+    echo "Error: failed to start daemon" >&2
+    exit 1
+fi
+
+# ============================================================================
 # LAYER 2 - Core Utilities (depend only on foundation)
 # ============================================================================
 # shellcheck source=../config
@@ -163,6 +207,7 @@ fi
 # Dependency Check
 # ============================================================================
 check_dependencies
+check_snapshot_dependencies
 
 # ============================================================================
 # Command Dispatch

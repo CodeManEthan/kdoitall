@@ -104,18 +104,30 @@ Detection ordering depends on launch mode:
 
 **File:** `lib/core/core.sh`
 
-1. If a window was detected, call `wait_for_stable_window()`.
-2. If `has_splash_window` is known and `splash_duration_ms > 0`: set `min_monitor_ms` to skip past the known splash phase.
-3. Monitor window existence at regular intervals:
-   - Requires 3 consecutive alive checks to declare stability.
+Skips entirely when `has_splash_window == "false"`. Otherwise runs `wait_for_stable_window()` with parameters tuned to the known/unknown split:
+
+| `has_splash_window` | `max_wait_ms` | `min_monitor_ms` | `stability_threshold` |
+|---|---|---|---|
+| `"true"` (known splash, with measured duration) | `splash_duration_ms * 2 + 3000` | `splash_duration_ms` | 3 |
+| `"true"` (known splash, no measured duration, but `launch_time` available) | `launch_time * 3` | `launch_time` | 3 |
+| `"true"` (known splash, no measurements at all) | 15000 | 5000 | 3 |
+| `"unknown"` | 6000 | 3000 | 2 |
+
+The `"unknown"` parameters cover apps with splashes up to ~3s (digiKam ~2.8s) — the historical 3000ms / 0ms parameters declared stability while the splash was still alive, so the splash UUID was returned to Phase 5 and the recovery flow never ran.
+
+1. If a window was detected with `detection_method == "new_window"` and `has_splash_window != "false"`, call `wait_for_stable_window()`.
+2. Monitor window existence at `check_interval_ms` (500ms default):
+   - Stability counts only after `min_monitor_ms` has elapsed (defers stability declaration past common splash durations).
+   - Requires `stability_threshold` consecutive alive checks to declare stability.
    - 400ms grace period handles brief KDE compositor transitions where the window momentarily disappears.
-4. If the window dies (splash lifecycle detected):
+3. If the window dies (splash lifecycle detected):
    - Record `splash_detected = true` and `splash_duration_ms`.
    - Refresh database state via `db_get_all_windows()` and `db_delete_stale_windows()`.
    - Search for replacement window via POE retry with the dead UUID added to exclusions.
    - Continue monitoring the replacement for stability.
-5. If splash was auto-detected, call `db_set_has_splash_window()` to persist the discovery.
-6. Return value: `final_uuid|splash_detected|splash_duration_ms`.
+4. **If the UUID changed** (splash → main transition), Phase 4b calls `refresh_current_windows()` to re-sync `CURRENT_UUIDS`. It deliberately does **not** call `auto_detect_windows()` here — that would invoke `db_add_existing_windows()` which would insert the new UUID into `app_windows` before Phase 5 has a chance to register it under the workspace, causing a UNIQUE-constraint failure on Phase 5's `db_add_window()`. `wait_for_stable_window()` already cleans up the dead splash UUID via its own refresh + delete-stale pass.
+5. If splash was auto-detected and `has_splash_window` was `"unknown"`, call `db_set_has_splash_window(app_id, "true", splash_duration_ms)` to persist both the status and the measured duration. Future launches use the known duration as `min_monitor_ms`, tuning the wait to that specific app rather than the generic 3000ms.
+6. Return value from `wait_for_stable_window`: `final_uuid|splash_detected|splash_duration_ms`.
 
 ### Phase 5: Register Window
 

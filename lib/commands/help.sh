@@ -14,10 +14,11 @@ USAGE:
     kdoitall [OPTIONS] <COMMAND> [ARGS...]
 
 OPTIONS:
-    --help, -h       Show this help message
-    --version, -v    Show version information
-    --info           Show key milestones during execution
-    --verbose        Enable verbose output
+    --help, -h                   Show this help message
+    --version, -v                Show version information
+    --info                       Show key milestones during execution
+    --verbose                    Enable verbose output
+    --restart-snapshot-daemon    Stop and respawn the KWin snapshot daemon
 
 STATUS:
     status (st)           Show current state of active workspaces and windows
