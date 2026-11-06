@@ -4,6 +4,10 @@
 
 ![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)![Version: v0.2.1](https://img.shields.io/badge/Version-v0.2.1-green.svg)
 
+![kdoitall workspace open demo: one command places five apps across two screens](docs/media/kdoitall-demo.gif)
+
+*`kdoitall workspace open demo` places five apps on their screens and tiles across a two-monitor desktop. The placement is shown at 4x speed.*
+
 ## About
 
 kdoitall automates workspace management on KDE Plasma desktops. Define a workspace as a collection of applications, assign each one a screen, virtual desktop, and window position, then open and close the entire workspace with a single command. Individual windows can also be manipulated on-the-fly using `kdoitall quick` and the window commands, without needing to define a workspace.
