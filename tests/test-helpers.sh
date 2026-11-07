@@ -11,8 +11,22 @@ TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
 KDOITALL="$PROJECT_ROOT/bin/kdoitall"
 FIXTURES_DIR="$TESTS_DIR/fixtures"
-DB_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/kdoitall.db"
-WORKSPACE_SCRIPTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/workspaces"
+
+# A throwaway data dir for this run. Every bin/kdoitall child reads it from
+# KDOITALL_DATA_DIR (lib/core/common.sh), so the run never reads or writes
+# the user's own database or workspace scripts. run-tests.sh removes it on
+# exit. The XDG dirs are left alone so launched apps find their own files.
+export KDOITALL_DATA_DIR
+KDOITALL_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kdoitall-test-data.XXXXXX")"
+DB_PATH="$KDOITALL_DATA_DIR/kdoitall.db"
+WORKSPACE_SCRIPTS_DIR="$KDOITALL_DATA_DIR/workspaces"
+
+# Start from a fresh database with every migration applied, made the same
+# way install.sh makes one. test-01's gate checks that it exists.
+# shellcheck source=../lib/db/bootstrap.sh
+source "$PROJECT_ROOT/lib/db/bootstrap.sh"
+kdoitall_bootstrap_db "$DB_PATH" "$PROJECT_ROOT/database/schema.sql" \
+    "$PROJECT_ROOT/database/migrations" > /dev/null || true
 
 # Position tolerance in pixels for geometry comparisons
 POSITION_TOLERANCE=10

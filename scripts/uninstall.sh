@@ -19,7 +19,8 @@ else
 fi
 
 # --- Ask about data removal ---
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall"
+# Same expression as lib/core/common.sh
+DATA_DIR="${KDOITALL_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall}"
 if [[ -d "$DATA_DIR" ]]; then
     echo ""
     echo "Remove kdoitall data? This includes your database and workspace scripts."

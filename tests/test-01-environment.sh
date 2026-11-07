@@ -20,7 +20,7 @@ fi
 # ---- Core dependencies ----
 
 local dep
-for dep in kdotool sqlite3 jq kscreen-doctor gtk-launch; do
+for dep in kdotool sqlite3 python3 jq kscreen-doctor gtk-launch; do
     test_start "Dependency: $dep"
     if command -v "$dep" &>/dev/null; then
         test_pass

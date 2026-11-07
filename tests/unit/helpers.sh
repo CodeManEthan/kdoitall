@@ -12,17 +12,17 @@ set -uo pipefail
 UNIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$UNIT_DIR/../.." && pwd)"
 
-# Everything a test writes goes under one temp dir, removed on exit. HOME and
-# the XDG dirs point into it so nothing reaches the real user's files.
+# Everything a test writes goes under one temp dir, removed on exit. HOME,
+# the config and state dirs and kdoitall's data dir point into it so nothing
+# reaches the real user's files.
 UNIT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/kdoitall-unit.XXXXXX")"
 trap 'rm -rf -- "$UNIT_TMP"' EXIT
 
 export HOME="$UNIT_TMP/home"
-export XDG_DATA_HOME="$UNIT_TMP/data"
 export XDG_CONFIG_HOME="$UNIT_TMP/config"
 export XDG_STATE_HOME="$UNIT_TMP/state"
-export KDOITALL_DATA_DIR="$UNIT_TMP/data/kdoitall"
-mkdir -p "$HOME" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$KDOITALL_DATA_DIR"
+export KDOITALL_DATA_DIR="$UNIT_TMP/kdoitall-data"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$KDOITALL_DATA_DIR"
 
 export LIB_DIR="$PROJECT_ROOT/lib"
 export KDOITALL_ROOT="$PROJECT_ROOT"

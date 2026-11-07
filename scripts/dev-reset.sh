@@ -12,8 +12,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Database paths
-DB_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall"
+# Database paths (same data dir expression as lib/core/common.sh)
+DB_DIR="${KDOITALL_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall}"
 DB_FILE="$DB_DIR/kdoitall.db"
 SCHEMA_FILE="$PROJECT_ROOT/database/schema.sql"
 REGISTRY_SQL="$PROJECT_ROOT/database/app-registry.sql"
@@ -61,25 +61,10 @@ if [[ "$remove_scripts" == true ]]; then
     fi
 fi
 
-# Ensure database directory exists
-mkdir -p "$DB_DIR"
-
-# Recreate database
-sqlite3 "$DB_FILE" < "$SCHEMA_FILE"
-
-# Stamp every existing migration as applied. schema.sql already reflects
-# the result of running each migration, so we record them without re-applying.
-MIGRATIONS_DIR="$PROJECT_ROOT/database/migrations"
-if [[ -d "$MIGRATIONS_DIR" ]]; then
-    for migration_file in "$MIGRATIONS_DIR"/[0-9]*.sql; do
-        [[ -f "$migration_file" ]] || continue
-        migration_basename=$(basename "$migration_file")
-        migration_version=$((10#${migration_basename%%_*}))
-        migration_name="${migration_basename%.sql}"
-        sqlite3 "$DB_FILE" \
-            "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES ($migration_version, '$migration_name');"
-    done
-fi
+# Recreate database from the schema, with every migration stamped as applied
+# shellcheck source=../lib/db/bootstrap.sh
+source "$PROJECT_ROOT/lib/db/bootstrap.sh"
+kdoitall_bootstrap_db "$DB_FILE" "$SCHEMA_FILE" "$PROJECT_ROOT/database/migrations"
 
 echo "✓ Database reset complete"
 echo "  Schema: $SCHEMA_FILE"

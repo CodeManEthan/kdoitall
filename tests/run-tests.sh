@@ -7,14 +7,24 @@ set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source helpers (sets up counters, assertion functions, etc.)
+# Source helpers (sets up counters, assertion functions, and the throwaway
+# data dir in KDOITALL_DATA_DIR)
 source "$TESTS_DIR/test-helpers.sh"
+
+# The data dir holds only this run's database and scripts
+remove_test_data_dir() {
+    if [[ -n "${KDOITALL_DATA_DIR:-}" && "$KDOITALL_DATA_DIR" == */kdoitall-test-data.* ]]; then
+        rm -rf -- "$KDOITALL_DATA_DIR"
+    fi
+}
+trap remove_test_data_dir EXIT
 
 echo "================================================================"
 echo "  kdoitall Test Suite"
 echo "================================================================"
 echo ""
 echo "  Project:    $PROJECT_ROOT"
+echo "  Data dir:   $KDOITALL_DATA_DIR (removed on exit)"
 echo "  Database:   $DB_PATH"
 echo "  Fixtures:   $FIXTURES_DIR"
 echo ""
