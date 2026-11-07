@@ -71,10 +71,11 @@ window_open() {
         # shellcheck source=/dev/null
         source "${LIB_DIR}/app-definitions/shared/terminal-emulator/functions.sh"
 
-        # Split tab-delimited parameters into an array
+        # One argument per tab-separated param. Empty fields are kept:
+        # "dir<TAB><TAB>cmd" is three arguments with an empty middle one.
         local -a param_args=()
         if [[ -n "$def_parameters" ]]; then
-            IFS=$'\t' read -ra param_args <<< "$def_parameters"
+            readarray -td $'\t' param_args < <(printf '%s\t' "$def_parameters")
         fi
 
         # Call with app_id + individual parameters

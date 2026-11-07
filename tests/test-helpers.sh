@@ -17,7 +17,10 @@ FIXTURES_DIR="$TESTS_DIR/fixtures"
 # the user's own database or workspace scripts. run-tests.sh removes it on
 # exit. The XDG dirs are left alone so launched apps find their own files.
 export KDOITALL_DATA_DIR
-KDOITALL_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kdoitall-test-data.XXXXXX")"
+KDOITALL_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kdoitall-test-data.XXXXXX")" || {
+    echo "Could not create a temporary data dir; not running against the real one." >&2
+    exit 1
+}
 DB_PATH="$KDOITALL_DATA_DIR/kdoitall.db"
 WORKSPACE_SCRIPTS_DIR="$KDOITALL_DATA_DIR/workspaces"
 
