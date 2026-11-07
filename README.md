@@ -94,7 +94,35 @@ kdoitall workspace open my-workspace
 kdoitall workspace close my-workspace
 ```
 
-<!-- sample: workspace open + status output, captured later -->
+A real run (plain `workspace open` prints nothing when it succeeds, so this one adds `--info` to show each step):
+
+```text
+$ kdoitall --info workspace open my-workspace
+[INFO  21:31:43.916] workspace_open: Opening workspace 'my-workspace'
+[INFO  21:31:43.943] execute_launch_window: Launching org.gnome.Calculator (window: calc)
+[INFO  21:31:45.385] execute_launch_window: Window detected: {e2ba93ef-9cc7-4041-9881-42b81d83ca79} (method: new_window)
+[INFO  21:31:45.925] execute_launch_window: Positioned on Screen 2, Desktop 6, Left Half
+[INFO  21:31:46.017] execute_launch_window: Launching systemsettings (window: settings)
+[INFO  21:31:47.434] execute_launch_window: Window detected: {33f0064d-4a44-4fe1-8e3b-0f0688a6368c} (method: new_window)
+[INFO  21:31:47.987] execute_launch_window: Positioned on Screen 1, Desktop 6, Right Half
+[INFO  21:31:48.177] workspace_open: Workspace 'my-workspace' opened successfully
+$ kdoitall status
+
+kdoitall Status
+═══════════════════════════════════════════════════════
+
+Workspace: my-workspace
+───────────────────────────────────────────────────────
+  1. Calculator             calc
+     Desktop 6, Screen 2, LEFTHALF        0,0 960x1036
+  2. System Settings        settings
+     Desktop 6, Screen 1, RIGHTHALF       2880,0 960x1080
+
+Other Tracked Windows
+  WINDOW NAME                      CLASS                  TITLE
+───────────────────────────────────────────────────────
+  [16 rows for windows that were already open, cut from this sample]
+```
 
 ## Workspace files
 
