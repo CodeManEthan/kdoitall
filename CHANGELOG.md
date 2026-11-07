@@ -25,10 +25,14 @@ All notable changes to kdoitall will be documented in this file.
 
 - **Workspace scripts pass stored values through literally** — names, screens and params reach the launch function exactly as stored, as one argument each. Quotes, `$` and backticks in them are no longer read by the shell. Launch function names and positions must be plain names. Params containing `|`, a newline or another control character (tabs separate values) are refused wherever params come in, and an empty tab-separated value is kept rather than dropped. The terminal launch functions still run the commands and scripts a workspace names, since that is what they are for, so import only workspace files you trust. Scripts written by earlier versions keep working. To regenerate one: `kdoitall workspace export <name> > f.json`, then `kdoitall workspace create <name> --from-file f.json --replace`.
 - **The terminal launch functions quote paths** — a directory, virtualenv or script path containing a `'` no longer breaks the command the terminal runs.
-- **Splash screen auto-learn** — apps with a slow splash screen (digiKam, for example) are now detected and learned correctly. The splash duration is recorded per app and used on later launches.
+- **Splash screen auto-learn** — kdoitall now watches long enough to see a splash screen close, records that the app has one and how long it lasted, and uses that on later launches. Still partial: an app that opens a second window alongside its main one after the splash (GIMP's welcome dialog, for example) can fail its first open or have the dialog positioned instead of the main window.
 - `DESKTOP_FILE_LOCATIONS` **can be set in the user config** — setting it there used to stop every command with a "readonly variable" error.
 - `qdbus6` **is used when** `qdbus-qt6` **is missing** — it was accepted by the dependency check but never called, so the snapshot path silently fell back to `kdotool`.
 - **Install script exit** — after it had installed `kdotool` itself, `scripts/install.sh` could end with an "unbound variable" error and left its temporary download directory behind.
+- **Launch crash when an app has no class yet** — a single-instance app with no learned window class stopped the launch with an "unbound variable" error. Several error paths referred to error codes that were never defined; they now use real ones.
+- **Launch stopped by an empty window title** — when the window title read came back empty just after a window appeared, the whole launch failed. The window is now registered anyway, and a window that closed before it could be registered gets a clear error.
+- **Safe mode printed a window ID** after each app it checked.
+- **Workspace subcommands and** `--help` — `workspace create --help` started creating a workspace named `--help`, and `workspace delete --help` looked for one. Every workspace subcommand now prints its usage for `--help` or `-h`.
 
 ### Removed
 
