@@ -38,7 +38,29 @@ workspace_command() {
         workspace_show_help
         return 1
     fi
-    
+
+    if [[ "$subcommand" == "help" || "$subcommand" == "--help" || "$subcommand" == "-h" ]]; then
+        workspace_show_help
+        return 0
+    fi
+
+    # --help or -h anywhere after a subcommand shows its usage and does
+    # nothing else, so it can't be taken as a workspace name. add-window,
+    # edit-window and remove-window parse their own flags and have their
+    # own help, so they are left to handle it.
+    case "$subcommand" in
+        add-window|aw|edit-window|ew|remove-window|rw) ;;
+        *)
+            local arg=""
+            for arg in "${args[@]}"; do
+                if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
+                    workspace_show_subcommand_help "$subcommand" || return 1
+                    return 0
+                fi
+            done
+            ;;
+    esac
+
     # Dispatch to appropriate handler
     case "$subcommand" in
         create|new)
@@ -176,7 +198,52 @@ workspace_command() {
 }
 
 workspace_show_help() {
-    cat << 'EOF' >&3
+    _workspace_help_text >&3
+}
+
+# Show the usage lines for one subcommand, taken from the workspace help so
+# the two can't disagree. Accepts the subcommand or its short alias.
+workspace_show_subcommand_help() {
+    local subcommand="$1"
+    local name=""
+
+    case "$subcommand" in
+        create|new) name="create" ;;
+        export|exp) name="export" ;;
+        edit|e) name="edit" ;;
+        add-window|aw) name="add-window" ;;
+        edit-window|ew) name="edit-window" ;;
+        remove-window|rw) name="remove-window" ;;
+        list|ls) name="list" ;;
+        info|i) name="info" ;;
+        open|o) name="open" ;;
+        close|c) name="close" ;;
+        focus|f) name="focus" ;;
+        minimize|min) name="minimize" ;;
+        delete|rm) name="delete" ;;
+        *)
+            echo "Error: Unknown workspace subcommand: $subcommand" >&2
+            workspace_show_help
+            return 1
+            ;;
+    esac
+
+    {
+        echo "Usage: kdoitall workspace (ws) <subcommand> [options]"
+        echo ""
+        # The subcommand's line, then its indented option lines
+        _workspace_help_text | awk -v name="$name" '
+            index($0, "  " name " (") == 1 { found = 1; print; next }
+            found && /^    / { print; next }
+            { found = 0 }
+        '
+        echo ""
+        echo "Run 'kdoitall workspace --help' for all workspace subcommands."
+    } >&3
+}
+
+_workspace_help_text() {
+    cat << 'EOF'
 Usage: kdoitall workspace (ws) <subcommand> [options]
 
 Workspace Subcommands:
