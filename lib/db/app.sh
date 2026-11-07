@@ -683,6 +683,7 @@ db_set_app_class() {
 db_set_has_splash_window() {
     local app_id="$1"
     local has_splash_window="$2"
+    local splash_duration_ms="${3:-}"
     local function_name="db_set_has_splash_window"
 
     debug_function_enter "$function_name" "$@"
@@ -690,12 +691,23 @@ db_set_has_splash_window() {
     validate_parameter_pass "$app_id" "app_id" || return 1
     validate_parameter_pass "$has_splash_window" "has_splash_window" || return 1
 
-    db_query \
-        "UPDATE applications
-         SET has_splash_window = :has_splash_window
-         WHERE app_id = :app_id;" \
-        ":app_id" "$app_id" \
-        ":has_splash_window" "$has_splash_window"
+    if [[ -n "$splash_duration_ms" && "$splash_duration_ms" -gt 0 ]]; then
+        db_query \
+            "UPDATE applications
+             SET has_splash_window = :has_splash_window,
+                 splash_duration_ms = :splash_duration_ms
+             WHERE app_id = :app_id;" \
+            ":app_id" "$app_id" \
+            ":has_splash_window" "$has_splash_window" \
+            ":splash_duration_ms" "$splash_duration_ms"
+    else
+        db_query \
+            "UPDATE applications
+             SET has_splash_window = :has_splash_window
+             WHERE app_id = :app_id;" \
+            ":app_id" "$app_id" \
+            ":has_splash_window" "$has_splash_window"
+    fi
 
     if [[ "$DB_STATUS" != "OK" ]] || [[ "${DB_RESULT[0]:-0}" -eq 0 ]]; then
         debug_error "$function_name" "$ERR_DATABASE_ERROR" "No rows updated for app_id: $app_id ($DB_ERROR)"
@@ -703,7 +715,11 @@ db_set_has_splash_window() {
         return 1
     fi
 
-    debug_log "$function_name" "Set has_splash_window for $app_id: $has_splash_window"
+    if [[ -n "$splash_duration_ms" && "$splash_duration_ms" -gt 0 ]]; then
+        debug_log "$function_name" "Set has_splash_window=$has_splash_window, splash_duration_ms=${splash_duration_ms}ms for $app_id"
+    else
+        debug_log "$function_name" "Set has_splash_window for $app_id: $has_splash_window"
+    fi
     debug_function_exit "$function_name"
     return 0
 }

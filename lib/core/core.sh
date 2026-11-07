@@ -290,8 +290,14 @@ execute_launch_window() {
                 splash_min_monitor_ms=5000
             fi
         else
-            # Unknown — lightweight quick check
-            splash_max_wait_ms=3000
+            # Unknown — defer stability declaration past common splash
+            # durations so apps like digiKam (~2.8s splash) get caught by
+            # the splash-recovery flow. Without min_monitor_ms, stability
+            # was being declared after ~1s while the splash was still alive,
+            # so the splash UUID was returned and the recovery flow never
+            # ran. See docs/flows/window-launch-pipeline.md Phase 4b.
+            splash_max_wait_ms=6000
+            splash_min_monitor_ms=3000
             splash_stability_threshold=2
         fi
 
@@ -303,18 +309,27 @@ execute_launch_window() {
         if [[ -n "$splash_result" ]]; then
             local stable_uuid=""
             local splash_was_detected=""
-            IFS='|' read -r stable_uuid splash_was_detected _ <<< "$splash_result"
+            local measured_splash_duration_ms=""
+            IFS='|' read -r stable_uuid splash_was_detected measured_splash_duration_ms <<< "$splash_result"
 
             if [[ -n "$stable_uuid" && "$stable_uuid" != "$uuid" ]]; then
                 debug_log "$function_name" "Phase 4b: UUID changed from '$uuid' to '$stable_uuid' — re-syncing"
                 uuid="$stable_uuid"
-                auto_detect_windows
+                # Refresh CURRENT_UUIDS to reflect the new window. Do NOT
+                # call auto_detect_windows here — its db_add_existing_windows
+                # step would insert the new UUID into app_windows, then
+                # Phase 5's db_add_window would hit the UNIQUE constraint
+                # on uuid. wait_for_stable_window already cleaned up the
+                # dead splash UUID via its own refresh+delete-stale pass.
+                refresh_current_windows
             fi
 
             # Auto-learn: if unknown and splash detected, mark as splash app
+            # and record the measured duration so future launches can use
+            # min_monitor_ms tuned to this app rather than the generic 3s.
             if [[ "$has_splash_window" == "unknown" && "$splash_was_detected" == "true" ]]; then
-                debug_log "$function_name" "Phase 4b: Auto-learning — setting has_splash_window=true for $app_id"
-                db_set_has_splash_window "$app_id" "true"
+                debug_log "$function_name" "Phase 4b: Auto-learning — setting has_splash_window=true (duration=${measured_splash_duration_ms}ms) for $app_id"
+                db_set_has_splash_window "$app_id" "true" "$measured_splash_duration_ms"
             fi
         fi
     fi

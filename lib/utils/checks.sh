@@ -77,12 +77,40 @@ check_dependencies() {
 
 check_and_set_guard() {
     local guard_var="$1"
-    
+
     if [[ -n "${!guard_var:-}" ]]; then
         return 1  # Already sourced (failure = don't continue)
     fi
-    
+
     # Set the guard variable in the caller's scope
     printf -v "$guard_var" "1"
     return 0  # Not sourced yet (success = continue)
+}
+
+# Soft check for the optional KWin-script snapshot path
+# (lib/kwin-scripts/snapshot.sh). When all deps are present, kdoitall uses
+# the race-free atomic snapshot for window queries; when missing, it falls
+# back to the kdotool query path (still functional, just race-prone).
+# Returns 0 always — emits a debug log either way so verbose runs surface
+# which path is in use.
+check_snapshot_dependencies() {
+    local function_name="check_snapshot_dependencies"
+    local -a missing=()
+
+    if ! command -v python3 &>/dev/null; then
+        missing+=("python3")
+    elif ! python3 -c "import dbus, dbus.service, dbus.mainloop.glib; from gi.repository import GLib" &>/dev/null; then
+        missing+=("python3-dbus / python3-gobject")
+    fi
+
+    if ! command -v qdbus-qt6 &>/dev/null && ! command -v qdbus6 &>/dev/null; then
+        missing+=("qdbus-qt6")
+    fi
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        debug_log "$function_name" "KWin snapshot deps missing (${missing[*]}); using kdotool fallback for queries"
+    else
+        debug_log "$function_name" "KWin snapshot deps available; race-free query path enabled"
+    fi
+    return 0
 }
