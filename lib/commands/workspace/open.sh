@@ -92,7 +92,9 @@ workspace_open() {
                         echo "Starting safe mode for ${#remaining_apps[@]} application(s)..." >&3
 
                         for app_id in "${remaining_apps[@]}"; do
-                            safe_mode_launch_and_detect "$app_id" || true
+                            # It prints the window UUID on stdout for callers
+                            # that capture it; this one doesn't, so drop it.
+                            safe_mode_launch_and_detect "$app_id" > /dev/null || true
                         done
                     fi
 
