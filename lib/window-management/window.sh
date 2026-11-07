@@ -570,7 +570,7 @@ get_uuid() {
 
     # Need at least one search criterion
     if [[ -z "$class" && -z "$window_title" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_ARGUMENT" "Must provide at least class or window_title"
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "Must provide at least class or window_title"
         debug_function_exit "$function_name"
         return 1
     fi

@@ -10,6 +10,11 @@ export ERR_INVALID_PARAMETER=2
 
 readonly ERR_MISSING_PARAMETER ERR_INVALID_PARAMETER
 
+# General
+export ERR_OPERATION_FAILED=3
+
+readonly ERR_OPERATION_FAILED
+
 # Desktops
 export ERR_DESKTOP_NOT_FOUND=10
 export ERR_DESKTOP_VALIDATION_FAILED=11
@@ -137,6 +142,9 @@ declare -A ERROR_MESSAGES=(
     # Parameters
     [$ERR_MISSING_PARAMETER]="Missing parameter"
     [$ERR_INVALID_PARAMETER]="Invalid parameter"
+
+    # General
+    [$ERR_OPERATION_FAILED]="Operation failed"
 
     # Desktops
     [$ERR_DESKTOP_VALIDATION_FAILED]="Desktop validation failed"

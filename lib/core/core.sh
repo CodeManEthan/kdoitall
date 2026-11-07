@@ -646,7 +646,7 @@ detect_and_store_class() {
             return 1
         fi
     else
-        debug_error "$function_name" "$ERR_CLASS_DETECTION_FAILED" "Could not detect class for UUID $uuid"
+        debug_error "$function_name" "$ERR_WINDOW_CLASS_NOT_FOUND" "Could not detect class for UUID $uuid"
         debug_function_exit "$function_name"
         return 1
     fi

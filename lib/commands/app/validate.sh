@@ -29,7 +29,7 @@ app_validate() {
     else
         echo "" >&3
         echo "✗ Some application files have validation errors" >&2
-        debug_error "$function_name" "$ERR_UNKNOWN" "registry_validate_all_app_files failed"
+        debug_error "$function_name" "$ERR_OPERATION_FAILED" "registry_validate_all_app_files failed"
         debug_function_exit "$function_name"
         return 1
     fi

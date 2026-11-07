@@ -116,7 +116,7 @@ validate_global_array_populated() {
     local function_name="validate_global_array_populated"
     
     if [[ ${#array_ref[@]} -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_INVALID_STATE" "$array_name is empty"
+        debug_error "$function_name" "$ERR_INVALID_VALUE" "$array_name is empty"
         return 1
     fi
     
