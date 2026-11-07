@@ -320,7 +320,15 @@ kdoitall reads its defaults from `config` in the project directory, then your ow
 | `EXTRA_POSITIONS` | not set | A bash array of extra [position](#positions) names to turn on, such as `EXTRA_POSITIONS=("Left Two-Thirds" "Right Two-Thirds")`. |
 | `DESKTOP_FILE_LOCATIONS` | `/usr/share/applications`, `/usr/local/share/applications`, `~/.local/share/applications`, `/var/lib/flatpak/exports/share/applications`, `~/.local/share/flatpak/exports/share/applications`, `/var/lib/snapd/desktop/applications` | The directories `app scan` reads `.desktop` files from. |
 
-`DESKTOP_FILE_LOCATIONS` can't be changed from your user file yet. The project `config` declares it read-only, so setting it in `~/.config/kdoitall/config` stops every kdoitall command with a `readonly variable` error. For now, change it in the project's `config`. That edit is a local change in the git checkout, so `kdoitall update` (a `git pull`) may stop on it.
+To change `DESKTOP_FILE_LOCATIONS`, set it in your user file as a bash array. Your array replaces the whole default list, so include any default directories you still want scanned:
+
+```bash
+DESKTOP_FILE_LOCATIONS=(
+    "/usr/share/applications"
+    "$HOME/.local/share/applications"
+    "$HOME/apps/desktop-files"
+)
+```
 
 ## Project Status
 

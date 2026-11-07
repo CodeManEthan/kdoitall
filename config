@@ -4,8 +4,9 @@
 # Copyright (C) 2025 Ethan Plunk
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Standard .desktop file locations
-readonly DESKTOP_FILE_LOCATIONS=(
+# Standard .desktop file locations. Not readonly: the user config may
+# replace this array.
+DESKTOP_FILE_LOCATIONS=(
     "/usr/share/applications"
     "/usr/local/share/applications"
     "$HOME/.local/share/applications"
