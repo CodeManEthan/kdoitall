@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 11: Auto-detect sync after external window kill
+# Test 11: Auto-detect sync after external window kill
 
 _run_test_11() {
 
-print_section_header "Phase 11: Auto-Detect Sync"
+print_section_header "Test 11: Auto-Detect Sync"
 
 # Ensure workspace exists (re-create if needed)
 if ! db_test_query "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name='test-single-kate';" | grep -q "^1$"; then

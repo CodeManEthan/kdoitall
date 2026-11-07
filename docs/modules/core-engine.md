@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The core engine is the central nervous system of kdoitall. It contains the window launch/close pipeline (`core.sh`), all global constants and position definitions (`common.sh`), the complete error code registry (`error-codes.sh`), and keyboard/mouse automation bindings (`ydotool.sh`). Every workspace operation -- launching, positioning, closing, and detecting windows -- flows through this module. Changes here have the widest blast radius of any module in the system.
+The core engine is the central nervous system of kdoitall. It contains the window launch/close pipeline (`core.sh`), all global constants and position definitions (`common.sh`), and the complete error code registry (`error-codes.sh`). Every workspace operation -- launching, positioning, closing, and detecting windows -- flows through this module. Changes here have the widest blast radius of any module in the system.
 
 ## 2. Key Files
 
@@ -11,7 +11,6 @@ The core engine is the central nervous system of kdoitall. It contains the windo
 | `lib/core/core.sh` | Central launch/close pipeline, window detection, auto-detect sync | Large -- multi-phase orchestrator |
 | `lib/core/common.sh` | Global constants: positions, launch modes, timing, paths, blocklists | Medium -- foundational definitions |
 | `lib/core/error-codes.sh` | ~232 error code constants and `ERROR_MESSAGES[]` associative array | Large -- exhaustive error catalog |
-| `lib/core/ydotool.sh` | Keyboard/mouse automation: key press, chord, type, cleanup traps | Small -- ydotool daemon interface |
 
 ## 3. Function Impact Map
 
@@ -132,23 +131,6 @@ Detects and caches the window class for an application.
 
 ---
 
-#### ydotool functions -- ydotool.sh
-
-| Function | Purpose |
-|---|---|
-| `press_key(key_name)` | Press and hold a single key |
-| `release_key(key_name)` | Release a held key |
-| `tap_key(key_name)` | Press and immediately release a key |
-| `chord(keys...)` | Multi-key combination: press all, hold, release in reverse order |
-| `type_text(text)` | Type a string of text |
-| `cleanup()` | EXIT/INT/TERM trap that releases all currently pressed keys |
-
-Also defines `KEYS[]` associative array mapping human-readable key names to keycodes.
-
-**Callers:** Not called by the core pipeline directly. Available for app-specific launch functions and tab management operations.
-
----
-
 ### Tier 3 -- Narrow Blast Radius
 
 Changes here are isolated and low-risk.
@@ -228,13 +210,6 @@ Use this checklist when modifying any file in the core engine module.
 - [ ] Add new codes at the end of the appropriate section
 - [ ] Always add a corresponding entry in `ERROR_MESSAGES[]`
 - [ ] Search for the error code constant name to find all consumers
-
-### Changing ydotool functions (ydotool.sh)
-
-- [ ] Verify `ydotoold` daemon is running during testing
-- [ ] Test the `cleanup()` trap -- stuck keys are a serious usability issue
-- [ ] Check `KEYS[]` array if adding new key mappings
-- [ ] Test `chord()` with multi-key combinations (timing-sensitive)
 
 ### General core engine changes
 

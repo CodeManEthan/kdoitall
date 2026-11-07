@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 14: Launch mode behaviors (MULTI, SINGLE, UNIQUE)
+# Test 14: Launch mode behaviors (MULTI, SINGLE, UNIQUE)
 
 _run_test_14() {
 
-print_section_header "Phase 14: Launch Mode Behaviors"
+print_section_header "Test 14: Launch Mode Behaviors"
 
 # Setup apps with correct launch modes
 setup_test_app "org.mozilla.firefox" "multi" "org.mozilla.firefox"

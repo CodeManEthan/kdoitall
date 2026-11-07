@@ -29,6 +29,8 @@ CREATE TABLE app_windows (
     FOREIGN KEY (app_id) REFERENCES applications(app_id) ON DELETE SET NULL
 );
 
+-- Reserved for browser-tab tracking, which isn't built. Nothing writes to
+-- this table; it stays so existing databases need no migration to drop it.
 CREATE TABLE tabs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     window_name TEXT NOT NULL,

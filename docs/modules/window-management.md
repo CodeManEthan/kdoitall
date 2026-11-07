@@ -12,7 +12,6 @@ The window management module handles all runtime window operations: detecting wi
 | `lib/window-management/snapshot.sh` | 110 | Active — atomic window-state snapshot via custom KWin script (race-free query path) |
 | `lib/window-management/screen.sh` | 705 | Active — physical screen positioning and detection |
 | `lib/window-management/desktop.sh` | 136 | Active — virtual desktop operations |
-| `lib/window-management/tab.sh` | — | Stub (unused) |
 | `lib/kwin-scripts/snapshot.js` | — | KWin script: walks `workspace.windowList()`, delivers JSON via `callDBus` |
 | `lib/kwin-scripts/daemon.py` | — | Long-lived session-bus daemon (`org.kdoitall.Snapshot`) exposing `TakeSnapshot(int) -> string`. Handles loadScript+start of the KWin script and async-reply with the delivered payload. |
 | `lib/kwin-scripts/snapshot.sh` | — | Thin client: probes for the daemon via qdbus, auto-spawns it via nohup if absent, then calls `TakeSnapshot`. flock-serialized. Returns JSON on stdout. |
@@ -27,7 +26,6 @@ The window management module handles all runtime window operations: detecting wi
 | `lib/window-management/snapshot.sh` | Race-free batch window query: invokes a custom KWin script that returns all windows with class/title/geometry/desktops/output/type-flags atomically. Populates the same CURRENT_UUIDS/CLASSES/TITLES arrays as the kdotool path. Used by `refresh_current_windows` first, with kdotool fallback when deps unavailable. See `docs/flows/window-detection.md` edge case #9 for the race this replaces. |
 | `lib/window-management/screen.sh` | Screen-aware positioning: resolves screen references, calculates screen origins, moves windows to screens, positions windows using 24+ layout modes (fullscreen, halves, thirds, quarters, 60/40 splits), detects current window screen and position |
 | `lib/window-management/desktop.sh` | Virtual desktop operations: move windows between desktops, get/set current desktop, validate desktop numbers against detected count |
-| `lib/window-management/tab.sh` | Stub file — reserved for future browser tab management integration |
 
 ---
 

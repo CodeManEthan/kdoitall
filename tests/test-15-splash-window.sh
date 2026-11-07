@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 15: Splash window detection (digiKam)
+# Test 15: Splash window detection (digiKam)
 
 _run_test_15() {
 
-print_section_header "Phase 15: Splash Window Detection"
+print_section_header "Test 15: Splash Window Detection"
 
 # Setup: register digiKam, skip safe mode, reset splash status to unknown
 setup_test_app "org.kde.digikam" "" ""

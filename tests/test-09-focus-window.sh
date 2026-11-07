@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 9: Focus window configuration
+# Test 09: Focus window configuration
 
 _run_test_09() {
 
-print_section_header "Phase 9: Focus Window Configuration"
+print_section_header "Test 09: Focus Window Configuration"
 
 # ============================================================================
 # Create workspace with focus_window set to Dolphin

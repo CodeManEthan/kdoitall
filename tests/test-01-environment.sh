@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 0: Environment checks
+# Test 01: Environment checks
 
 _run_test_01() {
 
-print_section_header "Phase 0: Environment Checks"
+print_section_header "Test 01: Environment Checks"
 
 # ---- kdoitall binary exists and is executable ----
 

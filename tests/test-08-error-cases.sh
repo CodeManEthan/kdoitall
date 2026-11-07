@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 8: Error handling and edge cases
+# Test 08: Error handling and edge cases
 
 _run_test_08() {
 
-print_section_header "Phase 8: Error Cases"
+print_section_header "Test 08: Error Cases"
 
 # ============================================================================
 # Invalid workspace operations

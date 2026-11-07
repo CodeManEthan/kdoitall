@@ -19,6 +19,9 @@ CREATE TABLE app_registry (
     terminal_exec_flag TEXT DEFAULT NULL
 );
 
+-- The commented-out rows below (--INSERT) use the old 8-column format, without
+-- is_terminal_emulator and terminal_exec_flag, and are pending conversion.
+
 -- Browsers
 INSERT INTO app_registry VALUES ('org.mozilla.firefox', 'firefox', 'org.mozilla.firefox', ' — Mozilla Firefox', 'multi', 1, 'firefox', 'unknown', FALSE, NULL);
 --INSERT INTO app_registry VALUES ('com.google.Chrome', 'chrome', 'com.google.Chrome', 'Google Chrome', 'multi', 0, 'chrome', 'unknown');

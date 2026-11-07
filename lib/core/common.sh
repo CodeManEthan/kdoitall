@@ -23,12 +23,8 @@ export WINDOW_DELAY="0.1"
 export DESKTOP_DELAY="0.1"
 export SCREEN_DELAY="0.1"
 export POSITION_DELAY="0.5"
-export KEYPRESS_DELAY="0.05"
-export KEY_CHORD_DELAY="0.5"
-export TYPE_TEXT_DELAY="0.1"
 
 readonly LAUNCH_DELAY WINDOW_DELAY DESKTOP_DELAY SCREEN_DELAY POSITION_DELAY
-readonly KEYPRESS_DELAY KEY_CHORD_DELAY TYPE_TEXT_DELAY
 
 # Application launch modes
 export LAUNCH_MODE_MULTI="multi"    # Multiple windows always allowed

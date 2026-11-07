@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 1-2: App commands and screen commands
+# Test 02: App commands and screen commands
 
 _run_test_02() {
 
 # ============================================================================
-# Phase 1: App Commands
+# Test 02: App Commands
 # ============================================================================
 
-print_section_header "Phase 1: App Commands"
+print_section_header "Test 02: App Commands"
 
 # ---- app scan (critical gate) ----
 
@@ -92,10 +92,10 @@ else
 fi
 
 # ============================================================================
-# Phase 2: Safe Mode + Screen Aliases
+# Test 02: Safe Mode + Screen Aliases
 # ============================================================================
 
-print_section_header "Phase 2: Safe Mode & Screen Aliases"
+print_section_header "Test 02: Safe Mode & Screen Aliases"
 
 # ---- safe-mode skip ----
 

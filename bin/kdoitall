@@ -179,8 +179,6 @@ source "${LIB_DIR}/db/helpers.sh"
 source "${LIB_DIR}/db/migrations.sh"
 # shellcheck source=../lib/core/database.sh
 source "${LIB_DIR}/core/database.sh"
-# shellcheck source=../lib/core/ydotool.sh
-source "${LIB_DIR}/core/ydotool.sh"
 
 # Apply any pending schema migrations before opening the persistent DB
 # server, so the coproc never sees a stale schema.

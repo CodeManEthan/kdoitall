@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test: kdotool search reliability
+# Test 04: kdotool search reliability
 #
 # Polls "kdotool search" continuously for 30 seconds via the same retry
 # policy used by the production wrapper _kdotool_search_safe in
@@ -28,7 +28,7 @@
 
 _run_test_04() {
 
-print_section_header "kdotool search Reliability (30s)"
+print_section_header "Test 04: kdotool search Reliability (30s)"
 
 local duration=30
 local poll_interval=0.1   # 100ms between polls

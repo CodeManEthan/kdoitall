@@ -46,8 +46,6 @@ source "${LIB_DIR}/utils/validators.sh"
 source "${LIB_DIR}/db/helpers.sh"
 # shellcheck source=../lib/core/database.sh
 source "${LIB_DIR}/core/database.sh"
-# shellcheck source=../lib/core/ydotool.sh
-source "${LIB_DIR}/core/ydotool.sh"
 
 # --- Runtime Modules ---
 # shellcheck source=../lib/utils/colors.sh

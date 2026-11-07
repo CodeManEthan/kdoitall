@@ -238,28 +238,6 @@ debug_app_windows() {
     fi
 }
 
-# Debug function to show chord keys being pressed (verbose only)
-debug_chord() {
-    local -a keys=()
-    keys=("$@")
-    local chord_string=""
-    
-    for key in "${keys[@]}"; do
-        if [[ -z "$chord_string" ]]; then
-            chord_string="$key"
-        else
-            chord_string="$chord_string + $key"
-        fi
-    done
-    
-    local line=""
-    line="${COLOR_GRAY}[DEBUG $(date +%H:%M:%S.%3N)]${COLOR_RESET} ${COLOR_MAGENTA}CHORD: $chord_string${COLOR_RESET}"
-    _log_to_file "$line"
-    if [ "$VERBOSE_MODE" = "true" ]; then
-        echo -e "$line" >&2
-    fi
-}
-
 export LOG_LEVEL
 export VERBOSE_MODE
 export KDOITALL_LOG_FILE
@@ -272,4 +250,3 @@ export -f debug_function_enter
 export -f debug_function_exit
 export -f debug_array
 export -f debug_app_windows
-export -f debug_chord

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 7: Multi-window lifecycle
+# Test 07: Multi-window lifecycle
 
 _run_test_07() {
 
-print_section_header "Phase 7: Multi-Window Lifecycle"
+print_section_header "Test 07: Multi-Window Lifecycle"
 
 # Create multi-window workspace (if not already created)
 if ! db_test_query "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name='test-multi-window';" | grep -q "^1$"; then

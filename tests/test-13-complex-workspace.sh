@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 13: Complex multi-window workspace (4 windows, 4 desktops, 2 screens)
+# Test 13: Complex multi-window workspace (4 windows, 4 desktops, 2 screens)
 
 _run_test_13() {
 
-print_section_header "Phase 13: Complex Multi-Window Workspace"
+print_section_header "Test 13: Complex Multi-Window Workspace"
 
 # Setup apps
 setup_test_app "org.mozilla.firefox" "multi" "org.mozilla.firefox"
