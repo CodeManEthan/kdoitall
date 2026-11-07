@@ -41,7 +41,7 @@ It handles multi-screen and multi-desktop setups, keeps its state in SQLite, and
 Tested on Fedora, Plasma 6, Wayland. X11 and Plasma 5 should work but are untested.
 
 - **Desktop Environment:** KDE Plasma
-- **Shell:** Bash 4.0+
+- **Shell:** Bash 4.4+
 
 ### Dependencies
 
@@ -65,7 +65,7 @@ kdoitall checks for all six at startup and, if one is missing, names it with the
 | Python `dbus` and `gi` modules (python3-dbus, python3-gobject) | The daemon (`lib/kwin-scripts/daemon.py`) |
 | `qdbus-qt6` or `qdbus6`            | Talks to the daemon over the session bus    |
 
-With these installed, kdoitall reads the window list through a KWin script that returns every window in one call. A small daemon on the session bus (`org.kdoitall.Snapshot`) carries the result back. kdoitall starts it on first use and it stays up for the session. Without them, kdoitall asks `kdotool` instead. That still works, but `kdotool` reports windows one by one, so a window that appears mid-query can be missed or cut short. `kdoitall --restart-snapshot-daemon` stops the daemon and starts a new one.
+With these installed, kdoitall reads the window list through a KWin script that returns every window in one call. A small daemon on the session bus (`org.kdoitall.Snapshot`) carries the result back. kdoitall starts it on first use and it stays up for the session. Without them, kdoitall asks `kdotool` instead. That still works, but `kdotool` reports windows one by one, so a window that appears mid-query can be missed or cut short. `kdoitall --restart-snapshot-daemon` stops the daemon and starts a new one. It stops every running kdoitall snapshot daemon it finds, including one started from another copy of kdoitall.
 
 ## Installation
 ```bash
