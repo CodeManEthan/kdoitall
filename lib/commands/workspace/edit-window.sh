@@ -304,7 +304,7 @@ workspace_edit_window() {
         if [[ "$new_function" != "launch_by_app_id" ]]; then
             local launch_opts=""
             launch_opts=$(db_get_launch_options "$e_app_id")
-            if [[ -z "$launch_opts" ]] || ! echo "$launch_opts" | grep -q "^${new_function}|"; then
+            if ! launch_option_exists "$launch_opts" "$new_function"; then
                 echo "Error: Launch function '$new_function' not found for app '$e_app_id'." >&2
                 debug_function_exit "$function_name"
                 return 1
@@ -313,8 +313,13 @@ workspace_edit_window() {
         changes+=("function: $e_launch_function -> $new_function")
     fi
 
-    # --params: no validation needed
+    # --params: same rules as every other way params come in
     if [[ "$has_params_flag" == true ]]; then
+        if ! validate_params "$new_params"; then
+            echo "Error: --params must not contain '|', a newline or other control characters (tabs separate values)." >&2
+            debug_function_exit "$function_name"
+            return "$ERR_INVALID_PARAMETER"
+        fi
         changes+=("params: '${e_parameters}' -> '${new_params}'")
     fi
 

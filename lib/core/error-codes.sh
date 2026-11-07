@@ -10,6 +10,11 @@ export ERR_INVALID_PARAMETER=2
 
 readonly ERR_MISSING_PARAMETER ERR_INVALID_PARAMETER
 
+# General
+export ERR_OPERATION_FAILED=3
+
+readonly ERR_OPERATION_FAILED
+
 # Desktops
 export ERR_DESKTOP_NOT_FOUND=10
 export ERR_DESKTOP_VALIDATION_FAILED=11
@@ -72,12 +77,6 @@ export ERR_PERMISSION_DENIED=63
 
 readonly ERR_FILE_IS_EMPTY ERR_FILE_NOT_FOUND 
 readonly ERR_DIRECTORY_NOT_FOUND ERR_PERMISSION_DENIED
-
-# Ydotool
-export ERR_YDOTOOL_NOT_RUNNING=70
-export ERR_UNKNOWN_KEY=71
-
-readonly ERR_YDOTOOL_NOT_RUNNING ERR_UNKNOWN_KEY
 
 # Application Registry
 export ERR_APP_FILE_NOT_FOUND=80
@@ -144,6 +143,9 @@ declare -A ERROR_MESSAGES=(
     [$ERR_MISSING_PARAMETER]="Missing parameter"
     [$ERR_INVALID_PARAMETER]="Invalid parameter"
 
+    # General
+    [$ERR_OPERATION_FAILED]="Operation failed"
+
     # Desktops
     [$ERR_DESKTOP_VALIDATION_FAILED]="Desktop validation failed"
     [$ERR_DESKTOP_NOT_FOUND]="Desktop not found"
@@ -187,10 +189,6 @@ declare -A ERROR_MESSAGES=(
     [$ERR_FILE_NOT_FOUND]="File not found"
     [$ERR_DIRECTORY_NOT_FOUND]="Directory not found"
     [$ERR_PERMISSION_DENIED]="Permission denied"
-
-    # Ydotool
-    [$ERR_YDOTOOL_NOT_RUNNING]="ydotool daemon not running"
-    [$ERR_UNKNOWN_KEY]="Unknown key"
 
     # Application Registry
     [$ERR_APP_FILE_NOT_FOUND]="Application file not found"

@@ -25,6 +25,75 @@ _launch_via_gtk() {
     gtk-launch "$target_app_id" > /dev/null 2>&1 & disown
 }
 
+# Returns 0 when the window still exists. Used when its title read came
+# back empty, to tell a slow title apart from a window that has closed
+# (for example a splash window that went away). A non-empty class read or
+# the UUID in kdotool's window list both count as present. It checks twice,
+# 0.2s apart, so one empty kdotool reply doesn't count as gone.
+_window_still_exists() {
+    local uuid="$1"
+    local class=""
+    local all_uuids=""
+    local attempt=0
+
+    for attempt in 1 2; do
+        class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        if [[ -n "$class" ]]; then
+            return 0
+        fi
+        all_uuids=$(_kdotool_search_safe) || all_uuids=""
+        if grep -Fqx -- "$uuid" <<< "$all_uuids"; then
+            return 0
+        fi
+        if [[ "$attempt" -lt 2 ]]; then
+            sleep 0.2
+        fi
+    done
+    return 1
+}
+
+# Prints the title of a window that was just found, possibly empty, and
+# returns 0 while the window exists. Right after a window maps, or under
+# load, kdotool can return an empty title, so the read is retried briefly.
+# If it is still empty but the window exists, the empty title is printed
+# and the launch goes on: Phase 7 reads the title again for pattern
+# learning and skips that step when it is still empty. If the window is
+# gone, it prints nothing and returns 1, so the caller fails the launch
+# instead of registering a closed window.
+# get_window_title's stderr is dropped because an empty read is expected
+# here; debug_error still writes it to the log file when one is set.
+_read_title_for_registration() {
+    local uuid="$1"
+    local title=""
+    local attempt=0
+    local function_name="_read_title_for_registration"
+
+    debug_function_enter "$function_name" "$@"
+
+    for attempt in 1 2 3; do
+        if title=$(get_window_title "$uuid" 2>/dev/null); then
+            break
+        fi
+        title=""
+        if [[ "$attempt" -lt 3 ]]; then
+            sleep 0.2
+        fi
+    done
+
+    if [[ -z "$title" ]]; then
+        if ! _window_still_exists "$uuid"; then
+            debug_log "$function_name" "No title for $uuid after $attempt reads, and the window no longer exists"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+        debug_log "$function_name" "No title for $uuid after $attempt reads; the window exists, registering with an empty title"
+    fi
+
+    debug_function_exit "$function_name"
+    printf '%s\n' "$title"
+    return 0
+}
+
 execute_launch_window() {
     local workspace_name="$1"
     local window_name="$2"
@@ -73,12 +142,23 @@ execute_launch_window() {
 
     if [[ "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
         debug_log "$function_name" "Phase 2: Single-instance check"
-        uuid=$(get_uuid "$class" "$window_title_pattern")
+        # With no class and no title pattern yet (an app not learned yet)
+        # there is nothing to search by, so launch it fresh.
+        if [[ -n "$class" || -n "$window_title_pattern" ]]; then
+            uuid=$(get_uuid "$class" "$window_title_pattern")
+        else
+            debug_log "$function_name" "Phase 2: no class or title pattern known, skipping the existing-window check"
+        fi
 
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "Single-instance window already exists: $uuid"
             info_log "$function_name" "Window already open, reclaiming: $uuid"
-            window_title=$(get_window_title "$uuid")
+            if ! window_title=$(_read_title_for_registration "$uuid"); then
+                debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "Window $uuid for $app_id closed before it could be reclaimed"
+                info_log "$function_name" "Window $uuid closed before it could be reclaimed"
+                debug_function_exit "$function_name"
+                return 1
+            fi
             raise_window "$uuid"
             db_claim_window "$workspace_name" "$window_name" "$uuid" "$window_title"
 
@@ -290,8 +370,14 @@ execute_launch_window() {
                 splash_min_monitor_ms=5000
             fi
         else
-            # Unknown — lightweight quick check
-            splash_max_wait_ms=3000
+            # Unknown — defer stability declaration past common splash
+            # durations so apps like digiKam (~2.8s splash) get caught by
+            # the splash-recovery flow. Without min_monitor_ms, stability
+            # was being declared after ~1s while the splash was still alive,
+            # so the splash UUID was returned and the recovery flow never
+            # ran. See docs/flows/window-launch-pipeline.md Phase 4b.
+            splash_max_wait_ms=6000
+            splash_min_monitor_ms=3000
             splash_stability_threshold=2
         fi
 
@@ -303,18 +389,27 @@ execute_launch_window() {
         if [[ -n "$splash_result" ]]; then
             local stable_uuid=""
             local splash_was_detected=""
-            IFS='|' read -r stable_uuid splash_was_detected _ <<< "$splash_result"
+            local measured_splash_duration_ms=""
+            IFS='|' read -r stable_uuid splash_was_detected measured_splash_duration_ms <<< "$splash_result"
 
             if [[ -n "$stable_uuid" && "$stable_uuid" != "$uuid" ]]; then
                 debug_log "$function_name" "Phase 4b: UUID changed from '$uuid' to '$stable_uuid' — re-syncing"
                 uuid="$stable_uuid"
-                auto_detect_windows
+                # Refresh CURRENT_UUIDS to reflect the new window. Do NOT
+                # call auto_detect_windows here — its db_add_existing_windows
+                # step would insert the new UUID into app_windows, then
+                # Phase 5's db_add_window would hit the UNIQUE constraint
+                # on uuid. wait_for_stable_window already cleaned up the
+                # dead splash UUID via its own refresh+delete-stale pass.
+                refresh_current_windows
             fi
 
             # Auto-learn: if unknown and splash detected, mark as splash app
+            # and record the measured duration so future launches can use
+            # min_monitor_ms tuned to this app rather than the generic 3s.
             if [[ "$has_splash_window" == "unknown" && "$splash_was_detected" == "true" ]]; then
-                debug_log "$function_name" "Phase 4b: Auto-learning — setting has_splash_window=true for $app_id"
-                db_set_has_splash_window "$app_id" "true"
+                debug_log "$function_name" "Phase 4b: Auto-learning — setting has_splash_window=true (duration=${measured_splash_duration_ms}ms) for $app_id"
+                db_set_has_splash_window "$app_id" "true" "$measured_splash_duration_ms"
             fi
         fi
     fi
@@ -337,7 +432,12 @@ execute_launch_window() {
     # ──────────────────────────────────────────────
 
     debug_log "$function_name" "Phase 5: Register window (detection_method=$detection_method)"
-    window_title=$(get_window_title "$uuid")
+    if ! window_title=$(_read_title_for_registration "$uuid"); then
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "Window $uuid for $app_id closed before it could be registered"
+        info_log "$function_name" "Window $uuid closed before it could be registered"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 
     if [[ "$detection_method" == "new_window" ]]; then
         # Fresh launch — new window appeared
@@ -631,7 +731,7 @@ detect_and_store_class() {
             return 1
         fi
     else
-        debug_error "$function_name" "$ERR_CLASS_DETECTION_FAILED" "Could not detect class for UUID $uuid"
+        debug_error "$function_name" "$ERR_WINDOW_CLASS_NOT_FOUND" "Could not detect class for UUID $uuid"
         debug_function_exit "$function_name"
         return 1
     fi

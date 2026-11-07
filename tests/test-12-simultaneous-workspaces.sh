@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 12: Multiple independent workspaces open simultaneously
+# Test 12: Multiple independent workspaces open simultaneously
 
 _run_test_12() {
 
-print_section_header "Phase 12: Simultaneous Workspaces"
+print_section_header "Test 12: Simultaneous Workspaces"
 
 # Setup Firefox for workspace-beta
 setup_test_app "org.mozilla.firefox" "multi" "org.mozilla.firefox"

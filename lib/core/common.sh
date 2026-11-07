@@ -4,13 +4,18 @@
 # Copyright (C) 2025 Ethan Plunk
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Database location
-export KDOITALL_DB="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/kdoitall.db"
+# Data directory: the database and generated workspace scripts. Everything
+# kdoitall keeps there derives from this one variable. KDOITALL_DATA_DIR is
+# internal: the test suite sets it to a throwaway directory so a test run
+# never touches the user's data. scripts/install.sh, uninstall.sh and
+# dev-reset.sh use the same expression.
+export KDOITALL_DATA_DIR="${KDOITALL_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall}"
+export KDOITALL_DB="${KDOITALL_DATA_DIR}/kdoitall.db"
 export KDOITALL_REGISTRY_DB="${KDOITALL_ROOT}/database/app-registry.db"
-export WORKSPACE_SCRIPTS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall/workspaces"
+export WORKSPACE_SCRIPTS_DIR="${KDOITALL_DATA_DIR}/workspaces"
 export KDOITALL_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall/config"
 
-readonly KDOITALL_DB KDOITALL_REGISTRY_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
+readonly KDOITALL_DATA_DIR KDOITALL_DB KDOITALL_REGISTRY_DB WORKSPACE_SCRIPTS_DIR KDOITALL_CONFIG
 
 # Timing delays
 export LAUNCH_DELAY="1.0"
@@ -18,12 +23,8 @@ export WINDOW_DELAY="0.1"
 export DESKTOP_DELAY="0.1"
 export SCREEN_DELAY="0.1"
 export POSITION_DELAY="0.5"
-export KEYPRESS_DELAY="0.05"
-export KEY_CHORD_DELAY="0.5"
-export TYPE_TEXT_DELAY="0.1"
 
 readonly LAUNCH_DELAY WINDOW_DELAY DESKTOP_DELAY SCREEN_DELAY POSITION_DELAY
-readonly KEYPRESS_DELAY KEY_CHORD_DELAY TYPE_TEXT_DELAY
 
 # Application launch modes
 export LAUNCH_MODE_MULTI="multi"    # Multiple windows always allowed

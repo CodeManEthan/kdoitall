@@ -21,6 +21,9 @@ db_server_start() {
 
 db_server_stop() {
     if [[ -n "$_DB_SERVER_PID" ]]; then
+        # $_DB_SERVER_IN holds a file descriptor number, so >& writes stdout to that
+        # descriptor; shellcheck reads it as a stdout+stderr redirect to a file.
+        # shellcheck disable=SC2261
         printf '%s\n' "QUIT" >&"$_DB_SERVER_IN" 2>/dev/null
         wait "$_DB_SERVER_PID" 2>/dev/null
         _DB_SERVER_PID=""

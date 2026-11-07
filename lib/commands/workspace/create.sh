@@ -532,6 +532,12 @@ add_application_to_workspace() {
                     read -r parameters
                 fi
 
+                if ! validate_params "$parameters"; then
+                    print_error "Parameters must not contain '|' or control characters. Try again."
+                    parameters=""
+                    continue
+                fi
+
                 current_state="$STATE_COMPLETE"
                 ;;
         esac

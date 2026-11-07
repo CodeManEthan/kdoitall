@@ -28,7 +28,7 @@ app_options() {
         debug_function_exit "$function_name"
         return 0
     else
-        debug_error "$function_name" "$ERR_UNKNOWN" "registry_get_launch_options failed"
+        debug_error "$function_name" "$ERR_OPERATION_FAILED" "registry_get_launch_options failed"
         debug_function_exit "$function_name"
         return 1
     fi

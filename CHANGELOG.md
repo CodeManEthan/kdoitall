@@ -4,7 +4,43 @@ All notable changes to kdoitall will be documented in this file.
 
 ## \[Unreleased\]
 
+## \[0.2.2\] - 2026-11-07
+
+### Added
+
+- **Window snapshots in one call** — kdoitall can now read the whole window list through a small KWin script in one call, instead of asking `kdotool` about each window. A daemon on the session bus (`org.kdoitall.Snapshot`) carries the result back; kdoitall starts it on first use. This needs the Python `dbus` and `gi` modules (python3-dbus, python3-gobject) and `qdbus-qt6` or `qdbus6`. Without them kdoitall falls back to `kdotool`, as before.
+- `--restart-snapshot-daemon` **flag** — stops the snapshot daemon and starts a new one.
+- **Continuous integration** — every push and pull request runs `bash -n` and `shellcheck` on every shell file, compiles the Python files, runs the unit tests, and checks that `--help` and `--version` work on a machine with no KDE tools.
+- **Unit tests** (`tests/unit/run.sh`) — run anywhere, with no KDE session, database or windows. They cover the workspace script generator, params validation, the terminal launch functions, the data directory, the user config, the qdbus choice, and that `--help` names every command the README shows.
+- **README sections** — how kdoitall works (scan, define, open, and what safe mode does on first open), the workspace file format with an example and a note on files you didn't write, a table of all 28 positions, every configuration setting with its default, the quick picker and combo move, and how to run the tests. Requirements now say what kdoitall is tested on.
+
+### Changed
+
+- `--help` **and** `--version` **work without KDE tools** — they print and exit before the dependency check, the database and screen detection, so they work on any Linux machine with bash. Running `kdoitall` with no command prints the usage instead of "Unknown command".
+- `--help` **lists every command** — it now includes `workspace export`, `workspace create --from-file <json> [--replace]`, `workspace open --skip`, `workspace list --details`, the non-interactive `workspace edit` flags, `app name`, `app set-terminal` and `app unset-terminal`. `window move` shows its real arguments, `<window-name> <desktop> [screen] [position]`. The CONFIGURATION section lists every setting with its default.
+- **python3 is checked at startup** — like the other required tools, a missing `python3` is now reported by name with the install command for your package manager, before anything tries to run it.
+- **The integration tests use a throwaway data directory** — each `tests/run-tests.sh` run gets a fresh database in a new temporary directory, deleted when the run ends. Your own database and workspace scripts are never read or written.
+
+### Fixed
+
+- **Workspace scripts pass stored values through literally** — names, screens and params reach the launch function exactly as stored, as one argument each. Quotes, `$` and backticks in them are no longer read by the shell. Launch function names and positions must be plain names. Params containing `|`, a newline or another control character (tabs separate values) are refused wherever params come in, and an empty tab-separated value is kept rather than dropped. The terminal launch functions still run the commands and scripts a workspace names, since that is what they are for, so import only workspace files you trust. Scripts written by earlier versions keep working. To regenerate one: `kdoitall workspace export <name> > f.json`, then `kdoitall workspace create <name> --from-file f.json --replace`.
+- **The terminal launch functions quote paths** — a directory, virtualenv or script path containing a `'` no longer breaks the command the terminal runs.
+- **Splash screen auto-learn** — kdoitall now watches long enough to see a splash screen close, records that the app has one and how long it lasted, and uses that on later launches. Still partial: an app that opens a second window alongside its main one after the splash (GIMP's welcome dialog, for example) can fail its first open or have the dialog positioned instead of the main window.
+- `DESKTOP_FILE_LOCATIONS` **can be set in the user config** — setting it there used to stop every command with a "readonly variable" error.
+- `qdbus6` **is used when** `qdbus-qt6` **is missing** — it was accepted by the dependency check but never called, so the snapshot path silently fell back to `kdotool`.
+- **Install script exit** — after it had installed `kdotool` itself, `scripts/install.sh` could end with an "unbound variable" error and left its temporary download directory behind.
+- **Launch crash when an app has no class yet** — a single-instance app with no learned window class stopped the launch with an "unbound variable" error. Several error paths referred to error codes that were never defined; they now use real ones.
+- **Launch stopped by an empty window title** — when the window title read came back empty just after a window appeared, the whole launch failed. The window is now registered anyway, and a window that closed before it could be registered gets a clear error.
+- **Safe mode printed a window ID** after each app it checked.
+- **Workspace subcommands and** `--help` — `workspace create --help` started creating a workspace named `--help`, and `workspace delete --help` looked for one. Every workspace subcommand now prints its usage for `--help` or `-h`.
+
+### Removed
+
+- **Unused browser-tab code** — the ydotool key-press helpers and the tab module, pieces of a browser-tab feature that was never built. No command used them.
+
 ## \[0.2.1\] - 2026-04-28
+
+0.2.0 was tagged without its own entry here. Its changes are folded into this one.
 
 ### Added
 

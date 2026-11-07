@@ -500,7 +500,7 @@ detect_window_screen() {
         fi
     done
 
-    debug_error "$function_name" "$ERR_SCREEN_NOT_FOUND" "No screen contains position ($win_x, $win_y)"
+    debug_error "$function_name" "$ERR_SCREEN_DISABLED_OR_NOT_FOUND" "No screen contains position ($win_x, $win_y)"
     debug_function_exit "$function_name"
     return 1
 }

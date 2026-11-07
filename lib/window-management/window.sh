@@ -8,6 +8,8 @@ check_and_set_guard "_KDOITALL_WINDOW_LOADED" || return 0
 
 # shellcheck source=../db/window-info.sh
 source "${LIB_DIR}/db/window-info.sh"
+# shellcheck source=./snapshot.sh
+source "${LIB_DIR}/window-management/snapshot.sh"
 
 CURRENT_UUIDS=()
 CURRENT_CLASSES=()
@@ -252,6 +254,18 @@ refresh_current_windows() {
     local function_name="refresh_current_windows"
 
     debug_function_enter "$function_name"
+
+    # Atomic KWin-script snapshot — race-free and faster than 1+2N kdotool
+    # calls. Falls through to the kdotool path on failure (deps missing,
+    # KWin scripting failure, etc.) so the function stays usable in any
+    # environment. See lib/window-management/snapshot.sh and
+    # docs/flows/window-detection.md edge case #9.
+    if snapshot_all_windows; then
+        debug_function_exit "$function_name"
+        return 0
+    fi
+
+    debug_log "$function_name" "Falling back to kdotool query path"
 
     # Reset all global arrays
     CURRENT_UUIDS=()
@@ -556,7 +570,7 @@ get_uuid() {
 
     # Need at least one search criterion
     if [[ -z "$class" && -z "$window_title" ]]; then
-        debug_error "$function_name" "$ERR_INVALID_ARGUMENT" "Must provide at least class or window_title"
+        debug_error "$function_name" "$ERR_MISSING_PARAMETER" "Must provide at least class or window_title"
         debug_function_exit "$function_name"
         return 1
     fi

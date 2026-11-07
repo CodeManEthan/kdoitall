@@ -238,12 +238,19 @@ workspace_add_window() {
     if [[ "$launch_function" != "launch_by_app_id" ]]; then
         local launch_opts=""
         launch_opts=$(db_get_launch_options "$app_id")
-        if [[ -z "$launch_opts" ]] || ! echo "$launch_opts" | grep -q "^${launch_function}|"; then
+        if ! launch_option_exists "$launch_opts" "$launch_function"; then
             echo "Error: Launch function '$launch_function' not found for app '$app_id'." >&2
             echo "Available functions: $(echo "$launch_opts" | cut -d'|' -f1 | tr '\n' ', ')" >&3
             debug_function_exit "$function_name"
             return 1
         fi
+    fi
+
+    # Params validation
+    if ! validate_params "$parameters"; then
+        echo "Error: --params must not contain '|', a newline or other control characters (tabs separate values)." >&2
+        debug_function_exit "$function_name"
+        return "$ERR_INVALID_PARAMETER"
     fi
 
     # Desktop validation

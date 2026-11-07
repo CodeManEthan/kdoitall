@@ -245,11 +245,17 @@ parse_and_validate_workspace_config() {
             if [[ -n "$win_app" ]] && db_application_exists "$win_app" 2>/dev/null; then
                 local launch_opts=""
                 launch_opts=$(db_get_launch_options "$win_app")
-                if [[ -z "$launch_opts" ]] || ! echo "$launch_opts" | grep -q "^${win_function}|"; then
+                if ! launch_option_exists "$launch_opts" "$win_function"; then
                     echo "Error: Window '$win_name': function '$win_function' not found for app '$win_app'." >&2
                     ((window_errors++)) || true
                 fi
             fi
+        fi
+
+        # Validate params
+        if ! validate_params "$win_params"; then
+            echo "Error: Window '$win_name': 'params' must not contain '|', a newline or other control characters (tabs separate values)." >&2
+            ((window_errors++)) || true
         fi
 
         # Validate desktop

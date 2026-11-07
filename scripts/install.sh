@@ -36,7 +36,8 @@ source "$PROJECT_ROOT/lib/utils/checks.sh"
 check_dependencies
 
 # --- Define directories ---
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall"
+# Same expression as lib/core/common.sh
+DATA_DIR="${KDOITALL_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/kdoitall}"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/kdoitall"
 BIN_DIR="$HOME/.local/bin"
 
@@ -47,34 +48,10 @@ mkdir -p "$CONFIG_DIR"
 mkdir -p "$BIN_DIR"
 
 # --- Initialize database ---
-SCHEMA_FILE="$PROJECT_ROOT/database/schema.sql"
-DB_FILE="$DATA_DIR/kdoitall.db"
-
-if [[ ! -f "$DB_FILE" ]]; then
-    if command -v sqlite3 &> /dev/null; then
-        sqlite3 "$DB_FILE" < "$SCHEMA_FILE"
-        echo "✓ Initialized database: $DB_FILE"
-
-        # Stamp every existing migration as already applied. schema.sql
-        # already reflects the result of running each migration, so we
-        # record them without re-applying.
-        MIGRATIONS_DIR="$PROJECT_ROOT/database/migrations"
-        if [[ -d "$MIGRATIONS_DIR" ]]; then
-            for migration_file in "$MIGRATIONS_DIR"/[0-9]*.sql; do
-                [[ -f "$migration_file" ]] || continue
-                migration_basename=$(basename "$migration_file")
-                migration_version=$((10#${migration_basename%%_*}))
-                migration_name="${migration_basename%.sql}"
-                sqlite3 "$DB_FILE" \
-                    "INSERT OR IGNORE INTO schema_migrations (version, name) VALUES ($migration_version, '$migration_name');"
-            done
-        fi
-    else
-        echo "⚠ sqlite3 not found — skipping database initialization" >&2
-    fi
-else
-    echo "✓ Database already exists: $DB_FILE"
-fi
+# shellcheck source=../lib/db/bootstrap.sh
+source "$PROJECT_ROOT/lib/db/bootstrap.sh"
+kdoitall_bootstrap_db "$DATA_DIR/kdoitall.db" \
+    "$PROJECT_ROOT/database/schema.sql" "$PROJECT_ROOT/database/migrations"
 
 # --- Build reference database ---
 REGISTRY_SEED="$PROJECT_ROOT/database/app-registry.sql"

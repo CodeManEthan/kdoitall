@@ -142,8 +142,9 @@ app_safe_mode() {
         print_info "Starting safe mode for: $selected_app_id"
         echo "" >&3
         
-        # Run safe mode for selected app
-        if safe_mode_launch_and_detect "$selected_app_id"; then
+        # Run safe mode for selected app. It prints the window UUID on
+        # stdout for callers that capture it; this one doesn't, so drop it.
+        if safe_mode_launch_and_detect "$selected_app_id" > /dev/null; then
             echo "" >&3
             print_success "Safe mode completed for $selected_app_id"
             echo "" >&3

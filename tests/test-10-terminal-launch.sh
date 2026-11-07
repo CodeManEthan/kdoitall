@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 10: Terminal launch functions (VS Code + Firefox)
+# Test 10: Terminal launch functions (VS Code + Firefox)
 
 _run_test_10() {
 
-print_section_header "Phase 10: Terminal Launch Functions"
+print_section_header "Test 10: Terminal Launch Functions"
 
 # Setup: ensure apps are registered with safe mode skipped
 setup_test_app "code" "unique" ""

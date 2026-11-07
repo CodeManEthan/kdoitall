@@ -1,0 +1,88 @@
+name: check
+
+# Static checks and the unit tests. None of this needs a desktop: the
+# integration suite (tests/run-tests.sh) drives real KDE windows and runs
+# only on a live Plasma session.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  SHELLCHECK_VERSION: "0.11.0"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sqlite3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3
+
+      - name: Install pinned shellcheck
+        run: |
+          url="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -fsSL "$url" | tar -xJ -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-v${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
+
+      - name: List shell files
+        run: git ls-files '*.sh' bin/kdoitall config > "$RUNNER_TEMP/shell-files"
+
+      - name: bash -n
+        run: |
+          status=0
+          while IFS= read -r f; do
+            bash -n "$f" || status=1
+          done < "$RUNNER_TEMP/shell-files"
+          exit "$status"
+
+      - name: shellcheck
+        run: |
+          shellcheck --version | grep -q "version: ${SHELLCHECK_VERSION}"
+          xargs -a "$RUNNER_TEMP/shell-files" shellcheck -x -S error
+
+      - name: Python syntax
+        run: python3 -m py_compile lib/db/db-server.py lib/kwin-scripts/daemon.py
+
+      - name: Unit tests
+        run: bash tests/unit/run.sh
+
+      - name: --help and --version with no KDE tools
+        run: |
+          # A clean environment: no kdotool or kscreen-doctor on PATH, and
+          # every user directory pointed at a scratch dir.
+          scratch="$RUNNER_TEMP/kdoitall-home"
+          mkdir -p "$scratch"
+          run() {
+            env -i PATH=/usr/bin:/bin HOME="$scratch" \
+              XDG_DATA_HOME="$scratch/data" XDG_CONFIG_HOME="$scratch/config" \
+              XDG_STATE_HOME="$scratch/state" bin/kdoitall "$@"
+          }
+          if command -v kdotool || command -v kscreen-doctor; then
+            echo "this check needs a runner without KDE tools" >&2
+            exit 1
+          fi
+          out=$(run --help)
+          grep -q "USAGE" <<< "$out"
+          out=$(run -h)
+          grep -q "USAGE" <<< "$out"
+          [ "$(run --version)" = "kdoitall v$(cat VERSION)" ]
+          [ "$(run -v)" = "kdoitall v$(cat VERSION)" ]
+          status=0
+          out=$(run 2>&1) || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "kdoitall with no command should exit non-zero" >&2
+            exit 1
+          fi
+          grep -q "USAGE" <<< "$out"
+          # The text commands touch no data
+          if [ -e "$scratch/data" ]; then
+            echo "--help/--version created a data dir" >&2
+            exit 1
+          fi

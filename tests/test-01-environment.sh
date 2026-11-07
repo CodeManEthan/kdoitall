@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 0: Environment checks
+# Test 01: Environment checks
 
 _run_test_01() {
 
-print_section_header "Phase 0: Environment Checks"
+print_section_header "Test 01: Environment Checks"
 
 # ---- kdoitall binary exists and is executable ----
 
@@ -20,7 +20,7 @@ fi
 # ---- Core dependencies ----
 
 local dep
-for dep in kdotool sqlite3 jq kscreen-doctor gtk-launch; do
+for dep in kdotool sqlite3 python3 jq kscreen-doctor gtk-launch; do
     test_start "Dependency: $dep"
     if command -v "$dep" &>/dev/null; then
         test_pass

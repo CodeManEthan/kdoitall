@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 3: Workspace definition CRUD (no live windows)
+# Test 03: Workspace definition CRUD (no live windows)
 
 _run_test_03() {
 
-print_section_header "Phase 3: Workspace Definitions"
+print_section_header "Test 03: Workspace Definitions"
 
 # ============================================================================
 # workspace create --from-file

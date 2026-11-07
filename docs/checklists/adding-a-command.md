@@ -33,8 +33,10 @@ This checklist covers adding a new top-level command or a subcommand to an exist
 - [ ] For subcommand: Update `<group>_show_help()` in the dispatcher file
   - Add command name, aliases, and one-line description
   - Include usage examples if non-trivial
-- [ ] For top-level: Update `show_help()` in `lib/commands/help.sh`
-  - Add to the appropriate section of the help output
+- [ ] For both: Update `show_help()` in `lib/commands/help.sh`
+  - Add to the appropriate section of the help output, as `<group> <subcommand> (<alias>) <args>`
+- [ ] Add the command to the README's command lists with the same name and alias
+  - `tests/unit/test-readme-help.sh` fails if the README shows a command, alias or flag that `--help` doesn't
 
 ## 5. Handle Global Flags
 

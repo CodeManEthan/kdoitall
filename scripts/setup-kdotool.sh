@@ -93,10 +93,13 @@ _kdotool_auto_install() {
     local url=""
     url="https://github.com/${KDOTOOL_REPO}/releases/download/v${KDOTOOL_VERSION}/${tarball}"
 
-    # Download to temp directory
-    local tmp_dir=""
+    # Download to temp directory.
+    # NOTE: tmp_dir must NOT be `local` — the EXIT trap below is on the shell,
+    # not the function, so it fires after this function returns when install.sh
+    # itself exits. A `local` would be out of scope by then, breaking cleanup
+    # silently and triggering an "unbound variable" error under `set -u`.
     tmp_dir="$(mktemp -d)"
-    trap '[[ -n "$tmp_dir" && "$tmp_dir" == /tmp/* ]] && rm -r "$tmp_dir"' EXIT
+    trap '[[ -n "${tmp_dir:-}" && "${tmp_dir}" == /tmp/* ]] && rm -r "${tmp_dir}"' EXIT
 
     echo ""
     echo "Downloading kdotool v${KDOTOOL_VERSION}..."

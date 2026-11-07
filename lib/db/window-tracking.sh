@@ -401,7 +401,7 @@ db_get_tab_by_tab_name() {
         ":tab_name" "$tab_name"
 
     if [[ ${#DB_RESULT[@]} -eq 0 ]]; then
-        debug_error "$function_name" "$ERR_TAB_NUMBER_NOT_FOUND"  "$window_name - $tab_name"
+        debug_error "$function_name" "$ERR_INVALID_VALUE" "tab not found: $window_name - $tab_name"
         debug_function_exit "$function_name"
         return 1
     fi

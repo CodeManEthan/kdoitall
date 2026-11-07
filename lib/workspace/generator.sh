@@ -10,6 +10,61 @@ check_and_set_guard "_KDOITALL_WORKSPACE_GENERATE_LOADED" || return 0
 source "${LIB_DIR}/core/core.sh"
 # shellcheck source=../db/window-definitions.sh
 source "${LIB_DIR}/db/window-definitions.sh"
+# shellcheck source=../utils/workspace-validators.sh
+source "${LIB_DIR}/utils/workspace-validators.sh"
+
+# Refuse any workspace entry whose fields could be read as shell code by the
+# generated script. The entry points validate these already; this runs
+# again here because every path that writes a script passes through the
+# generator. Identifiers are written bare (the launch function as a command
+# word, the position as a variable name), so they must be plain identifiers.
+# Values are quoted with %q when written, but a '|' or newline in params
+# would already have corrupted the record they came in.
+_validate_workspace_entries() {
+    local workspace_name="$1"
+    local function_name="_validate_workspace_entries"
+
+    if ! validate_workspace_name "$workspace_name" 3>/dev/null; then
+        debug_error "$function_name" "$ERR_INVALID_WORKSPACE_NAME" "Refusing to generate a script for workspace: $workspace_name"
+        return 1
+    fi
+
+    local app_config="" app_id="" window_name="" launch_function=""
+    local desktop="" screen="" position="" parameters=""
+    for app_config in "${WORKSPACE_APPS[@]}"; do
+        # A newline would end the record early, so check the whole record
+        # for control characters (tabs separate params) before splitting it.
+        if ! validate_params "${app_config//|/}"; then
+            debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Refusing to generate a script: a window entry contains a control character"
+            return 1
+        fi
+
+        IFS='|' read -r app_id window_name launch_function \
+                        desktop screen position parameters <<< "$app_config"
+
+        if ! validate_window_name "$window_name" 3>/dev/null; then
+            debug_error "$function_name" "$ERR_INVALID_WINDOW_NAME" "Refusing to generate a script with window name: $window_name"
+            return 1
+        fi
+        if ! validate_app_id_format "$app_id"; then
+            return 1
+        fi
+        if ! is_shell_identifier "$launch_function"; then
+            debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Refusing to generate a script with launch function: $launch_function"
+            return 1
+        fi
+        if ! is_shell_identifier "$position"; then
+            debug_error "$function_name" "$ERR_INVALID_POSITION" "Refusing to generate a script with position: $position"
+            return 1
+        fi
+        if ! validate_params "$parameters"; then
+            debug_error "$function_name" "$ERR_INVALID_PARAMETER" "Refusing to generate a script for window '$window_name': params contain '|' or a control character"
+            return 1
+        fi
+    done
+
+    return 0
+}
 
 generate_workspace_scripts() {
     local workspace_name="$1"
@@ -61,6 +116,13 @@ generate_workspace_script() {
 
     validate_parameter_pass "$workspace_name" "workspace_name" || return 1
     validate_parameter_pass "$script_path" "script_path" || return 1
+
+    # Check every entry before anything else runs: before the app-file loop's
+    # DB lookups and before a byte of the script is written.
+    if ! _validate_workspace_entries "$workspace_name"; then
+        debug_function_exit "$function_name"
+        return 1
+    fi
 
     # Generate names from workspace name
     # Convert to uppercase and replace hyphens with underscores
@@ -122,7 +184,7 @@ EOF_HEADER
         echo "# Source required application files" >> "$script_path"
         for app_file in "${!app_files_to_source[@]}"; do
             echo "# shellcheck source=${app_file#"${KDOITALL_ROOT}"/}" >> "$script_path"
-            echo "source \"${app_file}\"" >> "$script_path"
+            printf 'source %q\n' "$app_file" >> "$script_path"
         done
         echo "" >> "$script_path"
     fi
@@ -137,44 +199,37 @@ EOF_HEADER
     echo "    debug_log \"Opening workspace: $workspace_name\"" >> "$script_path"
     echo "" >> "$script_path"
 
+    # Every value is written with %q, so the script hands the launch function
+    # exactly the stored string as one argument, never something the shell
+    # expands. The launch function and the position were checked above to be
+    # plain identifiers; the position is written as a variable reference.
     for app_config in "${WORKSPACE_APPS[@]}"; do
         IFS='|' read -r app_id window_name launch_function \
                         desktop screen position parameters <<< "$app_config"
 
         echo "    # Launch: $window_name ($app_id)" >> "$script_path"
 
+        local -a call_args=()
         if [[ "$launch_function" == "launch_by_app_id" ]]; then
-            cat >> "$script_path" << EOF
-    $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"
-
-EOF
+            call_args=("$workspace_name" "$window_name" "$app_id" "$desktop" "$screen")
+            _write_launch_call "$script_path" "$launch_function" "$position" \
+                "${#call_args[@]}" "${call_args[@]}"
         elif [[ "$launch_function" == terminal_* ]]; then
-            # Shared terminal function: pass app_id + split tab-delimited params
-            local params_str=""
+            # Shared terminal function: app_id, then one argument per
+            # tab-separated param. Empty fields are kept: "dir<TAB><TAB>cmd"
+            # is three arguments with an empty middle one.
+            local -a param_array=()
             if [[ -n "$parameters" ]]; then
-                local -a param_array=()
-                IFS=$'\t' read -ra param_array <<< "$parameters"
-                local param_val=""
-                for param_val in "${param_array[@]}"; do
-                    params_str="${params_str} \"${param_val}\""
-                done
+                readarray -td $'\t' param_array < <(printf '%s\t' "$parameters")
             fi
-            cat >> "$script_path" << EOF
-    $launch_function "$workspace_name" "$window_name" "$app_id" "$desktop" "$screen" "\$$position"${params_str}
-
-EOF
+            call_args=("$workspace_name" "$window_name" "$app_id" "$desktop" "$screen")
+            _write_launch_call "$script_path" "$launch_function" "$position" \
+                "${#call_args[@]}" "${call_args[@]}" "${param_array[@]}"
         else
-            # Per-app terminal function: single parameters string
-            local params_str=""
-            if [[ -n "$parameters" ]]; then
-                params_str=" \"$parameters\""
-            else
-                params_str=" \"\""
-            fi
-            cat >> "$script_path" << EOF
-    $launch_function "$workspace_name" "$window_name" "$desktop" "$screen" "\$$position"$params_str
-
-EOF
+            # Per-app terminal function: the params as one string, tabs and all
+            call_args=("$workspace_name" "$window_name" "$desktop" "$screen")
+            _write_launch_call "$script_path" "$launch_function" "$position" \
+                "${#call_args[@]}" "${call_args[@]}" "$parameters"
         fi
     done
 
@@ -183,6 +238,35 @@ EOF
     debug_log "$function_name" "Generated workspace script: $script_path"
     debug_function_exit "$function_name"
     return 0
+}
+
+# Append one launch call to the script:
+#   _write_launch_call <script> <function> <position> <n> <arg>... [<param>...]
+# The first n args go before the position, which is written as "$POSITION";
+# the rest are params and go after it. Every value is quoted with %q.
+_write_launch_call() {
+    local script_path="$1"
+    local launch_function="$2"
+    local position="$3"
+    local leading_count="$4"
+    shift 4
+
+    local line="    ${launch_function}"
+    local quoted=""
+    local i=0
+    for (( i = 0; i < leading_count; i++ )); do
+        printf -v quoted '%q' "$1"
+        line+=" ${quoted}"
+        shift
+    done
+    line+=" \"\$${position}\""
+    while [[ $# -gt 0 ]]; do
+        printf -v quoted '%q' "$1"
+        line+=" ${quoted}"
+        shift
+    done
+
+    printf '%s\n\n' "$line" >> "$script_path"
 }
 
 load_workspace_apps_array() {

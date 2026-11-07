@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 5: Single window lifecycle
+# Test 05: Single window lifecycle
 
 _run_test_05() {
 
-print_section_header "Phase 5: Single Window Lifecycle"
+print_section_header "Test 05: Single Window Lifecycle"
 
-# Ensure workspace exists from Phase 3 (re-create if needed)
+# Ensure workspace exists from test 03 (re-create if needed)
 if ! db_test_query "SELECT COUNT(*) FROM workspace_definitions WHERE workspace_name='test-single-kate';" | grep -q "^1$"; then
     run_kdoitall "workspace create test-single-kate --from-file $FIXTURES_DIR/single-kate.json"
 fi

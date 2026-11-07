@@ -91,9 +91,14 @@ terminal_run_command_in_directory() {
     local class="" launch_mode="" exec_flag="" terminal_command=""
     IFS='|' read -r class launch_mode exec_flag terminal_command <<< "$context"
 
+    # The directory is quoted with %q so any character in it stays part of
+    # the path. The command runs as a command: that is what this function is for.
+    local quoted_directory=""
+    printf -v quoted_directory '%q' "$directory"
+
     _TERM_EXECUTABLE="$terminal_command"
     _TERM_EXEC_FLAG="$exec_flag"
-    _TERM_BASH_COMMAND="cd '${directory}' && ${command}; exec bash"
+    _TERM_BASH_COMMAND="cd ${quoted_directory} && ${command}; exec bash"
 
     local window_title_pattern=""
     window_title_pattern=$(basename "$directory")
@@ -126,9 +131,12 @@ terminal_run_script() {
     local class="" launch_mode="" exec_flag="" terminal_command=""
     IFS='|' read -r class launch_mode exec_flag terminal_command <<< "$context"
 
+    local quoted_script_path=""
+    printf -v quoted_script_path '%q' "$script_path"
+
     _TERM_EXECUTABLE="$terminal_command"
     _TERM_EXEC_FLAG="$exec_flag"
-    _TERM_BASH_COMMAND="'${script_path}'; exec bash"
+    _TERM_BASH_COMMAND="${quoted_script_path}; exec bash"
 
     local window_title_pattern=""
     window_title_pattern=$(basename "$script_path")
@@ -163,10 +171,17 @@ terminal_launch_dev_server() {
     local class="" launch_mode="" exec_flag="" terminal_command=""
     IFS='|' read -r class launch_mode exec_flag terminal_command <<< "$context"
 
-    local bash_command="cd '${directory}'"
+    # Paths are quoted with %q so any character in them stays part of the
+    # path. The server command runs as a command: that is what this
+    # function is for.
+    local quoted_directory=""
+    printf -v quoted_directory '%q' "$directory"
+    local bash_command="cd ${quoted_directory}"
 
     if [[ -n "$venv_path" ]]; then
-        bash_command="${bash_command} && source '${venv_path}'"
+        local quoted_venv_path=""
+        printf -v quoted_venv_path '%q' "$venv_path"
+        bash_command="${bash_command} && source ${quoted_venv_path}"
     fi
 
     bash_command="${bash_command} && ${server_command}"

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Part of kdoitall - KDE Desktop Automation Tool
-# Test Phase 16: Active workspace guard (block edit/replace/delete on active workspace)
+# Test 16: Active workspace guard (block edit/replace/delete on active workspace)
 
 _run_test_16() {
 
-print_section_header "Phase 16: Active Workspace Guard"
+print_section_header "Test 16: Active Workspace Guard"
 
 # ============================================================================
 # Create and open workspace

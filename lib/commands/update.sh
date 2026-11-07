@@ -35,7 +35,7 @@ update_command() {
     if ! git -C "$KDOITALL_ROOT" pull --ff-only 2>&1; then
         echo "" >&3
         echo "✗ Git pull failed. Resolve any conflicts and try again." >&2
-        debug_error "$function_name" "$ERR_UNKNOWN" "git pull --ff-only failed"
+        debug_error "$function_name" "$ERR_OPERATION_FAILED" "git pull --ff-only failed"
         debug_function_exit "$function_name"
         return 1
     fi
