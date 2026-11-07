@@ -25,6 +25,40 @@ _launch_via_gtk() {
     gtk-launch "$target_app_id" > /dev/null 2>&1 & disown
 }
 
+# Prints the title of a window that was just found, or nothing. Always
+# returns 0: the window exists, so a failed title read must not fail the
+# launch. Right after a window maps, or under load, kdotool can return an
+# empty title, so the read is retried briefly. get_window_title's stderr is
+# dropped because an empty read is expected here; debug_error still writes
+# it to the log file when one is set. Phase 7 reads the title again for
+# pattern learning and skips that step when the title is still empty.
+_read_title_for_registration() {
+    local uuid="$1"
+    local title=""
+    local attempt=0
+    local function_name="_read_title_for_registration"
+
+    debug_function_enter "$function_name" "$@"
+
+    for attempt in 1 2 3; do
+        if title=$(get_window_title "$uuid" 2>/dev/null); then
+            break
+        fi
+        title=""
+        if [[ "$attempt" -lt 3 ]]; then
+            sleep 0.2
+        fi
+    done
+
+    if [[ -z "$title" ]]; then
+        debug_log "$function_name" "No title for $uuid after $attempt reads; registering with an empty title"
+    fi
+
+    debug_function_exit "$function_name"
+    printf '%s\n' "$title"
+    return 0
+}
+
 execute_launch_window() {
     local workspace_name="$1"
     local window_name="$2"
@@ -73,12 +107,18 @@ execute_launch_window() {
 
     if [[ "$launch_mode" == "$LAUNCH_MODE_SINGLE" ]]; then
         debug_log "$function_name" "Phase 2: Single-instance check"
-        uuid=$(get_uuid "$class" "$window_title_pattern")
+        # With no class and no title pattern yet (an app not learned yet)
+        # there is nothing to search by, so launch it fresh.
+        if [[ -n "$class" || -n "$window_title_pattern" ]]; then
+            uuid=$(get_uuid "$class" "$window_title_pattern")
+        else
+            debug_log "$function_name" "Phase 2: no class or title pattern known, skipping the existing-window check"
+        fi
 
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "Single-instance window already exists: $uuid"
             info_log "$function_name" "Window already open, reclaiming: $uuid"
-            window_title=$(get_window_title "$uuid")
+            window_title=$(_read_title_for_registration "$uuid")
             raise_window "$uuid"
             db_claim_window "$workspace_name" "$window_name" "$uuid" "$window_title"
 
@@ -352,7 +392,7 @@ execute_launch_window() {
     # ──────────────────────────────────────────────
 
     debug_log "$function_name" "Phase 5: Register window (detection_method=$detection_method)"
-    window_title=$(get_window_title "$uuid")
+    window_title=$(_read_title_for_registration "$uuid")
 
     if [[ "$detection_method" == "new_window" ]]; then
         # Fresh launch — new window appeared
