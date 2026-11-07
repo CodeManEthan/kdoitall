@@ -25,13 +25,43 @@ _launch_via_gtk() {
     gtk-launch "$target_app_id" > /dev/null 2>&1 & disown
 }
 
-# Prints the title of a window that was just found, or nothing. Always
-# returns 0: the window exists, so a failed title read must not fail the
-# launch. Right after a window maps, or under load, kdotool can return an
-# empty title, so the read is retried briefly. get_window_title's stderr is
-# dropped because an empty read is expected here; debug_error still writes
-# it to the log file when one is set. Phase 7 reads the title again for
-# pattern learning and skips that step when the title is still empty.
+# Returns 0 when the window still exists. Used when its title read came
+# back empty, to tell a slow title apart from a window that has closed
+# (for example a splash window that went away). A non-empty class read or
+# the UUID in kdotool's window list both count as present. It checks twice,
+# 0.2s apart, so one empty kdotool reply doesn't count as gone.
+_window_still_exists() {
+    local uuid="$1"
+    local class=""
+    local all_uuids=""
+    local attempt=0
+
+    for attempt in 1 2; do
+        class=$(kdotool getwindowclassname "$uuid" 2>/dev/null) || class=""
+        if [[ -n "$class" ]]; then
+            return 0
+        fi
+        all_uuids=$(_kdotool_search_safe) || all_uuids=""
+        if grep -Fqx -- "$uuid" <<< "$all_uuids"; then
+            return 0
+        fi
+        if [[ "$attempt" -lt 2 ]]; then
+            sleep 0.2
+        fi
+    done
+    return 1
+}
+
+# Prints the title of a window that was just found, possibly empty, and
+# returns 0 while the window exists. Right after a window maps, or under
+# load, kdotool can return an empty title, so the read is retried briefly.
+# If it is still empty but the window exists, the empty title is printed
+# and the launch goes on: Phase 7 reads the title again for pattern
+# learning and skips that step when it is still empty. If the window is
+# gone, it prints nothing and returns 1, so the caller fails the launch
+# instead of registering a closed window.
+# get_window_title's stderr is dropped because an empty read is expected
+# here; debug_error still writes it to the log file when one is set.
 _read_title_for_registration() {
     local uuid="$1"
     local title=""
@@ -51,7 +81,12 @@ _read_title_for_registration() {
     done
 
     if [[ -z "$title" ]]; then
-        debug_log "$function_name" "No title for $uuid after $attempt reads; registering with an empty title"
+        if ! _window_still_exists "$uuid"; then
+            debug_log "$function_name" "No title for $uuid after $attempt reads, and the window no longer exists"
+            debug_function_exit "$function_name"
+            return 1
+        fi
+        debug_log "$function_name" "No title for $uuid after $attempt reads; the window exists, registering with an empty title"
     fi
 
     debug_function_exit "$function_name"
@@ -118,7 +153,12 @@ execute_launch_window() {
         if [[ -n "$uuid" ]]; then
             debug_log "$function_name" "Single-instance window already exists: $uuid"
             info_log "$function_name" "Window already open, reclaiming: $uuid"
-            window_title=$(_read_title_for_registration "$uuid")
+            if ! window_title=$(_read_title_for_registration "$uuid"); then
+                debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "Window $uuid for $app_id closed before it could be reclaimed"
+                info_log "$function_name" "Window $uuid closed before it could be reclaimed"
+                debug_function_exit "$function_name"
+                return 1
+            fi
             raise_window "$uuid"
             db_claim_window "$workspace_name" "$window_name" "$uuid" "$window_title"
 
@@ -392,7 +432,12 @@ execute_launch_window() {
     # ──────────────────────────────────────────────
 
     debug_log "$function_name" "Phase 5: Register window (detection_method=$detection_method)"
-    window_title=$(_read_title_for_registration "$uuid")
+    if ! window_title=$(_read_title_for_registration "$uuid"); then
+        debug_error "$function_name" "$ERR_UUID_NOT_FOUND" "Window $uuid for $app_id closed before it could be registered"
+        info_log "$function_name" "Window $uuid closed before it could be registered"
+        debug_function_exit "$function_name"
+        return 1
+    fi
 
     if [[ "$detection_method" == "new_window" ]]; then
         # Fresh launch — new window appeared
