@@ -108,7 +108,7 @@ check_snapshot_dependencies() {
     fi
 
     if ! command -v qdbus-qt6 &>/dev/null && ! command -v qdbus6 &>/dev/null; then
-        missing+=("qdbus-qt6")
+        missing+=("qdbus-qt6 or qdbus6")
     fi
 
     if [[ ${#missing[@]} -gt 0 ]]; then

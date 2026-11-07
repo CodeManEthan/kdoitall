@@ -22,7 +22,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DAEMON="${SCRIPT_DIR}/daemon.py"
 JS_FILE="${SCRIPT_DIR}/snapshot.js"
 
-QDBUS="${QDBUS_BIN:-qdbus-qt6}"
+# shellcheck source=qdbus.sh
+source "${SCRIPT_DIR}/qdbus.sh"
+QDBUS="$(select_qdbus_bin)"
 TIMEOUT_SECS="${1:-5}"
 TIMEOUT_MS=$(( TIMEOUT_SECS * 1000 ))
 
