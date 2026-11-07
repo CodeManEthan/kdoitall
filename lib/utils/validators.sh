@@ -58,6 +58,45 @@ validate_app_id_format() {
     fi
 }
 
+# Launch parameters are stored in a '|'-separated record, one line per window,
+# with tabs separating the values of a multi-parameter function. So a value may
+# hold a tab but not '|', a newline or any other control character.
+# Returns 0 when the params are safe to store, 1 otherwise. Prints nothing:
+# each caller says what was wrong in its own words.
+validate_params() {
+    local params="$1"
+
+    if [[ "$params" == *'|'* ]]; then
+        return 1
+    fi
+
+    local without_tabs="${params//$'\t'/}"
+    if [[ "$without_tabs" =~ [[:cntrl:]] ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+# True when a launch-options listing (one "function|..." line per option, as
+# db_get_launch_options prints it) has a line whose first field is exactly
+# the given function name. ENVIRON keeps the name literal: awk -v would
+# process backslash escapes and a grep pattern would read regex syntax.
+launch_option_exists() {
+    local launch_opts="$1"
+    local launch_function="$2"
+
+    [[ -n "$launch_opts" ]] || return 1
+    printf '%s\n' "$launch_opts" | \
+        LAUNCH_FUNCTION="$launch_function" awk -F'|' '$1 == ENVIRON["LAUNCH_FUNCTION"] { found = 1 } END { exit !found }'
+}
+
+# Shell identifier: what the workspace script generator writes as a command
+# word (the launch function) or a variable name (the position).
+is_shell_identifier() {
+    [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]
+}
+
 validate_parameter_pass() {
     local parameter="$1"
     local parameter_name="$2"

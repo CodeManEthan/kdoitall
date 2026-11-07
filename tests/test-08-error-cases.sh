@@ -156,6 +156,72 @@ run_kdoitall "workspace focus test-single-kate"
 assert_failure && test_pass || true
 
 # ============================================================================
+# Unsafe values are refused at every entry point
+# ============================================================================
+# Params may hold tabs but not '|', newlines or other control characters, and
+# a launch function name is matched exactly, never as a pattern. A refused
+# command leaves no window definition behind and runs nothing.
+
+local unsafe_marker unsafe_json
+unsafe_marker=$(mktemp -u /tmp/kdoitall-test-unsafe-marker-XXXXXX)
+unsafe_json=$(mktemp /tmp/kdoitall-test-unsafe-XXXXXX.json)
+
+# import: '|' in params
+jq -n '{windows: [{name: "test-unsafe-win", app: "org.kde.kate", desktop: 1,
+        screen: "1", position: "Fullscreen", params: "a|b"}]}' > "$unsafe_json"
+test_start "import refuses '|' in params"
+run_kdoitall "workspace create test-unsafe --from-file $(printf '%q' "$unsafe_json")"
+assert_failure && test_pass || true
+
+# import: newline in params
+jq -n '{windows: [{name: "test-unsafe-win", app: "org.kde.kate", desktop: 1,
+        screen: "1", position: "Fullscreen", params: "a\nb"}]}' > "$unsafe_json"
+test_start "import refuses a newline in params"
+run_kdoitall "workspace create test-unsafe --from-file $(printf '%q' "$unsafe_json")"
+assert_failure && test_pass || true
+
+# import: a launch function name that a grep pattern would have matched
+jq -n --arg fn "\$(touch $unsafe_marker)\\|" \
+    '{windows: [{name: "test-unsafe-win", app: "code", desktop: 1,
+        screen: "1", position: "Fullscreen", function: $fn, params: "/tmp"}]}' > "$unsafe_json"
+test_start "import refuses a launch function that is not an exact match"
+run_kdoitall "workspace create test-unsafe --from-file $(printf '%q' "$unsafe_json")"
+assert_failure && test_pass || true
+rm -f "$unsafe_json"
+
+# add-window: '|' in --params
+test_start "add-window refuses '|' in --params"
+run_kdoitall "workspace add-window test-single-kate --name test-unsafe-win --app org.kde.kate -d 1 -s 1 -p fs --params $(printf '%q' 'a|b')"
+assert_failure && test_pass || true
+
+# add-window: crafted --function
+test_start "add-window refuses a launch function that is not an exact match"
+run_kdoitall "workspace add-window test-single-kate --name test-unsafe-win --app code -d 1 -s 1 -p fs -f $(printf '%q' "\$(touch $unsafe_marker)\\|") --params /tmp"
+assert_failure && test_pass || true
+
+# edit-window: '|' in --params
+test_start "edit-window refuses '|' in --params"
+run_kdoitall "workspace edit-window test-single-kate test-kate-main --params $(printf '%q' 'a|b')"
+assert_failure && test_pass || true
+
+# edit-window: crafted --function
+test_start "edit-window refuses a launch function that is not an exact match"
+run_kdoitall "workspace edit-window test-single-kate test-kate-main -f $(printf '%q' "\$(touch $unsafe_marker)\\|")"
+assert_failure && test_pass || true
+
+test_start "refused commands left no window definition and ran nothing"
+local unsafe_rows
+unsafe_rows=$(db_test_query "SELECT COUNT(*) FROM window_definitions WHERE window_name='test-unsafe-win' OR workspace_name='test-unsafe';")
+if [[ "$unsafe_rows" != "0" ]]; then
+    test_fail "found $unsafe_rows window definition(s) from a refused command"
+elif [[ -e "$unsafe_marker" ]]; then
+    test_fail "a crafted value was run by the shell ($unsafe_marker exists)"
+    rm -f "$unsafe_marker"
+else
+    test_pass
+fi
+
+# ============================================================================
 # Invalid subcommands
 # ============================================================================
 

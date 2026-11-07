@@ -412,7 +412,14 @@ _edit_window() {
             echo "" >&3
             echo "Current parameters: ${e_parameters:-<none>}" >&3
             echo "Enter new parameters (press Enter to clear):" >&3
-            read -r e_parameters
+            local new_parameters=""
+            read -r new_parameters
+            if ! validate_params "$new_parameters"; then
+                print_error "Parameters must not contain '|' or control characters."
+                debug_function_exit "$function_name"
+                return 1
+            fi
+            e_parameters="$new_parameters"
             modified=true
             print_success "Parameters updated"
             ;;
