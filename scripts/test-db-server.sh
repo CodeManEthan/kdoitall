@@ -33,6 +33,9 @@ server_start() {
 
 server_stop() {
     if [[ -n "$_SERVER_PID" ]]; then
+        # $_SERVER_IN holds a file descriptor number, so >& writes stdout to that
+        # descriptor; shellcheck reads it as a stdout+stderr redirect to a file.
+        # shellcheck disable=SC2261
         printf '%s\n' "QUIT" >&"$_SERVER_IN" 2>/dev/null
         wait "$_SERVER_PID" 2>/dev/null
         _SERVER_PID=""
