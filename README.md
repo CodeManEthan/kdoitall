@@ -2,7 +2,7 @@
 
 **KDE Desktop Automation Tool**
 
-![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)![Version: v0.2.1](https://img.shields.io/badge/Version-v0.2.1-green.svg)
+![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)![Version: v0.2.2](https://img.shields.io/badge/Version-v0.2.2-green.svg)[![check](https://github.com/CodeManEthan/kdoitall/actions/workflows/check.yml/badge.svg)](https://github.com/CodeManEthan/kdoitall/actions/workflows/check.yml)
 
 ![kdoitall workspace open demo: one command places five apps across two screens](docs/media/kdoitall-demo.gif)
 
@@ -12,7 +12,20 @@
 
 kdoitall automates workspace management on KDE Plasma desktops. Define a workspace as a collection of applications, assign each one a screen, virtual desktop, and window position, then open and close the entire workspace with a single command. Individual windows can also be manipulated on-the-fly using `kdoitall quick` and the window commands, without needing to define a workspace.
 
-It supports multi-screen and multi-desktop setups on both Wayland and X11, uses SQLite for state tracking, and detects installed applications automatically from `.desktop` files.
+It handles multi-screen and multi-desktop setups, keeps its state in SQLite, and finds installed applications from their `.desktop` files.
+
+## How it works
+
+1. **Scan.** `kdoitall app scan` reads the `.desktop` files in the standard application directories (see `DESKTOP_FILE_LOCATIONS` under [Configuration](#configuration)), skips the ones marked `NoDisplay=true`, and records each app's id and name. Apps whose `.desktop` file lists the `TerminalEmulator` category are marked as terminal emulators. Launch details kdoitall already knows, from the bundled app registry or an app definition under `lib/app-definitions/`, are filled in here.
+2. **Define.** A workspace is a list of windows. Each window names an app, a virtual desktop, a screen and a position. `kdoitall workspace create <name>` asks for these one window at a time, or `--from-file` reads them from a JSON file (see [Workspace files](#workspace-files)). kdoitall stores the definition in its database and writes a small launch script for the workspace into its data directory (`~/.local/share/kdoitall/workspaces/`).
+3. **Open.** `kdoitall workspace open <name>` runs that script. For each window it launches the app, waits for the new window to appear, moves it to its desktop and screen, sizes it to its position, and records it, so `close`, `focus`, `status` and the window commands can find it later. If an app allows only one instance and a window of it is already open, kdoitall reuses that window.
+
+**Safe mode.** kdoitall needs to know an app's window class to find its window. The first time a workspace opens an app it hasn't profiled, it stops and lists those apps. You can accept, skip this time, turn the prompts off, or quit. If you accept, safe mode runs once per app. It launches the app on its own, then measures how long the window takes to appear and reads its window class. It also checks whether the process id identifies the window and picks a title pattern. Then it tests whether a second instance opens a new window (the launch mode), which can briefly open a second window, and notes any splash screen. It shows the results and asks you to accept, retry, skip, or pick a different title pattern. kdoitall stores accepted results and doesn't offer safe mode for that app again. A skipped app is offered again on the next open.
+
+- `kdoitall workspace open --skip <name>` opens without asking.
+- `SAFE_MODE_STRICTNESS` decides which apps count as unprofiled: `relaxed` (the default) means no known window class, `strict` also means an unknown launch mode or splash behaviour.
+- `SAFE_MODE_PROMPTING="disabled"` turns the prompts off for good. The prompt's Disable option can set this for you.
+- `kdoitall app safe-mode` runs safe mode outside a workspace; `app safe-mode skip <app_id>` and `app safe-mode reset <app_id>` mark an app done or clear its results.
 
 ## Key Features
 
@@ -25,8 +38,9 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 
 ## Requirements
 
-- **Desktop Environment:** KDE Plasma 5.x or 6.x
-- **Display Server:** Wayland (recommended) or X11
+Tested on Fedora, Plasma 6, Wayland. X11 and Plasma 5 should work but are untested.
+
+- **Desktop Environment:** KDE Plasma
 - **Shell:** Bash 4.0+
 
 ### Dependencies
@@ -36,10 +50,22 @@ It supports multi-screen and multi-desktop setups on both Wayland and X11, uses 
 | `kdotool`        | KDE window management          |
 | `kscreen-doctor` | Screen/display detection       |
 | `sqlite3`        | Database operations            |
+| `python3`        | Runs the database server (`lib/db/db-server.py`) |
 | `jq`             | JSON parsing                   |
 | `gtk-launch`     | Application launching          |
 
+kdoitall checks for all six at startup and, if one is missing, names it with the install command for your package manager (dnf, apt, pacman or zypper).
+
 > **Note:** `kdotool` is not available in standard package repos for most distributions. The install script can automatically download and install it for you, or you can install it manually from https://github.com/jinliu/kdotool
+
+### Optional: the KWin snapshot daemon
+
+| Needs                              | What for                                    |
+|------------------------------------|---------------------------------------------|
+| Python `dbus` and `gi` modules (python3-dbus, python3-gobject) | The daemon (`lib/kwin-scripts/daemon.py`) |
+| `qdbus-qt6`                        | Talks to the daemon over the session bus    |
+
+With these installed, kdoitall reads the window list through a KWin script that returns every window in one call. A small daemon on the session bus (`org.kdoitall.Snapshot`) carries the result back. kdoitall starts it on first use and it stays up for the session. Without them, kdoitall asks `kdotool` instead. That still works, but `kdotool` reports windows one by one, so a window that appears mid-query can be missed or cut short. `kdoitall --restart-snapshot-daemon` stops the daemon and starts a new one.
 
 ## Installation
 ```bash
@@ -68,6 +94,93 @@ kdoitall workspace open my-workspace
 kdoitall workspace close my-workspace
 ```
 
+<!-- sample: workspace open + status output, captured later -->
+
+## Workspace files
+
+A workspace can be written as JSON. This is `tests/fixtures/multi-window.json`, which the test suite imports:
+
+```json
+{
+  "workspace": "test-multi-window",
+  "description": "Test workspace with Kate and Dolphin on different desktops/screens",
+  "focus_window": "test-mw-kate",
+  "windows": [
+    {
+      "name": "test-mw-kate",
+      "app": "org.kde.kate",
+      "desktop": 9,
+      "screen": "1",
+      "position": "Left Half"
+    },
+    {
+      "name": "test-mw-dolphin",
+      "app": "org.kde.dolphin",
+      "desktop": 8,
+      "screen": "2",
+      "position": "Right Half"
+    }
+  ]
+}
+```
+
+`kdoitall workspace export <name>` prints this shape to stdout, and `kdoitall workspace create <name> --from-file <file>` reads it (add `--replace` to overwrite a workspace of that name). The name on the command line wins over the file's `workspace` field.
+
+- `description` and `focus_window` are optional. `focus_window` names the window to bring to the front once the workspace is open.
+- Each window `name` must be unique across all your workspaces.
+- `app` is an app id from `kdoitall app list`. Run `kdoitall app scan` first, or the import refuses unknown apps.
+- `desktop` must be a desktop that exists (1 up to your desktop count).
+- `screen` is a screen number, an output name such as `DP-1`, or an alias set with `kdoitall screen alias`.
+- `position` is one of the [positions](#positions).
+- `function` and `params` are optional. Without them kdoitall starts the app through its `.desktop` file. `kdoitall app options <app_id>` lists the launch functions an app has and the values each takes. When a function takes several values, `params` holds them in one string separated by tabs (`\t` in JSON).
+
+### Workspace files you didn't write
+
+A workspace file can run commands. A window whose app is a terminal emulator can use one of the shared terminal functions, and those run what `params` says:
+
+- `terminal_run_command_in_directory` opens a terminal, changes into the directory and runs the command.
+- `terminal_launch_dev_server` changes into the directory, sources the virtualenv activate script if one is given, and runs the server command.
+- `terminal_run_script` runs the script at the path given.
+
+That is what these functions are for, and kdoitall does not ask before it runs them. kdoitall checks every value in a workspace file and passes it through as plain text, so a name or a path can't turn into a command. The commands and scripts these three functions run are a different matter, because running them is the point. So import only workspace files you trust, and read each window's `function` and `params` before you do.
+
+## Positions
+
+Positions are sized to the screen the window is on. The 12 defaults are always available. The 16 extras are off until you list them in `EXTRA_POSITIONS` (see [Configuration](#configuration)).
+
+| Position          | Abbreviation | Set     |
+|-------------------|--------------|---------|
+| Fullscreen        | `fs`         | default |
+| Right Half        | `rh`         | default |
+| Left Half         | `lh`         | default |
+| Top Half          | `th`         | default |
+| Bottom Half       | `bh`         | default |
+| Top Left          | `tl`         | default |
+| Top Right         | `tr`         | default |
+| Bottom Left       | `bl`         | default |
+| Bottom Right      | `br`         | default |
+| Left Third        | `lt`         | default |
+| Middle Third      | `mt`         | default |
+| Right Third       | `rt`         | default |
+| Left Two-Thirds   | `l2t`        | extra   |
+| Right Two-Thirds  | `r2t`        | extra   |
+| Left 60           | `l60`        | extra   |
+| Right 40          | `r40`        | extra   |
+| Left 40           | `l40`        | extra   |
+| Right 60          | `r60`        | extra   |
+| Center Half       | `ch`         | extra   |
+| Left 25           | `l25`        | extra   |
+| Right 25          | `r25`        | extra   |
+| Center Two-Thirds | `c2t`        | extra   |
+| Top Two-Thirds    | `t2t`        | extra   |
+| Bottom Two-Thirds | `b2t`        | extra   |
+| Top 60            | `t60`        | extra   |
+| Bottom 40         | `b40`        | extra   |
+| Top 40            | `t40`        | extra   |
+| Bottom 60         | `b60`        | extra   |
+
+Wherever kdoitall asks for a position, you can give the name in any case (`left half`) or the lowercase abbreviation (`lh`). Workspace files, `add-window` and `edit-window` also take the constant name, such as `LEFTHALF`. In the interactive menus the extras are numbered after the defaults, in the order you list them.
+
 ## Usage
 ```
 kdoitall [OPTIONS] <COMMAND> [ARGS...]
@@ -75,11 +188,14 @@ kdoitall [OPTIONS] <COMMAND> [ARGS...]
 
 ### Global Options
 ```
---help, -h       Show help message
---version, -v    Show version
---info           Show key milestones during execution
---verbose        Enable verbose output
+--help, -h                  Show help message
+--version, -v               Show version
+--info                      Show key milestones during execution
+--verbose                   Enable verbose output
+--restart-snapshot-daemon   Stop and respawn the KWin snapshot daemon
 ```
+
+`--help` and `--version` print their text and exit before kdoitall checks its dependencies or opens its database, so they work on any Linux machine with bash. Every other command, subcommand help included, checks the dependencies first.
 
 ### Status & Update
 ```
@@ -91,6 +207,17 @@ update           Update kdoitall (git pull + rebuild app registry)
 
 ```
 quick            Interactive window picker for ad-hoc actions
+```
+
+`kdoitall quick` lists every open window (KDE's own system windows left out) with its desktop, screen and position, whether or not a workspace opened it. Pick one by number, then pick an action: move to a desktop, a screen or a position, a combo move, focus, minimize or close.
+
+A combo move takes desktop, screen and position in one line. A `.` keeps that value as it is, so `. 2 fs` leaves the window on its desktop and makes it fullscreen on screen 2. A session, with the window list left out:
+
+```
+$ kdoitall quick
+Select window [1-5] (q to quit): 3
+Select action [1-7] (b to go back, q to quit): 4
+Enter combo: . 2 fs
 ```
 
 ### Workspace Commands (workspace | ws)
@@ -179,14 +306,55 @@ Flag mode (any combination, any order):
 Unspecified properties are preserved.
 ```
 
+## Configuration
+
+kdoitall reads its defaults from `config` in the project directory, then your own settings from `~/.config/kdoitall/config` (`$XDG_CONFIG_HOME/kdoitall/config` if you set that variable). The user file is a bash file. `scripts/install.sh` creates it with every setting below commented out, so uncomment a line to change it.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `SAFE_MODE_PROMPTING` | `"enabled"` | `"disabled"` stops `workspace open` from offering safe mode for unprofiled apps. |
+| `SAFE_MODE_STRICTNESS` | `"relaxed"` | `"relaxed"` offers safe mode only when an app's window class is unknown. `"strict"` also offers it when the launch mode or splash behaviour is unknown. |
+| `LOG_TO_FILE` | `"disabled"` | `"enabled"` writes the full verbose log of every run to a new file in `LOG_DIR`, whatever flags you pass. |
+| `LOG_DIR` | `~/.local/state/kdoitall/logs` (under `$XDG_STATE_HOME` if set) | Where those log files go. |
+| `CLOSE_WAIT_TIMEOUT` | `60` | Seconds `workspace close` waits for a window that didn't close at once (one showing a save dialog, say) before it skips that window. It brings the window to the front while it waits. |
+| `EXTRA_POSITIONS` | not set | A bash array of extra [position](#positions) names to turn on, such as `EXTRA_POSITIONS=("Left Two-Thirds" "Right Two-Thirds")`. |
+| `DESKTOP_FILE_LOCATIONS` | `/usr/share/applications`, `/usr/local/share/applications`, `~/.local/share/applications`, `/var/lib/flatpak/exports/share/applications`, `~/.local/share/flatpak/exports/share/applications`, `/var/lib/snapd/desktop/applications` | The directories `app scan` reads `.desktop` files from. |
+
+`DESKTOP_FILE_LOCATIONS` can't be changed from your user file yet. The project `config` declares it read-only, so setting it in `~/.config/kdoitall/config` stops every kdoitall command with a `readonly variable` error. For now, change it in the project's `config`. That edit is a local change in the git checkout, so `kdoitall update` (a `git pull`) may stop on it.
+
 ## Project Status
 
-kdoitall is in a stable state with a broad set of features for workspace automation and window management. Further testing is ongoing to improve reliability and handle remaining edge cases.
+Maintained. Latest: v0.2.2.
+
+kdoitall is usable for daily work, and it is still 0.x. Testing goes on to find and fix the edge cases in window detection and launching.
 
 Current gaps:
 
 - Limited metadata coverage in the app-registry database — most applications still require safe-mode to gather launch properties
 - Application definitions only exist for VS Code and Firefox — other apps use generic launch behavior
+- The integration tests need a live Plasma session, so CI runs only the static checks and unit tests (see [Testing](#testing))
+
+## Testing
+
+There are two suites.
+
+The unit tests load kdoitall's library code and check it without KDE, a database or any windows. Run them anywhere:
+
+```bash
+bash tests/unit/run.sh
+```
+
+The integration suite is 16 files, `tests/test-01-*.sh` to `tests/test-16-*.sh`, run in order by:
+
+```bash
+tests/run-tests.sh
+```
+
+It drives real windows on your live Plasma session. It launches Kate, Dolphin, Firefox, VS Code, digiKam and System Settings, and moves them across desktops 5 to 9 and two screens. It needs those apps installed, at least nine virtual desktops and two screens. Leave the keyboard and mouse alone while it runs. If the environment checks in test-01 fail, the remaining files are skipped.
+
+Each run uses its own data directory, a fresh database in a new `kdoitall-test-data.*` directory under `$TMPDIR` (or `/tmp`), deleted when the run ends. Your own database and workspace scripts are never read or written. Windows that were open before the run are left alone.
+
+On every push and pull request, GitHub Actions (`.github/workflows/check.yml`) runs `bash -n` and `shellcheck` on every shell file, compiles the Python files, runs the unit tests, and checks that `--help` and `--version` work on a machine with no KDE tools.
 
 ## Documentation
 In-depth architecture details, function maps, and change checklists live in the [`docs/`](docs/README.md) directory:
@@ -199,7 +367,9 @@ Database schema changes are applied automatically on each startup via forward-on
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture details, coding standards, and how to add application support.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) holds the contributor agreement: your contributions are licensed under GPL-3.0-or-later, you keep your copyright, and you give the maintainer the right to relicense them under other open source licenses.
+
+For a structural change, follow the matching checklist in [`docs/checklists/`](docs/checklists): [adding an application](docs/checklists/adding-an-application.md), [adding a command](docs/checklists/adding-a-command.md), or [modifying the database schema](docs/checklists/modifying-database-schema.md).
 
 ## License
 ```
