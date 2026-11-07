@@ -8,7 +8,7 @@ check_dependencies() {
     local -a missing=()
 
     # Check each required command
-    local -a required_commands=(kdotool jq kscreen-doctor sqlite3 gtk-launch)
+    local -a required_commands=(kdotool jq kscreen-doctor sqlite3 python3 gtk-launch)
     for cmd in "${required_commands[@]}"; do
         if ! command -v "$cmd" &> /dev/null; then
             missing+=("$cmd")
@@ -30,6 +30,7 @@ check_dependencies() {
         pkg_map=(
             [kscreen-doctor]="kscreen"
             [sqlite3]="sqlite"
+            [python3]="python3"
             [gtk-launch]="glib2"
         )
     elif command -v apt &> /dev/null; then
@@ -38,6 +39,7 @@ check_dependencies() {
         pkg_map=(
             [kscreen-doctor]="kscreen"
             [sqlite3]="sqlite3"
+            [python3]="python3"
             [gtk-launch]="libglib2.0-bin"
         )
     elif command -v pacman &> /dev/null; then
@@ -46,6 +48,7 @@ check_dependencies() {
         pkg_map=(
             [kscreen-doctor]="kscreen"
             [sqlite3]="sqlite"
+            [python3]="python"
             [gtk-launch]="glib2"
         )
     elif command -v zypper &> /dev/null; then
@@ -54,6 +57,7 @@ check_dependencies() {
         pkg_map=(
             [kscreen-doctor]="kscreen"
             [sqlite3]="sqlite3"
+            [python3]="python3"
             [gtk-launch]="glib2-tools"
         )
     fi

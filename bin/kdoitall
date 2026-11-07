@@ -140,6 +140,37 @@ source "${LIB_DIR}/utils/checks.sh"
 source "${LIB_DIR}/utils/validators.sh"
 
 # ============================================================================
+# Text-only commands: help, version, and no command at all
+# ============================================================================
+# These print their text and exit before anything touches the database,
+# python3, kscreen-doctor or kdotool, so they work on any machine.
+case "$COMMAND" in
+    --help|-h)
+        # shellcheck source=../lib/commands/help.sh
+        source "${LIB_DIR}/commands/help.sh"
+        show_help
+        exit 0
+        ;;
+    --version|-v)
+        echo "kdoitall v$(cat "${KDOITALL_ROOT}/VERSION")"
+        exit 0
+        ;;
+    "")
+        # shellcheck source=../lib/commands/help.sh
+        source "${LIB_DIR}/commands/help.sh"
+        show_help >&2
+        exit 1
+        ;;
+esac
+
+# ============================================================================
+# Dependency Check
+# ============================================================================
+# Report a missing tool by name before anything below shells out to it.
+check_dependencies
+check_snapshot_dependencies
+
+# ============================================================================
 # LAYER 3 - Core Services (depend on foundation + core utilities)
 # ============================================================================
 # shellcheck source=../lib/db/helpers.sh
@@ -203,26 +234,11 @@ if [[ "${VERBOSE_MODE:-false}" == "true" ]]; then
     echo ""
     echo "Detected Desktops: $DETECTED_DESKTOP_COUNT"
 fi
-# ============================================================================
-# Dependency Check
-# ============================================================================
-check_dependencies
-check_snapshot_dependencies
 
 # ============================================================================
 # Command Dispatch
 # ============================================================================
 case "$COMMAND" in
-    --help|-h)
-        # shellcheck source=../lib/commands/help.sh
-        source "${LIB_DIR}/commands/help.sh"
-        show_help
-        ;;
-    
-    --version|-v)
-        echo "kdoitall v$(cat "${KDOITALL_ROOT}/VERSION")"
-        ;;
-        
     workspace|ws)
         # shellcheck source=../lib/commands/workspace/dispatcher.sh
         source "${LIB_DIR}/commands/workspace/dispatcher.sh"
