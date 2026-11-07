@@ -257,7 +257,7 @@ remove-window (rw) <name> <window>     Remove a window from a workspace
 ### Application Commands (app)
 ```
 scan                                  Scan system for available applications
-list (ls) [filter]                    List applications (all, terminal, desktop, both)
+list (ls) [filter]                    List applications (all, terminal, desktop)
 info (i) <app_id|name>               Show detailed information about an application
 validate                              Validate all application definition files
 options (opts) <app_id>               Show launch options for an application
